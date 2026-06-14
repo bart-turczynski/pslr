@@ -7,13 +7,18 @@
 scaffold_ready()
 }
 \value{
-A single logical value, always \code{TRUE}.
+A single logical value, \code{TRUE} when the engine and \code{punycoder} are
+both reachable.
 }
 \description{
-A placeholder function shipped with the project scaffold so the package has
-an exported, documented, and tested function from the very first commit.
-Replace it with your package's real code.
+A placeholder shipped with the package scaffold so there is an exported,
+documented, and tested function from the very first commit. It returns \code{TRUE}
+only when both the compiled \code{cpp11} engine and the \code{punycoder} dependency
+respond, which proves the full toolchain (LinkingTo, registration,
+dynamic-library load, and the imported normalizer) is wired. The real public
+API (see \code{docs/PRD.md} s7) replaces it in later phases.
 }
 \examples{
 scaffold_ready()
+
 }

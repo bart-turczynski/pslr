@@ -1,18 +1,26 @@
 Package: pslr
 Type: Package
-Title: One Line Description in Title Case
+Title: Public Suffix List Engine
 Version: 0.0.0.9000
 Authors@R:
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: A single paragraph describing what the package does and why it is
-    useful. End the description with a full stop. Replace this placeholder text
-    before submitting to CRAN.
+    person("Bart", "Turczynski", email = "bartek+pslr@turczynski.pl",
+           role = c("aut", "cre"))
+Description: A focused implementation of the Public Suffix List (PSL). Bundles a
+    reproducible, pinned PSL snapshot and implements the official prevailing-rule
+    algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1)
+    queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and
+    ASCII hostnames via 'punycoder' canonicalization, and supports an explicit,
+    validated offline refresh path. The matcher is compiled with 'cpp11' and
+    requires no external system library.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
 Depends:
     R (>= 4.0.0)
+Imports:
+    punycoder (>= 1.0.0)
+LinkingTo:
+    cpp11
 Suggests:
     cucumber (>= 2.0.0),
     knitr,
@@ -20,3 +28,4 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 VignetteBuilder: knitr
+Config/roxygen2/version: 8.0.0
