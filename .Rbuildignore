@@ -1,0 +1,33 @@
+# R build/dev artifacts
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.Rhistory$
+^\.RData$
+^\.Ruserdata$
+^.*\.Rcheck$
+^.*\.tar\.gz$
+^\.lintr$
+^cran-comments\.md$
+^CRAN-SUBMISSION$
+^doc$
+^Meta$
+# Shared scaffold layer: everything below is dev tooling, not package content,
+# and would otherwise trip "non-standard files/directories" in R CMD check.
+^\.github$
+^\.editorconfig$
+^\.env$
+^\.env\.example$
+^\.gitattributes$
+^\.gitignore$
+^\.pre-commit-config\.yaml$
+^\.fp$
+^FP_CLAUDE\.md$
+^FP_AGENTS\.md$
+^_scratch$
+^docs$
+^CLAUDE\.md$
+^AGENTS\.md$
+^CONTRIBUTING\.md$
+^SECURITY\.md$
+^CHANGELOG\.md$
+^\.DS_Store$

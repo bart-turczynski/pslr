@@ -1,0 +1,28 @@
+# Overrides the shared config: the shared `verify` hook wraps the command in a
+# bash invocation that breaks on R's verify command (it contains the double
+# quotes from the rcmdcheck --as-cran argument). Here the R code is passed as a
+# single argv element, so no shell quoting is involved.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ['--maxkb=5120']
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: mixed-line-ending
+      - id: check-case-conflict
+  - repo: local
+    hooks:
+      - id: verify
+        name: verify (mirrors CI)
+        entry: Rscript -e
+        args:
+          - 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }; rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning")'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+        verbose: true

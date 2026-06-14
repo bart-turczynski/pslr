@@ -1,0 +1,22 @@
+Package: pslr
+Type: Package
+Title: One Line Description in Title Case
+Version: 0.0.0.9000
+Authors@R:
+    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
+Description: A single paragraph describing what the package does and why it is
+    useful. End the description with a full stop. Replace this placeholder text
+    before submitting to CRAN.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends:
+    R (>= 4.0.0)
+Suggests:
+    cucumber (>= 2.0.0),
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+VignetteBuilder: knitr
