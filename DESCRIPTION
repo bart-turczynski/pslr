@@ -18,9 +18,11 @@ Roxygen: list(markdown = TRUE)
 Depends:
     R (>= 4.0.0)
 Imports:
-    punycoder (>= 1.0.0)
+    punycoder (>= 1.1.0)
 LinkingTo:
     cpp11
+Remotes:
+    bart-turczynski/punycoder@v1.1.0
 Suggests:
     cucumber (>= 2.0.0),
     knitr,
