@@ -1,0 +1,21 @@
+pslr bundled data NOTICE
+========================
+
+The pslr package SOURCE CODE is licensed under the MIT License (see the
+top-level LICENSE file and the DESCRIPTION License field).
+
+This package additionally BUNDLES the Public Suffix List as data:
+
+  Source file: inst/extdata/public_suffix_list.dat
+  Project:     https://github.com/publicsuffix/list
+  Source URL:  https://raw.githubusercontent.com/publicsuffix/list/9186eeeda85cef35b1551d00731464939c765cab/public_suffix_list.dat
+  Commit:      9186eeeda85cef35b1551d00731464939c765cab
+  Checksum:    sha256:54fb5c65a1e21aad963acd74a204370b5f517071e8b8e140c48de40727f0171c
+
+The Public Suffix List source above and every derived representation
+bundled in this package (the internal index in R/sysdata.rda) are
+licensed under the Mozilla Public License 2.0 (MPL-2.0), NOT the MIT
+license. The full MPL-2.0 text is included at inst/extdata/PSL-LICENSE.
+
+The package-code license (MIT) and the bundled-data license (MPL-2.0) are
+separate; use of the bundled list data is governed by MPL-2.0.

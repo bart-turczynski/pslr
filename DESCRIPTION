@@ -25,6 +25,7 @@ Remotes:
     bart-turczynski/punycoder@v1.1.0
 Suggests:
     cucumber (>= 2.0.0),
+    digest,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)
