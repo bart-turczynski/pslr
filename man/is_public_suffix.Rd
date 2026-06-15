@@ -38,8 +38,8 @@ A logical vector with \code{length(domain)}, preserving the names of
 \code{TRUE} exactly when the valid canonical host equals its own public suffix
 under the selected policy. Returns \code{NA} whenever \code{\link[=public_suffix]{public_suffix()}} would
 return \code{NA} (missing or invalid input, or an unresolved host under
-\code{unknown = "na"}). Under the default \code{unknown = "default"}, an unlisted single
-label such as \code{"madeuptld"} is \code{TRUE} via the implicit \code{*} rule; ask
+\code{unknown = "na"}). Under the default \code{unknown = "default"}, an unlisted
+single label such as \code{"madeuptld"} is \code{TRUE} via the implicit \code{*} rule; ask
 \code{unknown = "na"} to test explicit membership instead.
 }
 \section{Input contract}{
