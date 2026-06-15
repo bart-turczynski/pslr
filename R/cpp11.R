@@ -3,3 +3,11 @@
 pslr_engine_id <- function() {
   .Call(`_pslr_pslr_engine_id`)
 }
+
+psl_build_matcher <- function(keys, kinds, sections) {
+  .Call(`_pslr_psl_build_matcher`, keys, kinds, sections)
+}
+
+psl_match <- function(matcher, hosts, section_code) {
+  .Call(`_pslr_psl_match`, matcher, hosts, section_code)
+}
