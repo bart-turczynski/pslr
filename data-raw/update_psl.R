@@ -33,6 +33,7 @@ if (!grepl("^[0-9a-f]{40}$", commit)) {
 raw_base <- "https://raw.githubusercontent.com/publicsuffix/list"
 dat_url <- sprintf("%s/%s/public_suffix_list.dat", raw_base, commit)
 license_url <- sprintf("%s/%s/LICENSE", raw_base, commit)
+tests_url <- sprintf("%s/%s/tests/tests.txt", raw_base, commit)
 api_url <- sprintf(
   "https://api.github.com/repos/publicsuffix/list/commits/%s", commit
 )
@@ -41,8 +42,13 @@ dat_path <- "inst/extdata/public_suffix_list.dat"
 psl_license_path <- "inst/extdata/PSL-LICENSE"
 notice_path <- "inst/NOTICE"
 sysdata_path <- "R/sysdata.rda"
+# Official CC0 test vectors, kept in lockstep with the bundled snapshot. Lives
+# under tests/testthat/fixtures/ so it ships with the package tests; the name
+# avoids the `test*` pattern testthat would otherwise execute as a test file.
+tests_path <- "tests/testthat/fixtures/psl-vectors.txt"
 
 dir.create("inst/extdata", recursive = TRUE, showWarnings = FALSE)
+dir.create("tests/testthat/fixtures", recursive = TRUE, showWarnings = FALSE)
 
 # --- load the in-tree parser + policy ---------------------------------------
 
@@ -57,6 +63,7 @@ download_text <- function(url, dest) {
 
 download_text(dat_url, dat_path)
 download_text(license_url, psl_license_path)
+download_text(tests_url, tests_path)
 
 # Commit date drives the recorded list_date; deterministic given the SHA.
 commit_meta <- jsonlite::fromJSON(api_url)
@@ -142,4 +149,5 @@ message("  rules:      ", nrow(rules),
         ", private: ", sum(rules$section == "private"), ")")
 message("  profile:    ", meta$normalization_profile,
         " / Unicode ", meta$unicode_version)
+message("  vectors:    ", tests_path)
 message("Review the upstream diff before committing the regenerated artifacts.")
