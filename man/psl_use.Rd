@@ -12,8 +12,8 @@ snapshot), \code{"cache"} (the latest successfully validated snapshot from
 \code{\link[=psl_refresh]{psl_refresh()}}), or \code{"path"} (a custom file).}
 
 \item{path}{For \code{source = "path"}, a single readable PSL-format UTF-8 file
-containing one complete ICANN section and one complete PRIVATE section using
-official markers. Must be \code{NULL} for any other source.}
+containing one complete ICANN section and one complete PRIVATE section,
+using official markers. Must be \code{NULL} for any other source.}
 }
 \value{
 Invisibly, the \code{\link[=psl_version]{psl_version()}} row for the newly active list.

@@ -22,7 +22,7 @@ The columns, in order, are:
 \describe{
 \item{\code{source}}{\code{"bundled"}, \code{"cache"}, or \code{"path"}.}
 \item{\code{path}}{File path of a \code{"cache"} or \code{"path"} source; \code{NA} otherwise.}
-\item{\code{retrieved_at}}{Network retrieval timestamp of the snapshot, or \code{NA}.}
+\item{\code{retrieved_at}}{Network retrieval timestamp, or \code{NA}.}
 \item{\code{list_date}}{Upstream list date, or \code{NA} when unknown.}
 \item{\code{commit}}{Upstream commit SHA, or \code{NA} when unknown.}
 \item{\code{size}}{Source byte size (integer).}

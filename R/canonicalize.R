@@ -74,8 +74,18 @@ psl_canonicalize <- function(domain, invalid = "na") {
   is_missing <- is.na(domain)
   status[is_missing] <- "na"
 
-  normalized <- punycoder::host_normalize(domain, strict = TRUE)
-  bad <- !is_missing & (is.na(normalized) | is_ipv4_literal(domain))
+  # Deduplicate before normalization so a repeated host costs a single
+  # `punycoder` canonicalization (and IPv4-literal check) regardless of its
+  # multiplicity (PRD s8.2, s11.4). The matcher layer separately deduplicates
+  # the C++ matching call, so the per-duplicate cost of both crossings is
+  # avoided. `match()` maps each input back to its unique representative, with
+  # `NA` matching the single retained `NA`.
+  uniq <- unique(domain)
+  idx <- match(domain, uniq)
+  norm_uniq <- punycoder::host_normalize(uniq, strict = TRUE)
+  ipv4_uniq <- is_ipv4_literal(uniq)
+  normalized <- norm_uniq[idx]
+  bad <- !is_missing & (is.na(normalized) | ipv4_uniq[idx])
   status[bad] <- "invalid"
 
   if (identical(invalid, "error") && any(bad)) {
