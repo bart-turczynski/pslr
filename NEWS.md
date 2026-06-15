@@ -1,6 +1,7 @@
-# pslr 0.0.0.9000
+# pslr 1.0.0
 
-* Initial scaffold.
+First public release: a spec-complete Public Suffix List engine for R.
+
 * Bundled the Public Suffix List snapshot pinned to upstream commit
   `9186eee` (list date 2026-06-13), with a deterministic `data-raw/`
   regeneration script, an internal validated rule index, generation metadata
@@ -26,3 +27,6 @@
   `psl_version()` reports the active-list identity and runtime normalization
   identifiers needed to reproduce a result; `psl_rules()` exposes the active
   rule table.
+* Canonical-host deduplication: a repeated host costs a single `punycoder`
+  normalization and a single C++ matcher call regardless of multiplicity. A
+  non-CRAN benchmark and its release gate live in `bench/benchmark.R`.
