@@ -13,6 +13,8 @@ Description: A focused implementation of the Public Suffix List (PSL). Bundles a
     validated offline refresh path. The matcher is compiled with 'cpp11' and
     requires no external system library.
 License: MIT + file LICENSE
+URL: https://github.com/bart-turczynski/pslr
+BugReports: https://github.com/bart-turczynski/pslr/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Depends:
