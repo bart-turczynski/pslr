@@ -8,6 +8,15 @@
 \description{
 A focused implementation of the Public Suffix List (PSL). Bundles a reproducible, pinned PSL snapshot and implements the official prevailing-rule algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and ASCII hostnames via 'punycoder' canonicalization, and supports an explicit, validated offline refresh path. The matcher is compiled with 'cpp11' and requires no external system library.
 }
+\seealso{
+Core queries: \code{\link[=public_suffix]{public_suffix()}}, \code{\link[=registrable_domain]{registrable_domain()}},
+\code{\link[=is_public_suffix]{is_public_suffix()}}, \code{\link[=suffix_extract]{suffix_extract()}}, \code{\link[=public_suffix_rule]{public_suffix_rule()}}.
+List management and provenance: \code{\link[=psl_use]{psl_use()}}, \code{\link[=psl_refresh]{psl_refresh()}},
+\code{\link[=psl_version]{psl_version()}}, \code{\link[=psl_rules]{psl_rules()}}.
+
+The \code{introduction} vignette is a full tour:
+\code{vignette("introduction", package = "pslr")}.
+}
 \author{
 \strong{Maintainer}: Bart Turczynski \email{bartek+pslr@turczynski.pl}
 

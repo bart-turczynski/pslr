@@ -18,7 +18,7 @@
 #' same-section duplicates (fatal under `"strict"`, warn-and-deduplicate under
 #' `"lenient"`). Cross-section duplicates are always permitted.
 #'
-#' @param rules A rule table as returned by [parse_psl_lines()].
+#' @param rules A rule table as returned by `parse_psl_lines()`.
 #' @param mode `"strict"` for the maintainer build pipeline; `"lenient"` for
 #'   runtime refresh and custom-path loads.
 #' @return The rule table with exact same-section duplicates removed under

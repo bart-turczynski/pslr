@@ -7,11 +7,28 @@
 if (requireNamespace("cucumber", quietly = TRUE)) {
   library(cucumber)
 
-  when("I check the scaffold", function(context) {
-    context$ready <- scaffold_ready()
+  when("I query the host {string}", function(host, context) {
+    context$public_suffix <- public_suffix(host)
+    context$registrable_domain <- registrable_domain(host)
   })
 
-  then("it reports ready", function(context) {
-    expect_true(context$ready)
+  when(
+    "I query the host {string} in section {string}",
+    function(host, section, context) {
+      context$public_suffix <- public_suffix(host, section = section)
+      context$registrable_domain <- registrable_domain(host, section = section)
+    }
+  )
+
+  then("the public suffix is {string}", function(expected, context) {
+    expect_identical(context$public_suffix, expected)
+  })
+
+  then("the registrable domain is {string}", function(expected, context) {
+    expect_identical(context$registrable_domain, expected)
+  })
+
+  then("the public suffix is missing", function(context) {
+    expect_true(is.na(context$public_suffix))
   })
 }

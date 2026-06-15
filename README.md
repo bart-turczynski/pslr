@@ -1,32 +1,91 @@
 # pslr
 
-One-sentence package purpose goes here.
+A focused, spec-complete implementation of the
+[Public Suffix List](https://publicsuffix.org) (PSL) for R. `pslr` bundles a
+reproducible, pinned PSL snapshot and implements the official prevailing-rule
+algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1)
+queries.
 
-## Setup
+- Distinguishes the **ICANN** and **PRIVATE** rule sections.
+- Accepts Unicode, ASCII, and A-label hostnames via `punycoder`
+  canonicalization; returns ASCII or Unicode output.
+- Works fully **offline** from the bundled snapshot; an explicit, validated
+  `psl_refresh()` is the only network path.
+- Matcher compiled with `cpp11`; **no external system library** required.
 
-Install package dependencies (from `DESCRIPTION`) plus the dev tooling used by
-the checks:
+## Installation
+
+`pslr` depends on [`punycoder`](https://github.com/bart-turczynski/punycoder),
+which is installed from GitHub:
+
+```r
+# install.packages("pak")
+pak::pak("bart-turczynski/punycoder")
+pak::pak("bart-turczynski/pslr")
+```
+
+## Usage
+
+```r
+library(pslr)
+
+public_suffix("www.example.co.uk")       #> "co.uk"
+registrable_domain("www.example.co.uk")  #> "example.co.uk"
+
+# ICANN vs PRIVATE sections
+public_suffix("user.github.io")                    #> "github.io"
+public_suffix("user.github.io", section = "icann") #> "io"
+
+# Explicit membership vs the implicit default rule
+is_public_suffix("madeuptld")                  #> TRUE  (implicit "*")
+is_public_suffix("madeuptld", unknown = "na")  #> NA    (explicit only)
+
+# Split a host, or inspect the prevailing rule
+suffix_extract("blog.user.github.io")
+public_suffix_rule("a.b.kobe.jp")
+```
+
+See `vignette("introduction", package = "pslr")` for the full tour: section
+choice, the unknown-suffix policy, IDN output, terminal dots, refresh and
+activation, reproducibility, and security notes.
+
+## Reproducibility
+
+A result depends on both which list answered and how hosts were normalized.
+`psl_version()` reports the active-list provenance plus the runtime
+normalization identifiers; record it alongside reproducibility-sensitive output.
+
+## Development
+
+Install dependencies plus the dev tooling used by the checks:
 
 ```sh
 Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
 ```
 
-## Verification
+Run the same verification CI runs (lint + `R CMD check --as-cran`):
 
 ```sh
 Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }' && Rscript -e 'rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning")'
 ```
 
 `R CMD check` runs the testthat and cucumber specs, so the behaviour specs are
-verified as part of the check.
+verified as part of the check. A non-CRAN performance benchmark and its release
+gate live in [`bench/benchmark.R`](bench/benchmark.R); recorded reference
+results are in [`docs/benchmarks.md`](docs/benchmarks.md).
 
-## Project Layout
+### Project layout
 
-- `R/` contains the package source.
-- `man/` contains generated help pages (regenerate with `devtools::document()`).
-- `NAMESPACE` and `man/` are roxygen2-generated — edit the roxygen comments in `R/`, not these.
-- `tests/testthat/` contains testthat tests and the cucumber feature specs.
-- `vignettes/` contains long-form documentation.
-- `DESCRIPTION` declares package metadata and dependencies.
-- `docs/architecture.md` contains durable project context.
-- `_scratch/` is local-only planning space and is ignored by git.
+- `R/` — package source (edit roxygen comments here, not `man/` or `NAMESPACE`).
+- `src/` — the `cpp11` matcher core.
+- `man/` — generated help pages (`devtools::document()`).
+- `tests/testthat/` — testthat tests and cucumber feature specs.
+- `vignettes/` — long-form documentation.
+- `data-raw/` — the deterministic snapshot regeneration pipeline.
+- `docs/` — durable project context (`PRD.md`, `architecture.md`, `benchmarks.md`).
+
+## License
+
+Package code is MIT licensed. The bundled Public Suffix List data
+(`inst/extdata/`) is distributed under the Mozilla Public License 2.0; see
+`inst/NOTICE` and `inst/extdata/PSL-LICENSE`.

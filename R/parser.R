@@ -228,11 +228,11 @@ parse_psl_lines <- function(lines) {
 #' Read and parse a Public Suffix List `.dat` file
 #'
 #' Internal. Thin reader that loads a UTF-8 PSL source file and delegates to
-#' [parse_psl_lines()]. Performs no byte-size limiting and no network access;
+#' `parse_psl_lines()`. Performs no byte-size limiting and no network access;
 #' those belong to the data-raw pipeline and the refresh path.
 #'
 #' @param path A single readable file path.
-#' @return The rule table from [parse_psl_lines()].
+#' @return The rule table from `parse_psl_lines()`.
 #' @noRd
 read_psl_file <- function(path) {
   if (!is.character(path) || length(path) != 1L || is.na(path)) {
