@@ -12,10 +12,26 @@ extern "C" SEXP _pslr_pslr_engine_id() {
     return cpp11::as_sexp(pslr_engine_id());
   END_CPP11
 }
+// matcher.cpp
+SEXP psl_build_matcher(strings keys, strings kinds, integers sections);
+extern "C" SEXP _pslr_psl_build_matcher(SEXP keys, SEXP kinds, SEXP sections) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(psl_build_matcher(cpp11::as_cpp<cpp11::decay_t<strings>>(keys), cpp11::as_cpp<cpp11::decay_t<strings>>(kinds), cpp11::as_cpp<cpp11::decay_t<integers>>(sections)));
+  END_CPP11
+}
+// matcher.cpp
+list psl_match(SEXP matcher, strings hosts, int section_code);
+extern "C" SEXP _pslr_psl_match(SEXP matcher, SEXP hosts, SEXP section_code) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(psl_match(cpp11::as_cpp<cpp11::decay_t<SEXP>>(matcher), cpp11::as_cpp<cpp11::decay_t<strings>>(hosts), cpp11::as_cpp<cpp11::decay_t<int>>(section_code)));
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_pslr_pslr_engine_id", (DL_FUNC) &_pslr_pslr_engine_id, 0},
+    {"_pslr_psl_build_matcher", (DL_FUNC) &_pslr_psl_build_matcher, 3},
+    {"_pslr_psl_match",         (DL_FUNC) &_pslr_psl_match,         3},
+    {"_pslr_pslr_engine_id",    (DL_FUNC) &_pslr_pslr_engine_id,    0},
     {NULL, NULL, 0}
 };
 }
