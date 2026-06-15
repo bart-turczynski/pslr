@@ -24,6 +24,7 @@
 ^FP_CLAUDE\.md$
 ^FP_AGENTS\.md$
 ^_scratch$
+^bench$
 ^data-raw$
 ^docs$
 ^CLAUDE\.md$
