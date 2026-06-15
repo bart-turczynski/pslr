@@ -8,11 +8,17 @@ repos:
     hooks:
       - id: check-added-large-files
         args: ['--maxkb=5120']
+      # Bundled upstream PSL files under inst/extdata/ (the .dat whose sha256 is
+      # recorded, and the verbatim MPL-2.0 LICENSE) must stay byte-for-byte
+      # identical to upstream, so the whitespace/EOF fixers must not touch them.
       - id: end-of-file-fixer
+        exclude: '^inst/extdata/'
       - id: trailing-whitespace
+        exclude: '^inst/extdata/'
       - id: check-merge-conflict
       - id: check-yaml
       - id: mixed-line-ending
+        exclude: '^inst/extdata/'
       - id: check-case-conflict
   - repo: local
     hooks:
