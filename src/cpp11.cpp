@@ -5,13 +5,6 @@
 #include "cpp11/declarations.hpp"
 #include <R_ext/Visibility.h>
 
-// engine.cpp
-std::string pslr_engine_id();
-extern "C" SEXP _pslr_pslr_engine_id() {
-  BEGIN_CPP11
-    return cpp11::as_sexp(pslr_engine_id());
-  END_CPP11
-}
 // matcher.cpp
 SEXP psl_build_matcher(strings keys, strings kinds, integers sections);
 extern "C" SEXP _pslr_psl_build_matcher(SEXP keys, SEXP kinds, SEXP sections) {
@@ -31,7 +24,6 @@ extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_pslr_psl_build_matcher", (DL_FUNC) &_pslr_psl_build_matcher, 3},
     {"_pslr_psl_match",         (DL_FUNC) &_pslr_psl_match,         3},
-    {"_pslr_pslr_engine_id",    (DL_FUNC) &_pslr_pslr_engine_id,    0},
     {NULL, NULL, 0}
 };
 }
