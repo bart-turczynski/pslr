@@ -13,3 +13,16 @@
   through `punycoder` with terminal-dot preservation and dotted-decimal IPv4
   literal rejection, and repeated queries are served from a bounded session
   cache keyed by host, active-list identity, and section.
+* Added refresh and activation: `psl_refresh()`, `psl_use()`, `psl_version()`,
+  and `psl_rules()`. `psl_refresh()` is the only network path -- an explicit,
+  https-only, credential- and downgrade-redirect-rejecting download with a size
+  ceiling, full validation, a 24-hour reuse throttle, and an atomic cache
+  publish that never exposes a partial snapshot or replaces a valid cache after
+  a failed refresh. `psl_use()` switches the session's active list between the
+  bundled snapshot, the user cache, and a custom path, validating before any
+  state changes and clearing the result cache on a successful switch. The
+  bundled index is rebuilt in memory from source when its normalization profile
+  or Unicode version differs from the runtime normalizer, never mixing profiles.
+  `psl_version()` reports the active-list identity and runtime normalization
+  identifiers needed to reproduce a result; `psl_rules()` exposes the active
+  rule table.

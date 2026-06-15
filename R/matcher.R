@@ -6,8 +6,12 @@
 # API, the unknown/output/invalid policies, extraction, rule inspection, and
 # the bounded result cache are layered on top of this in P4.
 
-# Session state: the active matcher (immutable after construction). Built lazily
-# from the bundled index on first use; never touches the network or user cache.
+# Session state: the active list (immutable after construction). Holds the
+# whole state -- compiled matcher pointer, cache identity, rule table, and
+# metadata -- in a single `$state` slot so activation swaps it with one atomic
+# assignment and an interrupt can never expose a partially constructed matcher
+# (PRD s9). Built lazily from the bundled index on first use; never touches the
+# network or user cache.
 the_matcher <- new.env(parent = emptyenv())
 
 # Numeric codes shared with the C++ layer.
@@ -22,21 +26,108 @@ build_matcher <- function(rules) {
   psl_build_matcher(rules$canonical_key, rules$kind, section_int)
 }
 
-# The active matcher pointer, built on first use from the bundled index. The
-# identity string is part of the result-cache key, so it must change whenever
-# the active list does; for the bundled list it is the snapshot checksum.
-active_matcher <- function() {
-  if (is.null(the_matcher$ptr)) {
-    the_matcher$ptr <- build_matcher(pslr_bundled$rules)
-    the_matcher$identity <- pslr_bundled$meta$checksum
-  }
-  the_matcher$ptr
+# Runtime normalization identifiers, read from the installed `punycoder` at
+# activation time. These describe the normalizer actually used to index the
+# active matcher, and `psl_version()` reports them regardless of list source
+# (PRD s7.4, s8.3). `normalization_profile_info()` returns a one-row data.frame.
+runtime_normalizer_meta <- function() {
+  prof <- punycoder::normalization_profile_info()
+  list(
+    normalizer = "punycoder",
+    normalizer_version = as.character(utils::packageVersion("punycoder")),
+    normalization_profile = as.character(prof$profile),
+    unicode_version = as.character(prof$unicode_version)
+  )
 }
 
-# Stable identity of the active list, used in the result-cache key.
-active_list_identity <- function() {
-  active_matcher()
-  the_matcher$identity
+# Build a complete `psl_version()`-shaped metadata list. Source-identity fields
+# default to typed `NA`; normalization identifiers default to the runtime
+# normalizer (PRD s7.4). Callers override the known fields by name.
+psl_meta <- function(...) {
+  base <- c(
+    list(
+      source = NA_character_, path = NA_character_,
+      retrieved_at = NA_character_, list_date = NA_character_,
+      commit = NA_character_, size = NA_integer_, checksum = NA_character_
+    ),
+    runtime_normalizer_meta()
+  )
+  utils::modifyList(base, list(...))
+}
+
+# Activate a validated rule table under `meta`. Everything that can fail (the
+# matcher build) happens before the single atomic state swap, so a failed or
+# interrupted activation leaves the previous active list usable (PRD s9).
+# Switching the active list clears the result cache (PRD s7.4, s8.2).
+psl_set_active <- function(rules, meta, rebuilt = FALSE) {
+  ptr <- build_matcher(rules)
+  the_matcher$state <- list(
+    ptr = ptr, identity = meta$checksum, rules = rules,
+    meta = meta, rebuilt = rebuilt
+  )
+  psl_cache_clear()
+  invisible(meta)
+}
+
+# Re-parse the bundled `.dat` source under the runtime normalizer. Used when the
+# shipped generated index was canonicalized under a different normalization
+# profile or Unicode version than the runtime normalizer (PRD s8.3).
+rebuild_bundled_rules <- function() {
+  path <- system.file("extdata", "public_suffix_list.dat", package = "pslr")
+  if (!nzchar(path)) {
+    return(pslr_bundled$rules)
+  }
+  apply_duplicate_policy(read_psl_file(path), mode = "lenient")
+}
+
+# Activate the bundled snapshot. Compares the shipped index's normalization
+# profile and Unicode version against the runtime normalizer; on any mismatch it
+# rebuilds the index in memory from the bundled source before activation so an
+# index canonicalized under one profile is never combined with hosts
+# canonicalized under another (PRD s8.3). The shipped source identity (checksum,
+# commit, size) is preserved; only the normalizer identifiers reflect runtime.
+activate_bundled <- function() {
+  rt <- runtime_normalizer_meta()
+  bm <- pslr_bundled$meta
+  profile_match <- identical(
+    bm$normalization_profile, rt$normalization_profile
+  )
+  unicode_match <- identical(bm$unicode_version, rt$unicode_version)
+  mismatch <- !profile_match || !unicode_match
+  rules <- if (mismatch) rebuild_bundled_rules() else pslr_bundled$rules
+  meta <- psl_meta(
+    source = "bundled", retrieved_at = bm$retrieved_at,
+    list_date = bm$list_date, commit = bm$commit,
+    size = bm$size, checksum = bm$checksum
+  )
+  psl_set_active(rules, meta, rebuilt = mismatch)
+}
+
+# The full active-list state, lazily initialised from the bundled index.
+active_state <- function() {
+  if (is.null(the_matcher$state)) {
+    activate_bundled()
+  }
+  the_matcher$state
+}
+
+# The active matcher pointer (PRD s8.2).
+active_matcher <- function() active_state()$ptr
+
+# Stable identity of the active list, used in the result-cache key. For the
+# bundled and cache lists it is the source-snapshot checksum.
+active_list_identity <- function() active_state()$identity
+
+# Metadata and rule table of the active list, for psl_version() / psl_rules().
+active_meta <- function() active_state()$meta
+active_rules <- function() active_state()$rules
+
+# Drop the active state so the next query lazily re-initialises from the bundled
+# index, and clear the result cache. Used by tests to isolate session state.
+psl_reset_active <- function() {
+  the_matcher$state <- NULL
+  psl_cache_clear()
+  invisible(NULL)
 }
 
 # Derive the ASCII rule, public suffix, and registrable domain for one host.
