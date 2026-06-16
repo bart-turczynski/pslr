@@ -52,12 +52,11 @@ is_ipv4_literal <- function(x) {
 #'   invalid.
 #' @noRd
 psl_canonicalize <- function(domain, invalid = "na") {
+  # A non-character `domain` is a programming error regardless of length: an
+  # empty wrong-typed vector (e.g. numeric(0), NULL) is not the same as the
+  # valid empty character vector character(0) (PRD s5.2, s7.1).
   if (!is.character(domain)) {
-    if (length(domain) == 0L) {
-      domain <- character(0)
-    } else {
-      stop("`domain` must be a character vector.", call. = FALSE)
-    }
+    stop("`domain` must be a character vector.", call. = FALSE)
   }
   n <- length(domain)
   status <- rep("ok", n)

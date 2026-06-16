@@ -18,6 +18,11 @@ Launch-readiness audit follow-ups (no API changes).
 * PSL sources with a repeated ICANN or PRIVATE section are now rejected. The
   official format carries exactly one complete section of each; a second
   `BEGIN` for either aborts the parse instead of loading both copies.
+* A zero-length non-character `domain` (e.g. `numeric(0)`, `NULL`) now aborts
+  with the documented type error instead of being silently coerced to an empty
+  result. This is consistent with the input contract: a wrong argument type is
+  a programming error regardless of length. The valid empty character vector
+  `character(0)` still returns a zero-length result.
 
 # pslr 1.0.0
 
