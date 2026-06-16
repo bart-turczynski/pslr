@@ -85,12 +85,29 @@ psl_load_source <- function(path, what = "list") {
 }
 
 # Read the cache commit marker, or NULL when no cache has been published.
-psl_cache_current <- function() {
+# A marker that exists but cannot be deserialized (corrupt/truncated bytes) is
+# handled per `on_corrupt`: "null" treats it as no cache (so a forced refresh
+# overwrites it instead of leaking a raw readRDS error), while "error" raises a
+# pslr cache-corruption error with remediation for activation paths.
+psl_cache_current <- function(on_corrupt = c("null", "error")) {
+  on_corrupt <- match.arg(on_corrupt)
   marker <- psl_cache_marker()
   if (!file.exists(marker)) {
     return(NULL)
   }
-  readRDS(marker)
+  tryCatch(
+    readRDS(marker),
+    error = function(e) {
+      if (identical(on_corrupt, "error")) {
+        stop(
+          "PSL cache is corrupt: marker metadata is unreadable. ",
+          "Run psl_refresh(force = TRUE).",
+          call. = FALSE
+        )
+      }
+      NULL
+    }
+  )
 }
 
 # Default network downloader (PRD s7.4). Requires `curl` so the package can
@@ -292,7 +309,7 @@ psl_use <- function(source = c("bundled", "cache", "path"), path = NULL) {
   }
 
   if (identical(source, "cache")) {
-    current <- psl_cache_current()
+    current <- psl_cache_current(on_corrupt = "error")
     if (is.null(current)) {
       stop(
         "No validated PSL cache found. Run psl_refresh(activate = TRUE) ",

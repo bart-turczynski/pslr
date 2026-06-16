@@ -11,6 +11,10 @@ Launch-readiness audit follow-ups (no API changes).
   `invalid = c("na", "error")`). Previously such a call was mistaken for the
   untouched default and silently used the first choice. Omitted options still
   default to their first choice.
+* A corrupt cache marker (`current.rds`) is now handled gracefully instead of
+  leaking a raw `readRDS()` "unknown input format" error. `psl_refresh(force =
+  TRUE)` ignores an unreadable marker and republishes a valid cache, and
+  `psl_use("cache")` reports a pslr cache-corruption error with remediation.
 
 # pslr 1.0.0
 
