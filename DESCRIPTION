@@ -1,7 +1,7 @@
 Package: pslr
 Type: Package
 Title: Public Suffix List Engine
-Version: 1.0.1
+Version: 1.0.1.9000
 Authors@R:
     person("Bart", "Turczynski", email = "bartek+pslr@turczynski.pl",
            role = c("aut", "cre"))

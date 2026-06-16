@@ -195,7 +195,7 @@ parse_psl_lines <- function(lines) {
     }
 
     parsed <- psl_parse_rule_content(token, i)
-    normalized <- punycoder::host_normalize(parsed$literal, strict = TRUE)
+    normalized <- punycoder::host_normalize(parsed$literal)
     if (is.na(normalized)) {
       psl_parse_abort(
         sprintf("rule '%s' could not be canonicalized", token), i

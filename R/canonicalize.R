@@ -81,7 +81,7 @@ psl_canonicalize <- function(domain, invalid = "na") {
   # `NA` matching the single retained `NA`.
   uniq <- unique(domain)
   idx <- match(domain, uniq)
-  norm_uniq <- punycoder::host_normalize(uniq, strict = TRUE)
+  norm_uniq <- punycoder::host_normalize(uniq)
   ipv4_uniq <- is_ipv4_literal(uniq)
   normalized <- norm_uniq[idx]
   bad <- !is_missing & (is.na(normalized) | ipv4_uniq[idx])
