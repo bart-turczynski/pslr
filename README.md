@@ -72,8 +72,8 @@ Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); q
 
 `R CMD check` runs the testthat and cucumber specs, so the behaviour specs are
 verified as part of the check. A non-CRAN performance benchmark and its release
-gate live in [`bench/benchmark.R`](bench/benchmark.R); recorded reference
-results are in [`docs/benchmarks.md`](docs/benchmarks.md).
+gate live in [`bench/benchmark.R`](https://github.com/bart-turczynski/pslr/blob/main/bench/benchmark.R); recorded reference
+results are in [`docs/benchmarks.md`](https://github.com/bart-turczynski/pslr/blob/main/docs/benchmarks.md).
 
 ### Project layout
 
