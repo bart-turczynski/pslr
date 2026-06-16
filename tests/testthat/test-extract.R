@@ -27,6 +27,22 @@ test_that("suffix_extract subdomain is empty (not NA) when none exists", {
   expect_identical(out$domain, "example")
 })
 
+test_that("suffix_extract unicode output keeps empty subdomain as ''", {
+  out <- suffix_extract("example.com", output = "unicode")
+  expect_identical(out$subdomain, "")
+  expect_identical(out$domain, "example")
+  expect_identical(out$registrable_domain, "example.com")
+})
+
+test_that("suffix_extract unicode output decodes A-labels (IDN path)", {
+  # xn--bcher-kva decodes to "bücher"; unicode output round-trips the A-label.
+  out <- suffix_extract("www.xn--bcher-kva.com", output = "unicode")
+  expect_identical(out$subdomain, "www")
+  expect_identical(out$domain, "bücher")
+  expect_identical(out$registrable_domain, "bücher.com")
+  expect_identical(out$suffix, "com")
+})
+
 test_that("suffix_extract NAs derived columns when host is a public suffix", {
   out <- suffix_extract("co.uk")
   expect_identical(out$host, "co.uk")

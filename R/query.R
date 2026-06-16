@@ -39,7 +39,9 @@ restore_root_dot <- function(x, had_dot) {
 
 # Decode canonical ASCII A-labels to Unicode, leaving NA untouched (PRD s6.3).
 decode_ascii <- function(x) {
-  ok <- !is.na(x)
+  # Decode only real A-labels: skip NA and the empty string. puny_decode("")
+  # returns NA, which would turn a documented empty subdomain ("") into NA.
+  ok <- !is.na(x) & nzchar(x)
   if (any(ok)) {
     x[ok] <- punycoder::puny_decode(x[ok], strict = FALSE)
   }
