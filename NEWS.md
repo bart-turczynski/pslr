@@ -1,4 +1,4 @@
-# pslr (development version)
+# pslr 1.0.1
 
 Launch-readiness audit follow-ups (no API changes).
 
