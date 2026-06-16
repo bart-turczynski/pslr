@@ -1,11 +1,12 @@
-# pslr 1.0.1.9000 (development version)
+# pslr 1.0.2
 
 ## Internal
 
 * Dropped the redundant `strict = TRUE` argument from `punycoder::host_normalize()`
   calls. `punycoder` removed the inert `strict` flag in favour of explicit
   UTS #46 flags (all defaulting to the strict profile), so the bare call is
-  behavior-preserving and forward-compatible with that release.
+  behavior-preserving and forward-compatible with that release. No user-visible
+  change; this keeps `pslr` installable against the upcoming `punycoder` release.
 
 # pslr 1.0.1
 
