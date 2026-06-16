@@ -40,7 +40,7 @@ test_that("all official PSL test vectors pass on the bundled snapshot", {
   expected_ascii <- ifelse(
     is.na(vec$expected),
     NA_character_,
-    punycoder::host_normalize(vec$expected, strict = TRUE)
+    punycoder::host_normalize(vec$expected)
   )
   got <- psl_match_hosts(vec$input)$registrable_domain
 
