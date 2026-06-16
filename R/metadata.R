@@ -88,7 +88,8 @@ psl_version <- function() {
 #' nrow(psl_rules("private"))
 #' @export
 psl_rules <- function(section = c("all", "icann", "private")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section")
+  section <- match_opt(section, c("all", "icann", "private"), "section",
+                       !missing(section))
   r <- active_rules()
   if (!identical(section, "all")) {
     r <- r[r$section == section, , drop = FALSE]

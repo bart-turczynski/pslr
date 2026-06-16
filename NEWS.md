@@ -5,6 +5,12 @@ Launch-readiness audit follow-ups (no API changes).
 * `suffix_extract(output = "unicode")` no longer turns an empty subdomain into
   `NA`. An absent subdomain is reported as `""` for both `"ascii"` and
   `"unicode"` output, matching the documented schema.
+* Choice-style option arguments (`section`, `output`, `unknown`, `invalid`, and
+  `psl_use()`'s `source`) now abort when a caller supplies a non-scalar value,
+  even one that happens to equal the formal's default vector (e.g.
+  `invalid = c("na", "error")`). Previously such a call was mistaken for the
+  untouched default and silently used the first choice. Omitted options still
+  default to their first choice.
 
 # pslr 1.0.0
 

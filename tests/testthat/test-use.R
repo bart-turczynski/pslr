@@ -3,6 +3,10 @@
 test_that("psl_use validates the source and the path argument", {
   local_pslr_clean()
   expect_error(psl_use("nope"), "must be one of")
+  # An explicit non-scalar source aborts, even when equal to the default vector.
+  expect_error(
+    psl_use(c("bundled", "cache", "path")), "must be one of"
+  )
   expect_error(psl_use("bundled", path = "x"), "only used when")
   expect_error(psl_use("path"), "single file path")
   expect_error(psl_use("path", path = tempfile()), "not found")
