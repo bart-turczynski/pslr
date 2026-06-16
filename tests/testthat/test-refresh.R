@@ -84,6 +84,31 @@ test_that("a download failure rolls back, leaving cache and matcher intact", {
   expect_identical(psl_version(), before)
 })
 
+test_that("a forced refresh recovers from a corrupt cache marker", {
+  dir <- local_pslr_clean()
+  withr::local_options(pslr.downloader = fake_downloader())
+  psl_refresh(force = TRUE)
+  marker <- file.path(dir, "current.rds")
+  writeBin(as.raw(0:7), marker) # not a valid serialized R object
+
+  # Forced refresh ignores the unreadable marker instead of leaking the raw
+  # readRDS "unknown input format" error, and republishes a readable marker.
+  v <- psl_refresh(force = TRUE, activate = TRUE)
+  expect_identical(v$source, "cache")
+  expect_identical(psl_version()$source, "cache")
+  expect_type(readRDS(marker), "list")
+})
+
+test_that("psl_use('cache') reports a corrupt marker with remediation", {
+  dir <- local_pslr_clean()
+  withr::local_options(pslr.downloader = fake_downloader())
+  psl_refresh(force = TRUE)
+  writeBin(as.raw(0:7), file.path(dir, "current.rds"))
+
+  expect_error(psl_use("cache"), "cache is corrupt")
+  expect_error(psl_use("cache"), "psl_refresh\\(force = TRUE\\)")
+})
+
 test_that("an oversized download is rejected before publication", {
   dir <- local_pslr_clean()
   withr::local_options(
