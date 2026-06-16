@@ -15,14 +15,14 @@ queries.
 
 ## Installation
 
-`pslr` depends on [`punycoder`](https://github.com/bart-turczynski/punycoder),
-which is installed from GitHub:
+Install from CRAN:
 
 ```r
-# install.packages("pak")
-pak::pak("bart-turczynski/punycoder")
-pak::pak("bart-turczynski/pslr")
+install.packages("pslr")
 ```
+
+`pslr` depends on [`punycoder`](https://cran.r-project.org/package=punycoder),
+which is installed automatically.
 
 ## Usage
 
