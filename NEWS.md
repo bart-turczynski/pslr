@@ -1,3 +1,11 @@
+# pslr (development version)
+
+Launch-readiness audit follow-ups (no API changes).
+
+* `suffix_extract(output = "unicode")` no longer turns an empty subdomain into
+  `NA`. An absent subdomain is reported as `""` for both `"ascii"` and
+  `"unicode"` output, matching the documented schema.
+
 # pslr 1.0.0
 
 First public release: a spec-complete Public Suffix List engine for R.
