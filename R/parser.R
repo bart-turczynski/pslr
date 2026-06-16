@@ -132,6 +132,10 @@ parse_psl_lines <- function(lines) {
   out_labels <- integer(0)
 
   section <- NA_character_
+  # The official format carries exactly one complete ICANN section and one
+  # complete PRIVATE section; a repeated section is a structural error (PRD
+  # s8.1). Count how often each is opened so a second BEGIN aborts.
+  section_opens <- c(icann = 0L, private = 0L)
 
   for (i in seq_len(n)) {
     line <- lines[i]
@@ -147,6 +151,12 @@ parse_psl_lines <- function(lines) {
         if (!is.na(section)) {
           psl_parse_abort(
             sprintf("nested section: '%s' begins inside '%s'", name, section), i
+          )
+        }
+        section_opens[[name]] <- section_opens[[name]] + 1L
+        if (section_opens[[name]] > 1L) {
+          psl_parse_abort(
+            sprintf("section '%s' appears more than once", name), i
           )
         }
         section <- name

@@ -15,6 +15,9 @@ Launch-readiness audit follow-ups (no API changes).
   leaking a raw `readRDS()` "unknown input format" error. `psl_refresh(force =
   TRUE)` ignores an unreadable marker and republishes a valid cache, and
   `psl_use("cache")` reports a pslr cache-corruption error with remediation.
+* PSL sources with a repeated ICANN or PRIVATE section are now rejected. The
+  official format carries exactly one complete section of each; a second
+  `BEGIN` for either aborts the parse instead of loading both copies.
 
 # pslr 1.0.0
 

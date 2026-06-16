@@ -120,6 +120,31 @@ test_that("rules outside any section are rejected", {
   expect_error(parse_psl_lines("com"), class = "pslr_parse_error")
 })
 
+test_that("a repeated ICANN or PRIVATE section is rejected", {
+  # Two complete ICANN sections: each is well-formed on its own, but the
+  # official format carries exactly one of each (PRD s8.1).
+  expect_error(
+    parse_psl_lines(c(
+      "// ===BEGIN ICANN DOMAINS===", "com", "// ===END ICANN DOMAINS===",
+      "// ===BEGIN ICANN DOMAINS===", "net", "// ===END ICANN DOMAINS===",
+      "// ===BEGIN PRIVATE DOMAINS===", "github.io",
+      "// ===END PRIVATE DOMAINS==="
+    )),
+    "appears more than once"
+  )
+  # A repeated PRIVATE section is rejected the same way.
+  expect_error(
+    parse_psl_lines(c(
+      "// ===BEGIN ICANN DOMAINS===", "com", "// ===END ICANN DOMAINS===",
+      "// ===BEGIN PRIVATE DOMAINS===", "github.io",
+      "// ===END PRIVATE DOMAINS===",
+      "// ===BEGIN PRIVATE DOMAINS===", "example.com",
+      "// ===END PRIVATE DOMAINS==="
+    )),
+    "appears more than once"
+  )
+})
+
 test_that("the abort condition carries the offending line number", {
   err <- tryCatch(
     parse_psl_lines(c("// ===BEGIN ICANN DOMAINS===", "a..b",

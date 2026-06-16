@@ -47,6 +47,23 @@ test_that("psl_use('path') rejects a file missing an official section", {
   )
 })
 
+test_that("psl_use('path') rejects a file with a repeated section", {
+  local_pslr_clean()
+  repeated <- tempfile(fileext = ".dat")
+  writeLines(
+    c(
+      "// ===BEGIN ICANN DOMAINS===", "com", "// ===END ICANN DOMAINS===",
+      "// ===BEGIN ICANN DOMAINS===", "net", "// ===END ICANN DOMAINS===",
+      "// ===BEGIN PRIVATE DOMAINS===", "github.io",
+      "// ===END PRIVATE DOMAINS==="
+    ),
+    repeated
+  )
+  expect_error(
+    psl_use("path", path = repeated), "appears more than once"
+  )
+})
+
 test_that("a failed path activation leaves the previous list usable", {
   local_pslr_clean()
   psl_use("path", path = bundled_dat_path())
