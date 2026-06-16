@@ -151,3 +151,11 @@ test_that("zero-length input returns a zero-length typed vector", {
   expect_identical(registrable_domain(character(0)), character(0))
   expect_identical(is_public_suffix(character(0)), logical(0))
 })
+
+test_that("zero-length non-character input is a type error, not empty output", {
+  expect_error(public_suffix(numeric(0)), "must be a character vector")
+  expect_error(registrable_domain(integer(0)), "must be a character vector")
+  expect_error(is_public_suffix(NULL), "must be a character vector")
+  expect_error(suffix_extract(numeric(0)), "must be a character vector")
+  expect_error(public_suffix_rule(logical(0)), "must be a character vector")
+})

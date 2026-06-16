@@ -49,8 +49,12 @@ test_that("mixed case, U-labels, A-labels canonicalize to lowercase ASCII", {
   expect_identical(u, a)
 })
 
-test_that("non-character domain aborts but zero-length passes through", {
+test_that("non-character domain aborts regardless of length", {
   expect_error(psl_canonicalize(1:3), "must be a character vector")
+  # Zero-length non-character is still a type error, not an empty result.
+  expect_error(psl_canonicalize(numeric(0)), "must be a character vector")
+  expect_error(psl_canonicalize(NULL), "must be a character vector")
+  # The valid empty character vector passes through.
   expect_identical(psl_canonicalize(character(0))$status, character(0))
 })
 
