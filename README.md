@@ -1,5 +1,10 @@
 # pslr
 
+<!-- badges: start -->
+[![Verify](https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml/badge.svg)](https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml)
+[![CRAN status](https://www.r-pkg.org/badges/version/pslr)](https://CRAN.R-project.org/package=pslr)
+<!-- badges: end -->
+
 A focused, spec-complete implementation of the
 [Public Suffix List](https://publicsuffix.org) (PSL) for R. `pslr` bundles a
 reproducible, pinned PSL snapshot and implements the official prevailing-rule
@@ -15,7 +20,13 @@ queries.
 
 ## Installation
 
-Install from GitHub:
+Install the released version from CRAN:
+
+```r
+install.packages("pslr")
+```
+
+Or the development version from GitHub:
 
 ```r
 # install.packages("pak")
