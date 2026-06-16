@@ -4,15 +4,13 @@
 
 * This is a new submission.
 
-The remaining NOTE has these components, all expected:
+The remaining NOTE is the expected "New submission" note for a first submission.
 
-* "New submission" — yes, this is a first submission.
-* "Unknown, possibly misspelled, fields in DESCRIPTION: 'Remotes'" — `pslr`
-  depends on the `punycoder` package, which provides the canonical-host
-  normalization (IDNA/Unicode) layer. `Remotes` lets development and CI installs
-  resolve `punycoder` from its source repository. `punycoder` must be available
-  on CRAN before `pslr` can be accepted there; the `Remotes` field will be
-  removed from the CRAN submission tarball once that dependency is on CRAN.
+## Dependencies
+
+* `pslr` imports `punycoder` (>= 1.1.0) for its canonical-host normalization
+  (IDNA/Unicode) layer. `punycoder` 1.1.0 is on CRAN, so the dependency resolves
+  from CRAN with no `Remotes` field.
 
 ## Test environments
 
