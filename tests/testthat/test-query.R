@@ -99,6 +99,37 @@ test_that("invalid policy returns NA by default and aborts on error", {
   )
 })
 
+test_that("explicit non-scalar option aborts even when equal to the default", {
+  # Repro: passing the full default vector explicitly must not be mistaken for
+  # the untouched default; option arguments must be scalar (PRD s5.2).
+  expect_error(
+    public_suffix("ok.com", invalid = c("na", "error")), "must be one of"
+  )
+  expect_error(
+    public_suffix("ok.com", section = c("all", "icann", "private")),
+    "must be one of"
+  )
+  expect_error(
+    registrable_domain("ok.com", output = c("ascii", "unicode")),
+    "must be one of"
+  )
+  expect_error(
+    is_public_suffix("ok.com", unknown = c("default", "na")), "must be one of"
+  )
+  expect_error(
+    public_suffix_rule("ok.com", section = c("all", "icann", "private")),
+    "must be one of"
+  )
+})
+
+test_that("omitted options use their first choice as the default", {
+  # The untouched default must still resolve, across every wrapper and option.
+  expect_identical(public_suffix("example.com"), "com")
+  expect_identical(registrable_domain("www.example.co.uk"), "example.co.uk")
+  expect_identical(is_public_suffix("com"), TRUE)
+  expect_identical(public_suffix_rule("example.com")$rule, "com")
+})
+
 test_that("vector functions are length-preserving and name-preserving", {
   x <- c(a = "example.com", b = "x.co.uk", c = NA)
   ps <- public_suffix(x)

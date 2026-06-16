@@ -280,7 +280,8 @@ psl_refresh <- function(
 #' }
 #' @export
 psl_use <- function(source = c("bundled", "cache", "path"), path = NULL) {
-  source <- match_opt(source, c("bundled", "cache", "path"), "source")
+  source <- match_opt(source, c("bundled", "cache", "path"), "source",
+                      !missing(source))
   if (!identical(source, "path") && !is.null(path)) {
     stop("`path` is only used when `source = \"path\"`.", call. = FALSE)
   }

@@ -59,6 +59,10 @@ test_that("psl_rules filters by section and never includes the default rule", {
   expect_true(all(private$section == "private"))
   expect_identical(nrow(psl_rules("all")), nrow(icann) + nrow(private))
   expect_false(any(psl_rules()$canonical_rule == "*"))
+  # An explicit non-scalar section aborts, even when equal to the default.
+  expect_error(
+    psl_rules(c("all", "icann", "private")), "must be one of"
+  )
 })
 
 test_that("canonical_rule keeps wildcard and exception markers", {

@@ -7,13 +7,16 @@
 # below. `unknown` and `output` are applied here, after the cache, so they never
 # affect the cache key (PRD s8.2).
 
-# Match a scalar option argument against its choices. The untouched default (the
-# full choice vector, passed through from the formals) selects the first choice;
-# any user value must be a single string drawn from the choices, so non-scalar
-# or unknown values abort -- `invalid` never suppresses these programming errors
-# (PRD s5.2).
-match_opt <- function(value, choices, name) {
-  if (identical(value, choices)) {
+# Match a scalar option argument against its choices. When the caller did not
+# supply the argument (`supplied = FALSE`, i.e. `missing()` at the call site),
+# the formal's full choice vector selects the first choice; any value the caller
+# does supply must be a single string drawn from the choices, so non-scalar or
+# unknown values abort -- `invalid` never suppresses these programming errors
+# (PRD s5.2). Detecting "supplied" via `missing()` rather than comparing against
+# the choice vector means an explicit non-scalar argument that happens to equal
+# the default (e.g. `invalid = c("na", "error")`) still aborts.
+match_opt <- function(value, choices, name, supplied) {
+  if (!supplied) {
     return(choices[1L])
   }
   scalar_string <- length(value) == 1L && is.character(value) && !is.na(value)
@@ -148,10 +151,14 @@ public_suffix <- function(domain,
                           output = c("ascii", "unicode"),
                           unknown = c("default", "na"),
                           invalid = c("na", "error")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section")
-  output <- match_opt(output, c("ascii", "unicode"), "output")
-  unknown <- match_opt(unknown, c("default", "na"), "unknown")
-  invalid <- match_opt(invalid, c("na", "error"), "invalid")
+  section <- match_opt(section, c("all", "icann", "private"), "section",
+                       !missing(section))
+  output <- match_opt(output, c("ascii", "unicode"), "output",
+                      !missing(output))
+  unknown <- match_opt(unknown, c("default", "na"), "unknown",
+                       !missing(unknown))
+  invalid <- match_opt(invalid, c("na", "error"), "invalid",
+                       !missing(invalid))
 
   fr <- psl_query_frame(domain, section, unknown, invalid)
   out <- restore_root_dot(fr$public_suffix, fr$had_dot)
@@ -182,10 +189,14 @@ registrable_domain <- function(domain,
                                output = c("ascii", "unicode"),
                                unknown = c("default", "na"),
                                invalid = c("na", "error")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section")
-  output <- match_opt(output, c("ascii", "unicode"), "output")
-  unknown <- match_opt(unknown, c("default", "na"), "unknown")
-  invalid <- match_opt(invalid, c("na", "error"), "invalid")
+  section <- match_opt(section, c("all", "icann", "private"), "section",
+                       !missing(section))
+  output <- match_opt(output, c("ascii", "unicode"), "output",
+                      !missing(output))
+  unknown <- match_opt(unknown, c("default", "na"), "unknown",
+                       !missing(unknown))
+  invalid <- match_opt(invalid, c("na", "error"), "invalid",
+                       !missing(invalid))
 
   fr <- psl_query_frame(domain, section, unknown, invalid)
   out <- restore_root_dot(fr$registrable_domain, fr$had_dot)
@@ -219,9 +230,12 @@ is_public_suffix <- function(domain,
                              section = c("all", "icann", "private"),
                              unknown = c("default", "na"),
                              invalid = c("na", "error")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section")
-  unknown <- match_opt(unknown, c("default", "na"), "unknown")
-  invalid <- match_opt(invalid, c("na", "error"), "invalid")
+  section <- match_opt(section, c("all", "icann", "private"), "section",
+                       !missing(section))
+  unknown <- match_opt(unknown, c("default", "na"), "unknown",
+                       !missing(unknown))
+  invalid <- match_opt(invalid, c("na", "error"), "invalid",
+                       !missing(invalid))
 
   fr <- psl_query_frame(domain, section, unknown, invalid)
   out <- rep(NA, length(domain))
@@ -254,10 +268,14 @@ suffix_extract <- function(domain,
                            output = c("ascii", "unicode"),
                            unknown = c("default", "na"),
                            invalid = c("na", "error")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section")
-  output <- match_opt(output, c("ascii", "unicode"), "output")
-  unknown <- match_opt(unknown, c("default", "na"), "unknown")
-  invalid <- match_opt(invalid, c("na", "error"), "invalid")
+  section <- match_opt(section, c("all", "icann", "private"), "section",
+                       !missing(section))
+  output <- match_opt(output, c("ascii", "unicode"), "output",
+                      !missing(output))
+  unknown <- match_opt(unknown, c("default", "na"), "unknown",
+                       !missing(unknown))
+  invalid <- match_opt(invalid, c("na", "error"), "invalid",
+                       !missing(invalid))
 
   fr <- psl_query_frame(domain, section, unknown, invalid)
   n <- nrow(fr)
@@ -317,9 +335,12 @@ public_suffix_rule <- function(domain,
                                section = c("all", "icann", "private"),
                                unknown = c("default", "na"),
                                invalid = c("na", "error")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section")
-  unknown <- match_opt(unknown, c("default", "na"), "unknown")
-  invalid <- match_opt(invalid, c("na", "error"), "invalid")
+  section <- match_opt(section, c("all", "icann", "private"), "section",
+                       !missing(section))
+  unknown <- match_opt(unknown, c("default", "na"), "unknown",
+                       !missing(unknown))
+  invalid <- match_opt(invalid, c("na", "error"), "invalid",
+                       !missing(invalid))
 
   fr <- psl_query_frame(domain, section, unknown, invalid)
   data.frame(
