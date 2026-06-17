@@ -1,33 +1,20 @@
 # Full cross-platform R CMD check matrix: macOS, Windows, and Ubuntu on R
 # devel / release / oldrel-1. This is the CRAN-grade coverage that is too slow
-# to run on every small slice, so it is deliberately NOT on every PR. It runs:
+# (and too costly: macOS = 10x, Windows = 2x Actions minute multipliers) to run
+# routinely, so it runs ONLY:
 #
-#   - on every merge to main          (post-merge cross-platform safety net)
-#   - on PRs that touch compiled or    (platform differences bite here, so gate
-#     build files (src/, configure,     these before merge, not after)
-#     Makevars, DESCRIPTION)
-#   - weekly on a schedule             (catches R-devel and dependency drift
-#                                        that no commit would otherwise surface)
 #   - on demand via workflow_dispatch
+#   - on release tags matching 'v*'   (CRAN-submission compliance check)
 #
-# Fast per-PR feedback (lint + one Ubuntu check) lives in verify.yml.
+# Routine merges to main and PRs do NOT trigger it. Fast per-PR feedback
+# (lint + one Ubuntu check) lives in verify.yml.
 name: Full platform check
 
 on:
+  # CRAN-submission prep: release tags matching 'v*'.
   push:
-    branches: [main]
-  pull_request:
-    paths:
-      - 'src/**'
-      - 'configure'
-      - 'configure.win'
-      - 'cleanup'
-      - '**/Makevars'
-      - '**/Makevars.*'
-      - 'DESCRIPTION'
-      - '.github/workflows/full-check.yml'
-  schedule:
-    - cron: '41 5 * * 1'
+    tags: ['v*']
+  # On demand.
   workflow_dispatch:
 
 permissions: read-all
