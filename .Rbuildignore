@@ -1,4 +1,5 @@
 # R build/dev artifacts
+^LICENSE\.md$
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^\.Rhistory$
