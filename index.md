@@ -99,6 +99,19 @@ recorded reference results are in
 - `docs/` — durable project context (`PRD.md`, `architecture.md`,
   `benchmarks.md`).
 
+## Related packages
+
+`pslr` is part of a small ecosystem of R packages by the same author:
+
+- **[punycoder](https://bart-turczynski.github.io/punycoder/)** — the
+  Punycode and IDNA codec that `pslr` uses for host canonicalization
+  before PSL matching. Use it directly for raw Unicode ↔︎ ACE
+  round-trips.
+- **[rurl](https://bart-turczynski.github.io/rurl/)** — full URL
+  parsing, normalization, cleaning, and joining toolkit. Uses `pslr` as
+  its PSL engine; reach for it when you need more than domain
+  extraction.
+
 ## License
 
 Package code is MIT licensed. The bundled Public Suffix List data

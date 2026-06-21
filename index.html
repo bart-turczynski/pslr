@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Public Suffix List Engine">
-<meta name="description" content="A focused implementation of the Public Suffix List (PSL). Bundles a reproducible, pinned PSL snapshot and implements the official prevailing-rule algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and ASCII hostnames via punycoder canonicalization, and supports an explicit, validated offline refresh path. The matcher is compiled with cpp11 and requires no external system library.">
-<meta property="og:description" content="A focused implementation of the Public Suffix List (PSL). Bundles a reproducible, pinned PSL snapshot and implements the official prevailing-rule algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and ASCII hostnames via punycoder canonicalization, and supports an explicit, validated offline refresh path. The matcher is compiled with cpp11 and requires no external system library.">
+<meta name="description" content="A focused implementation of the Public Suffix List (PSL). Bundles a reproducible, pinned PSL snapshot and implements the official prevailing-rule algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and ASCII hostnames via punycoder canonicalization, and supports an explicit, validated offline refresh path. The matcher is compiled with cpp11 and requires no external system library. Used as the PSL engine by the rurl package.">
+<meta property="og:description" content="A focused implementation of the Public Suffix List (PSL). Bundles a reproducible, pinned PSL snapshot and implements the official prevailing-rule algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and ASCII hostnames via punycoder canonicalization, and supports an explicit, validated offline refresh path. The matcher is compiled with cpp11 and requires no external system library. Used as the PSL engine by the rurl package.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -130,6 +130,17 @@
 </div>
 </div>
 <div class="section level2">
+<h2 id="related-packages">Related packages<a class="anchor" aria-label="anchor" href="#related-packages"></a>
+</h2>
+<p><code>pslr</code> is part of a small ecosystem of R packages by the same author:</p>
+<ul>
+<li>
+<strong><a href="https://bart-turczynski.github.io/punycoder/" class="external-link">punycoder</a></strong> — the Punycode and IDNA codec that <code>pslr</code> uses for host canonicalization before PSL matching. Use it directly for raw Unicode ↔︎ ACE round-trips.</li>
+<li>
+<strong><a href="https://bart-turczynski.github.io/rurl/" class="external-link">rurl</a></strong> — full URL parsing, normalization, cleaning, and joining toolkit. Uses <code>pslr</code> as its PSL engine; reach for it when you need more than domain extraction.</li>
+</ul>
+</div>
+<div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
 </h2>
 <p>Package code is MIT licensed. The bundled Public Suffix List data (<code>inst/extdata/</code>) is distributed under the Mozilla Public License 2.0; see <code>inst/NOTICE</code> and <code>inst/extdata/PSL-LICENSE</code>.</p>
@@ -168,7 +179,8 @@
 <div class="developers">
 <h2 data-toc-skip>Developers</h2>
 <ul class="list-unstyled">
-<li>Bart Turczynski <br><small class="roles"> Author, maintainer </small>   </li>
+<li>
+<a href="https://turczynski.pl" class="external-link">Bart Turczynski</a> <br><small class="roles"> Author, maintainer </small> <a href="https://orcid.org/0000-0002-8788-7980" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a>  </li>
 </ul>
 </div>
 
@@ -187,11 +199,11 @@
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Bart Turczynski.</p>
+  <p>Developed by <a href="https://turczynski.pl" class="external-link">Bart Turczynski</a>.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0. Related: <a href="https://bart-turczynski.github.io/punycoder/" class="external-link">punycoder</a> · <a href="https://bart-turczynski.github.io/rurl/" class="external-link">rurl</a></p>
 </div>
 
     </footer>
