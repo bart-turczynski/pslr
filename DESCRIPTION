@@ -4,14 +4,16 @@ Title: Public Suffix List Engine
 Version: 1.0.2
 Authors@R:
     person("Bart", "Turczynski", email = "bartek+pslr@turczynski.pl",
-           role = c("aut", "cre"))
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-8788-7980"))
 Description: A focused implementation of the Public Suffix List (PSL). Bundles a
     reproducible, pinned PSL snapshot and implements the official prevailing-rule
     algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1)
     queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and
     ASCII hostnames via 'punycoder' canonicalization, and supports an explicit,
     validated offline refresh path. The matcher is compiled with 'cpp11' and
-    requires no external system library.
+    requires no external system library. Used as the PSL engine by the 'rurl'
+    package.
 License: MIT + file LICENSE
 Language: en-US
 URL: https://bart-turczynski.github.io/pslr/, https://github.com/bart-turczynski/pslr
