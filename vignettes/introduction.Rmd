@@ -205,3 +205,10 @@ hosts normalized under a different profile.
 * **Session-global active list.** The active list is per-session global state;
   there is no per-call list switching. Concurrent per-list queries are out of
   scope for this release.
+
+## See also
+
+`pslr` is part of a small ecosystem of R packages by the same author:
+
+- **[punycoder](https://bart-turczynski.github.io/punycoder/)** — the Punycode and IDNA codec that `pslr` uses for host canonicalization. Use it directly for raw Unicode ↔ ACE round-trips outside the PSL context.
+- **[rurl](https://bart-turczynski.github.io/rurl/)** — full URL parsing, normalization, cleaning, and joining toolkit that uses `pslr` as its PSL engine. Reach for it when you need to work with complete URLs rather than bare hostnames.

@@ -4,6 +4,20 @@ destination: site
 template:
   bootstrap: 5
 
+authors:
+  "Bart Turczynski":
+    href: https://turczynski.pl
+
+footer:
+  structure:
+    left: developed_by
+    right: [built_with, related]
+  components:
+    related: >
+      Related:
+      <a href="https://bart-turczynski.github.io/punycoder/">punycoder</a> ·
+      <a href="https://bart-turczynski.github.io/rurl/">rurl</a>
+
 reference:
   - title: Querying
     desc: >
