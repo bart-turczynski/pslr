@@ -5,6 +5,7 @@
 [![CRAN status](https://www.r-pkg.org/badges/version/pslr)](https://CRAN.R-project.org/package=pslr)
 [![Codecov coverage](https://codecov.io/gh/bart-turczynski/pslr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/pslr)
 [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr?ref=badge_shield)
 <!-- badges: end -->
 
 A focused, spec-complete implementation of the
@@ -97,3 +98,6 @@ results are in [`docs/benchmarks.md`](https://github.com/bart-turczynski/pslr/bl
 Package code is MIT licensed. The bundled Public Suffix List data
 (`inst/extdata/`) is distributed under the Mozilla Public License 2.0; see
 `inst/NOTICE` and `inst/extdata/PSL-LICENSE`.
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr?ref=badge_large)
