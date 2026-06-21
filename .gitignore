@@ -18,6 +18,8 @@ _scratch/
 *.npz
 vectors/
 
+site/
+
 .Rproj.user/
 .Rhistory
 .RData

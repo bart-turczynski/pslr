@@ -1,0 +1,54 @@
+# Build and deploy pkgdown documentation to GitHub Pages on every push to main,
+# on published releases, and on demand. PRs trigger a build-only run (no deploy)
+# so docs changes can be reviewed before they go live.
+#
+# Outputs to site/ (configured in _pkgdown.yml) rather than the default docs/,
+# because docs/ is already used for durable design documents.
+name: pkgdown
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: pkgdown-${{ github.event_name != 'pull_request' && github.sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pkgdown:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::pkgdown, local::.
+          needs: website
+
+      - name: Build site
+        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        shell: Rscript {0}
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: JamesIves/github-pages-deploy-action@v4.5.0
+        with:
+          clean: false
+          branch: gh-pages
+          folder: site

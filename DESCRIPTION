@@ -14,7 +14,7 @@ Description: A focused implementation of the Public Suffix List (PSL). Bundles a
     requires no external system library.
 License: MIT + file LICENSE
 Language: en-US
-URL: https://github.com/bart-turczynski/pslr
+URL: https://bart-turczynski.github.io/pslr/, https://github.com/bart-turczynski/pslr
 BugReports: https://github.com/bart-turczynski/pslr/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
