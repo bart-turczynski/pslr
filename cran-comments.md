@@ -2,15 +2,26 @@
 
 0 errors | 0 warnings | 1 note
 
-* This is a new submission.
+The NOTE is the incoming-feasibility spell-check flagging domain-vocabulary
+terms in the Description (ICANN, PSL, eTLD, canonicalization, hostnames,
+matcher, registrable). These are correct and intentional; they are also listed
+in inst/WORDLIST.
 
-The remaining NOTE is the expected "New submission" note for a first submission.
+## Changes in this version
+
+This is a small maintenance update (1.0.1 -> 1.0.2) with no user-visible change.
+
+* `pslr` no longer passes the `strict` argument to `punycoder::host_normalize()`.
+  `punycoder` removed that (inert) argument in favour of explicit UTS #46 flags
+  that default to the same strict profile, so the bare call is behavior-
+  preserving. This keeps `pslr` installable against both the current `punycoder`
+  (1.1.0) and its next release.
 
 ## Dependencies
 
 * `pslr` imports `punycoder` (>= 1.1.0) for its canonical-host normalization
-  (IDNA/Unicode) layer. `punycoder` 1.1.0 is on CRAN, so the dependency resolves
-  from CRAN with no `Remotes` field.
+  (IDNA/Unicode) layer. The bare `host_normalize()` call works against
+  `punycoder` 1.1.0 (on CRAN) and later, so the dependency floor is unchanged.
 
 ## Test environments
 
@@ -40,4 +51,4 @@ The remaining NOTE is the expected "New submission" note for a first submission.
 
 ## Downstream dependencies
 
-None — this is a new package.
+None on CRAN.

@@ -1,0 +1,30 @@
+url: https://bart-turczynski.github.io/pslr/
+destination: site
+
+template:
+  bootstrap: 5
+
+reference:
+  - title: Querying
+    desc: >
+      Extract public suffixes and registrable domains from hostname strings.
+    contents:
+      - public_suffix
+      - registrable_domain
+      - is_public_suffix
+      - suffix_extract
+      - public_suffix_rule
+
+  - title: PSL Metadata
+    desc: Inspect the active Public Suffix List snapshot.
+    contents:
+      - psl_version
+      - psl_rules
+
+  - title: List Management
+    desc: >
+      Refresh or switch the active PSL source. The bundled snapshot is used
+      by default; these functions let you update it or point to a local file.
+    contents:
+      - psl_refresh
+      - psl_use
