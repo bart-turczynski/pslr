@@ -18,7 +18,14 @@ registrable-domain (eTLD+1) queries.
 
 ## Installation
 
-Install from GitHub:
+Install the released version from CRAN:
+
+``` r
+
+install.packages("pslr")
+```
+
+Or the development version from GitHub:
 
 ``` r
 
