@@ -28,6 +28,7 @@
 ^bench$
 ^data-raw$
 ^docs$
+^_pkgdown\.yml$
 ^CLAUDE\.md$
 ^AGENTS\.md$
 ^CONTRIBUTING\.md$
