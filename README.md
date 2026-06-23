@@ -3,6 +3,7 @@
 <!-- badges: start -->
 [![Verify](https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml/badge.svg)](https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml)
 [![CRAN status](https://www.r-pkg.org/badges/version/pslr)](https://CRAN.R-project.org/package=pslr)
+[![CRAN downloads](https://cranlogs.r-pkg.org/badges/pslr)](https://CRAN.R-project.org/package=pslr)
 [![Codecov coverage](https://codecov.io/gh/bart-turczynski/pslr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/pslr)
 [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 <!-- badges: end -->
