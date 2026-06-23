@@ -15,6 +15,8 @@
 
 ## pslr 1.0.1
 
+CRAN release: 2026-06-22
+
 Launch-readiness audit follow-ups (no API changes).
 
 - `suffix_extract(output = "unicode")` no longer turns an empty
