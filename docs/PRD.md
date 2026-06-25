@@ -100,8 +100,9 @@ Rules:
   `punycoder` is built without `libidn2`. Optional `libidn2` availability may
   improve implementation performance but must not change behavior or be
   required for installation.
-- `pslr` must pass explicit strictness arguments to `punycoder`; behavior must
-  not depend on the process-wide `punycoder.strict` option.
+- `pslr` must call `punycoder`'s canonical-host normalization API directly
+  rather than the low-level raw codec; behavior must not depend on the
+  process-wide `punycoder.strict` option.
 - `rurl` migration starts only after a released `pslr` API passes its own
   acceptance gates.
 
