@@ -64,8 +64,8 @@ the active matcher.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-psl_refresh()
-psl_refresh(force = TRUE, activate = TRUE)
-} # }
+if (interactive()) {
+  psl_refresh()
+  psl_refresh(force = TRUE, activate = TRUE)
+}
 ```

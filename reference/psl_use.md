@@ -51,8 +51,8 @@ runtime normalizer; they never reuse the bundled generated index.
 
 ``` r
 psl_use("bundled")
-if (FALSE) { # \dontrun{
-psl_use("cache")
-psl_use("path", path = "my_list.dat")
-} # }
+if (interactive()) {
+  psl_use("cache")
+  psl_use("path", path = "my_list.dat")
+}
 ```
