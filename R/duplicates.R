@@ -33,8 +33,8 @@ apply_duplicate_policy <- function(rules, mode = c("strict", "lenient")) {
   # "canonical labels" for the conflict check is the marker-stripped literal;
   # an exact duplicate is byte-identical canonical rule text. A space never
   # appears in a canonical key or rule, so it is a safe group-key separator.
-  conflict_group <- paste(rules$section, rules$canonical_key, sep = " ")
-  exact_group <- paste(rules$section, rules$canonical_rule, sep = " ")
+  conflict_group <- paste0(rules$section, " ", rules$canonical_key)
+  exact_group <- paste0(rules$section, " ", rules$canonical_rule)
 
   psl_check_conflicts(rules, conflict_group)
 
@@ -66,11 +66,19 @@ psl_check_conflicts <- function(rules, conflict_group) {
       "conflicting rule kinds for '%s' in the %s section (lines %s): %s",
       rules$canonical_key[idx[1]],
       rules$section[idx[1]],
-      paste(rules$line[idx], collapse = ", "),
-      paste(unique(rules$kind[idx]), collapse = " vs ")
+      psl_collapse(rules$line[idx], ", "),
+      psl_collapse(unique(rules$kind[idx]), " vs ")
     ),
     rules$line[idx[1]]
   )
+}
+
+psl_collapse <- function(x, sep) {
+  x <- as.character(x)
+  if (length(x) == 0L) {
+    return("")
+  }
+  Reduce(function(a, b) paste0(a, sep, b), x)
 }
 
 # Strict mode: any exact same-section duplicate is a hard error.

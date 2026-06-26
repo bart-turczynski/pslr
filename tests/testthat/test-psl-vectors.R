@@ -42,7 +42,7 @@ test_that("all official PSL test vectors pass on the bundled snapshot", {
     NA_character_,
     punycoder::host_normalize(vec$expected)
   )
-  got <- psl_match_hosts(vec$input)$registrable_domain
+  got <- registrable_domain(vec$input)
 
   mismatch <- which(!identical_na(got, expected_ascii))
   if (length(mismatch)) {
@@ -64,7 +64,7 @@ test_that("default ICANN+PRIVATE section is what the official vectors assume", {
   # The upstream vectors are defined for the combined list; the default section
   # is "all", so an explicit section = "all" must give the same results.
   vec <- read_psl_vectors()
-  default <- psl_match_hosts(vec$input)$registrable_domain
-  all_sec <- psl_match_hosts(vec$input, section = "all")$registrable_domain
+  default <- registrable_domain(vec$input)
+  all_sec <- registrable_domain(vec$input, section = "all")
   expect_identical(default, all_sec)
 })

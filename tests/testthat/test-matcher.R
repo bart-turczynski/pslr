@@ -77,55 +77,59 @@ test_that("section filtering happens before prevailing-rule selection", {
 # ---- engine layer: normalization, terminal dot, IDN, NA --------------------
 
 test_that("the engine resolves suffix and registrable domain (bundled)", {
-  out <- psl_match_hosts(c("example.com", "a.b.example.com", "com"))
-  expect_identical(out$public_suffix, c("com", "com", "com"))
+  domain <- c("example.com", "a.b.example.com", "com")
+  expect_identical(public_suffix(domain), c("com", "com", "com"))
   expect_identical(
-    out$registrable_domain,
+    registrable_domain(domain),
     c("example.com", "example.com", NA_character_)
   )
-  expect_identical(out$kind[1], "normal")
+  expect_identical(public_suffix_rule(domain[1])$kind, "normal")
 })
 
 test_that("mixed case and equivalent A-labels give equal ASCII results", {
-  a <- psl_match_hosts("WwW.Example.COM")
-  b <- psl_match_hosts("www.example.com")
-  expect_identical(a$registrable_domain, b$registrable_domain)
-  expect_identical(a$registrable_domain, "example.com")
+  a <- registrable_domain("WwW.Example.COM")
+  b <- registrable_domain("www.example.com")
+  expect_identical(a, b)
+  expect_identical(a, "example.com")
 })
 
 test_that("Unicode and punycode inputs produce equal ASCII results", {
-  u <- psl_match_hosts("食狮.com.cn") # IDN labels
-  p <- psl_match_hosts("xn--85x722f.com.cn")
-  expect_identical(u$host, "xn--85x722f.com.cn")
-  expect_identical(u$registrable_domain, p$registrable_domain)
-  expect_identical(u$public_suffix, "com.cn")
+  u <- public_suffix_rule("食狮.com.cn") # IDN labels
+  p <- public_suffix_rule("xn--85x722f.com.cn")
+  expect_identical(u$host_ascii, "xn--85x722f.com.cn")
+  expect_identical(registrable_domain("食狮.com.cn"), registrable_domain(p$input))
+  expect_identical(u$public_suffix_ascii, "com.cn")
 })
 
 test_that("the terminal root dot is preserved on hostname-shaped outputs", {
-  out <- psl_match_hosts("example.com.")
-  expect_identical(out$host, "example.com.")
-  expect_identical(out$public_suffix, "com.")
-  expect_identical(out$registrable_domain, "example.com.")
-  expect_identical(out$rule, "com") # rule text stays canonical, no dot
+  expect_identical(public_suffix("example.com."), "com.")
+  expect_identical(registrable_domain("example.com."), "example.com.")
+  expect_identical(
+    public_suffix_rule("example.com.")$host_ascii, "example.com."
+  )
+  expect_identical(public_suffix_rule("example.com.")$rule, "com")
 })
 
 test_that("invalid and NA inputs yield NA rows", {
-  out <- psl_match_hosts(c(".com", "a..b", "", NA_character_, "ok.com"))
-  expect_identical(is.na(out$public_suffix), c(TRUE, TRUE, TRUE, TRUE, FALSE))
-  expect_identical(out$registrable_domain[5], "ok.com")
+  domain <- c(".com", "a..b", "", NA_character_, "ok.com")
+  expect_identical(
+    is.na(public_suffix(domain)), c(TRUE, TRUE, TRUE, TRUE, FALSE)
+  )
+  expect_identical(registrable_domain(domain)[5], "ok.com")
 })
 
 test_that("zero-length input returns zero-length vectors", {
-  out <- psl_match_hosts(character(0))
-  expect_length(out$public_suffix, 0L)
-  expect_length(out$registrable_domain, 0L)
+  expect_length(public_suffix(character(0)), 0L)
+  expect_length(registrable_domain(character(0)), 0L)
 })
 
 test_that("repeated hosts are deduplicated yet expand to full length", {
-  out <- psl_match_hosts(c("a.example.com", "a.example.com", "b.example.org"))
-  expect_length(out$registrable_domain, 3L)
+  out <- registrable_domain(c(
+    "a.example.com", "a.example.com", "b.example.org"
+  ))
+  expect_length(out, 3L)
   expect_identical(
-    out$registrable_domain,
+    out,
     c("example.com", "example.com", "example.org")
   )
 })

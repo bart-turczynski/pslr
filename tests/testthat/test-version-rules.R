@@ -5,14 +5,14 @@ test_that("psl_version reports the documented columns and types", {
   v <- psl_version()
   expect_s3_class(v, "data.frame")
   expect_identical(nrow(v), 1L)
-  expect_identical(
-    names(v),
+  expect_named(
+    v,
     c("source", "path", "retrieved_at", "list_date", "commit", "size",
       "checksum", "normalizer", "normalizer_version",
       "normalization_profile", "unicode_version")
   )
   expect_type(v$size, "integer")
-  expect_true(is.character(v$checksum))
+  expect_type(v$checksum, "character")
 })
 
 test_that("the bundled list reports runtime normalizer identifiers", {
@@ -40,8 +40,8 @@ test_that("checksum carries an algorithm prefix and path is typed NA", {
 test_that("psl_rules returns the documented schema, ordered", {
   local_pslr_clean()
   r <- psl_rules()
-  expect_identical(
-    names(r), c("rule", "canonical_rule", "kind", "section", "labels")
+  expect_named(
+    r, c("rule", "canonical_rule", "kind", "section", "labels")
   )
   expect_type(r$labels, "integer")
   expect_true(all(r$kind %in% c("normal", "wildcard", "exception")))

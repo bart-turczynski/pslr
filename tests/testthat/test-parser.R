@@ -24,7 +24,7 @@ test_that("parses normal, wildcard, and exception rules", {
 
   expect_s3_class(rules, "data.frame")
   expect_identical(nrow(rules), 4L)
-  expect_identical(names(rules), psl_cols)
+  expect_named(rules, psl_cols)
 
   expect_identical(rules$kind, c("normal", "wildcard", "exception", "normal"))
   expect_identical(rules$section, c("icann", "icann", "icann", "private"))
@@ -80,7 +80,7 @@ test_that("empty and section-only input yields a typed zero-row table", {
   expect_identical(nrow(parse_psl_lines(character(0))), 0L)
   empty <- parse_psl_lines(psl_doc())
   expect_identical(nrow(empty), 0L)
-  expect_identical(names(empty), psl_cols)
+  expect_named(empty, psl_cols)
   expect_type(empty$labels, "integer")
 })
 

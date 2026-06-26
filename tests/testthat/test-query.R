@@ -126,7 +126,7 @@ test_that("omitted options use their first choice as the default", {
   # The untouched default must still resolve, across every wrapper and option.
   expect_identical(public_suffix("example.com"), "com")
   expect_identical(registrable_domain("www.example.co.uk"), "example.co.uk")
-  expect_identical(is_public_suffix("com"), TRUE)
+  expect_true(is_public_suffix("com"))
   expect_identical(public_suffix_rule("example.com")$rule, "com")
 })
 
@@ -134,7 +134,7 @@ test_that("vector functions are length-preserving and name-preserving", {
   x <- c(a = "example.com", b = "x.co.uk", c = NA)
   ps <- public_suffix(x)
   expect_length(ps, 3L)
-  expect_identical(names(ps), c("a", "b", "c"))
+  expect_named(ps, c("a", "b", "c"))
   expect_identical(unname(ps), c("com", "co.uk", NA))
   expect_named(is_public_suffix(x), c("a", "b", "c"))
 })

@@ -39,18 +39,19 @@ test_that("the 24-hour throttle reuses a fresh cache, keeping its timestamp", {
 
 test_that("force re-downloads even when the cache is fresh", {
   local_pslr_clean()
-  calls <- 0L
+  state <- new.env(parent = emptyenv())
+  state$calls <- 0L
   counting <- function(url, destfile, max_bytes) {
-    calls <<- calls + 1L
+    state$calls <- state$calls + 1L
     file.copy(bundled_dat_path(), destfile, overwrite = TRUE)
     invisible(destfile)
   }
   withr::local_options(pslr.downloader = counting)
   psl_refresh(force = TRUE)
   psl_refresh() # reused, no download
-  expect_identical(calls, 1L)
+  expect_identical(state$calls, 1L)
   psl_refresh(force = TRUE) # forced download
-  expect_identical(calls, 2L)
+  expect_identical(state$calls, 2L)
 })
 
 test_that("a stale cache triggers a fresh download", {
@@ -66,6 +67,44 @@ test_that("a stale cache triggers a fresh download", {
   saveRDS(cur, marker)
   refreshed <- psl_refresh()
   expect_false(identical(refreshed$retrieved_at, cur$meta$retrieved_at))
+})
+
+test_that("a fresh cache with a missing source file is not reused", {
+  dir <- local_pslr_clean()
+  state <- new.env(parent = emptyenv())
+  state$calls <- 0L
+  counting <- function(url, destfile, max_bytes) {
+    state$calls <- state$calls + 1L
+    file.copy(bundled_dat_path(), destfile, overwrite = TRUE)
+    invisible(destfile)
+  }
+  withr::local_options(pslr.downloader = counting)
+  psl_refresh(force = TRUE)
+  cur <- readRDS(file.path(dir, "current.rds"))
+  unlink(file.path(dir, cur$dat_file))
+
+  refreshed <- psl_refresh()
+  expect_identical(state$calls, 2L)
+  expect_identical(refreshed$source, "cache")
+})
+
+test_that("a fresh cache with a checksum mismatch is not reused", {
+  dir <- local_pslr_clean()
+  state <- new.env(parent = emptyenv())
+  state$calls <- 0L
+  counting <- function(url, destfile, max_bytes) {
+    state$calls <- state$calls + 1L
+    file.copy(bundled_dat_path(), destfile, overwrite = TRUE)
+    invisible(destfile)
+  }
+  withr::local_options(pslr.downloader = counting)
+  psl_refresh(force = TRUE)
+  cur <- readRDS(file.path(dir, "current.rds"))
+  writeLines("changed", file.path(dir, cur$dat_file))
+
+  refreshed <- psl_refresh()
+  expect_identical(state$calls, 2L)
+  expect_identical(refreshed$source, "cache")
 })
 
 test_that("a download failure rolls back, leaving cache and matcher intact", {
@@ -141,9 +180,9 @@ test_that("exact same-section duplicates warn once and are deduplicated", {
   )
   withr::local_options(pslr.downloader = fake_downloader(dup))
   expect_warning(psl_refresh(force = TRUE, activate = TRUE), "duplicate")
-  expect_false(any(duplicated(
+  expect_identical(anyDuplicated(
     paste(psl_rules()$section, psl_rules()$canonical_rule)
-  )))
+  ), 0L)
 })
 
 test_that("the default downloader refuses a non-HTTPS redirect", {

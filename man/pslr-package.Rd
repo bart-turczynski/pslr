@@ -6,7 +6,7 @@
 \alias{pslr-package}
 \title{pslr: Public Suffix List Engine}
 \description{
-A focused implementation of the Public Suffix List (PSL). Bundles a reproducible, pinned PSL snapshot and implements the official prevailing-rule algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and ASCII hostnames via 'punycoder' canonicalization, and supports an explicit, validated offline refresh path. The matcher is compiled with 'cpp11' and requires no external system library.
+A focused implementation of the Public Suffix List (PSL). Bundles a reproducible, pinned PSL snapshot and implements the official prevailing-rule algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and ASCII hostnames via 'punycoder' canonicalization, and supports an explicit, validated offline refresh path. The matcher is compiled with 'cpp11' and requires no external system library. Used as the PSL engine by the 'rurl' package.
 }
 \seealso{
 Core queries: \code{\link[=public_suffix]{public_suffix()}}, \code{\link[=registrable_domain]{registrable_domain()}},
@@ -18,11 +18,11 @@ The \code{introduction} vignette is a full tour:
 \code{vignette("introduction", package = "pslr")}.
 }
 \author{
-\strong{Maintainer}: Bart Turczynski \email{bartek+pslr@turczynski.pl}
+\strong{Maintainer}: Bart Turczynski \email{bartek+pslr@turczynski.pl} (\href{https://orcid.org/0000-0002-8788-7980}{ORCID})
 
 Authors:
 \itemize{
-  \item Bart Turczynski \email{bartek+pslr@turczynski.pl}
+  \item Bart Turczynski \email{bartek+pslr@turczynski.pl} (\href{https://orcid.org/0000-0002-8788-7980}{ORCID})
 }
 
 }
