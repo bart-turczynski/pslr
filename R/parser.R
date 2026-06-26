@@ -46,13 +46,10 @@ psl_empty_rules <- function() {
   )
 }
 
-# Parse one rule's content (already trimmed to the token before first
-# whitespace) into its kind and the literal label string to canonicalize.
-# Returns list(kind, literal). Aborts with `line` context on any grammar error.
-psl_parse_rule_content <- function(content, line) {
+# Strip a leading `!` exception marker. Returns list(kind, literal); aborts if
+# the rule has no labels after `!` or uses `!` anywhere but the first character.
+psl_strip_exception <- function(literal, line) {
   kind <- "normal"
-  literal <- content
-
   if (startsWith(literal, "!")) {
     kind <- "exception"
     literal <- substring(literal, 2L)
@@ -63,6 +60,40 @@ psl_parse_rule_content <- function(content, line) {
   if (grepl("!", literal, fixed = TRUE)) {
     psl_parse_abort("'!' is only allowed as the first character", line)
   }
+  list(kind = kind, literal = literal)
+}
+
+# Validate and apply a leftmost `*` wildcard. Given the split labels and the
+# current rule kind, returns the updated list(kind, literal); aborts with `line`
+# context on any wildcard grammar error. A rule with no `*` is returned as-is.
+psl_apply_wildcard <- function(labels, kind, line) {
+  has_star <- grepl("*", labels, fixed = TRUE)
+  if (!any(has_star)) {
+    return(list(kind = kind, literal = paste(labels, collapse = ".")))
+  }
+  star_positions <- which(has_star)
+  if (any(labels[star_positions] != "*")) {
+    psl_parse_abort("'*' must be a complete label, not part of one", line)
+  }
+  if (length(star_positions) != 1L || star_positions[1] != 1L) {
+    psl_parse_abort("'*' is only allowed as the leftmost label", line)
+  }
+  if (kind == "exception") {
+    psl_parse_abort("a rule cannot be both an exception and a wildcard", line)
+  }
+  parent <- labels[-1L]
+  if (length(parent) == 0L) {
+    psl_parse_abort("wildcard rule must have a literal label after '*'", line)
+  }
+  list(kind = "wildcard", literal = paste(parent, collapse = "."))
+}
+
+# Parse one rule's content (already trimmed to the token before first
+# whitespace) into its kind and the literal label string to canonicalize.
+# Returns list(kind, literal). Aborts with `line` context on any grammar error.
+psl_parse_rule_content <- function(content, line) {
+  ex <- psl_strip_exception(content, line)
+  literal <- ex$literal
 
   # `strsplit` drops a trailing empty field, so check the dot structure
   # directly to catch leading, trailing, and consecutive dots.
@@ -74,27 +105,7 @@ psl_parse_rule_content <- function(content, line) {
   }
   labels <- strsplit(literal, ".", fixed = TRUE)[[1]]
 
-  has_star <- grepl("*", labels, fixed = TRUE)
-  if (any(has_star)) {
-    star_positions <- which(has_star)
-    if (any(labels[star_positions] != "*")) {
-      psl_parse_abort("'*' must be a complete label, not part of one", line)
-    }
-    if (length(star_positions) != 1L || star_positions[1] != 1L) {
-      psl_parse_abort("'*' is only allowed as the leftmost label", line)
-    }
-    if (kind == "exception") {
-      psl_parse_abort("a rule cannot be both an exception and a wildcard", line)
-    }
-    kind <- "wildcard"
-    parent <- labels[-1L]
-    if (length(parent) == 0L) {
-      psl_parse_abort("wildcard rule must have a literal label after '*'", line)
-    }
-    literal <- paste(parent, collapse = ".")
-  }
-
-  list(kind = kind, literal = literal)
+  psl_apply_wildcard(labels, ex$kind, line)
 }
 
 psl_validate_source_lines <- function(lines) {
