@@ -44,9 +44,9 @@ that never exposes a partial or mismatched snapshot. A failed refresh never
 replaces a valid cache or the active matcher.
 }
 \examples{
-\dontrun{
-psl_refresh()
-psl_refresh(force = TRUE, activate = TRUE)
+if (interactive()) {
+  psl_refresh()
+  psl_refresh(force = TRUE, activate = TRUE)
 }
 }
 \seealso{
