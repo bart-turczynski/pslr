@@ -43,20 +43,32 @@ installed automatically from CRAN.
 
 library(pslr)
 
-public_suffix("www.example.co.uk")       #> "co.uk"
-registrable_domain("www.example.co.uk")  #> "example.co.uk"
+public_suffix("www.example.co.uk")
+#> [1] "co.uk"
+registrable_domain("www.example.co.uk")
+#> [1] "example.co.uk"
 
 # ICANN vs PRIVATE sections
-public_suffix("user.github.io")                    #> "github.io"
-public_suffix("user.github.io", section = "icann") #> "io"
+public_suffix("user.github.io")
+#> [1] "github.io"
+public_suffix("user.github.io", section = "icann")
+#> [1] "io"
 
 # Explicit membership vs the implicit default rule
-is_public_suffix("madeuptld")                  #> TRUE  (implicit "*")
-is_public_suffix("madeuptld", unknown = "na")  #> NA    (explicit only)
+is_public_suffix("madeuptld")                 # implicit "*"
+#> [1] TRUE
+is_public_suffix("madeuptld", unknown = "na") # explicit only
+#> [1] NA
 
 # Split a host, or inspect the prevailing rule
 suffix_extract("blog.user.github.io")
+#>                 input                host subdomain domain    suffix
+#> 1 blog.user.github.io blog.user.github.io      blog   user github.io
+#>   registrable_domain
+#> 1     user.github.io
 public_suffix_rule("a.b.kobe.jp")
+#>         input  host_ascii      rule     kind rule_section public_suffix_ascii
+#> 1 a.b.kobe.jp a.b.kobe.jp *.kobe.jp wildcard        icann           b.kobe.jp
 ```
 
 See

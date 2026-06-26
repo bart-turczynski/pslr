@@ -82,20 +82,32 @@
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://bart-turczynski.github.io/pslr/">pslr</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/public_suffix.html">public_suffix</a></span><span class="op">(</span><span class="st">"www.example.co.uk"</span><span class="op">)</span>       <span class="co">#&gt; "co.uk"</span></span>
-<span><span class="fu"><a href="reference/registrable_domain.html">registrable_domain</a></span><span class="op">(</span><span class="st">"www.example.co.uk"</span><span class="op">)</span>  <span class="co">#&gt; "example.co.uk"</span></span>
+<span><span class="fu"><a href="reference/public_suffix.html">public_suffix</a></span><span class="op">(</span><span class="st">"www.example.co.uk"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "co.uk"</span></span>
+<span><span class="fu"><a href="reference/registrable_domain.html">registrable_domain</a></span><span class="op">(</span><span class="st">"www.example.co.uk"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "example.co.uk"</span></span>
 <span></span>
 <span><span class="co"># ICANN vs PRIVATE sections</span></span>
-<span><span class="fu"><a href="reference/public_suffix.html">public_suffix</a></span><span class="op">(</span><span class="st">"user.github.io"</span><span class="op">)</span>                    <span class="co">#&gt; "github.io"</span></span>
-<span><span class="fu"><a href="reference/public_suffix.html">public_suffix</a></span><span class="op">(</span><span class="st">"user.github.io"</span>, section <span class="op">=</span> <span class="st">"icann"</span><span class="op">)</span> <span class="co">#&gt; "io"</span></span>
+<span><span class="fu"><a href="reference/public_suffix.html">public_suffix</a></span><span class="op">(</span><span class="st">"user.github.io"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "github.io"</span></span>
+<span><span class="fu"><a href="reference/public_suffix.html">public_suffix</a></span><span class="op">(</span><span class="st">"user.github.io"</span>, section <span class="op">=</span> <span class="st">"icann"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "io"</span></span>
 <span></span>
 <span><span class="co"># Explicit membership vs the implicit default rule</span></span>
-<span><span class="fu"><a href="reference/is_public_suffix.html">is_public_suffix</a></span><span class="op">(</span><span class="st">"madeuptld"</span><span class="op">)</span>                  <span class="co">#&gt; TRUE  (implicit "*")</span></span>
-<span><span class="fu"><a href="reference/is_public_suffix.html">is_public_suffix</a></span><span class="op">(</span><span class="st">"madeuptld"</span>, unknown <span class="op">=</span> <span class="st">"na"</span><span class="op">)</span>  <span class="co">#&gt; NA    (explicit only)</span></span>
+<span><span class="fu"><a href="reference/is_public_suffix.html">is_public_suffix</a></span><span class="op">(</span><span class="st">"madeuptld"</span><span class="op">)</span>                 <span class="co"># implicit "*"</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="fu"><a href="reference/is_public_suffix.html">is_public_suffix</a></span><span class="op">(</span><span class="st">"madeuptld"</span>, unknown <span class="op">=</span> <span class="st">"na"</span><span class="op">)</span> <span class="co"># explicit only</span></span>
+<span><span class="co">#&gt; [1] NA</span></span>
 <span></span>
 <span><span class="co"># Split a host, or inspect the prevailing rule</span></span>
 <span><span class="fu"><a href="reference/suffix_extract.html">suffix_extract</a></span><span class="op">(</span><span class="st">"blog.user.github.io"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/public_suffix_rule.html">public_suffix_rule</a></span><span class="op">(</span><span class="st">"a.b.kobe.jp"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="co">#&gt;                 input                host subdomain domain    suffix</span></span>
+<span><span class="co">#&gt; 1 blog.user.github.io blog.user.github.io      blog   user github.io</span></span>
+<span><span class="co">#&gt;   registrable_domain</span></span>
+<span><span class="co">#&gt; 1     user.github.io</span></span>
+<span><span class="fu"><a href="reference/public_suffix_rule.html">public_suffix_rule</a></span><span class="op">(</span><span class="st">"a.b.kobe.jp"</span><span class="op">)</span></span>
+<span><span class="co">#&gt;         input  host_ascii      rule     kind rule_section public_suffix_ascii</span></span>
+<span><span class="co">#&gt; 1 a.b.kobe.jp a.b.kobe.jp *.kobe.jp wildcard        icann           b.kobe.jp</span></span></code></pre></div>
 <p>See <code><a href="articles/introduction.html">vignette("introduction", package = "pslr")</a></code> for the full tour: section choice, the unknown-suffix policy, IDN output, terminal dots, refresh and activation, reproducibility, and security notes.</p>
 </div>
 <div class="section level2">
