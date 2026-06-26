@@ -285,9 +285,9 @@ psl_validate_refresh_url <- function(url) {
 #'   describing the selected cache snapshot, whether or not it was activated.
 #' @seealso [psl_use()], [psl_version()]
 #' @examples
-#' \dontrun{
-#' psl_refresh()
-#' psl_refresh(force = TRUE, activate = TRUE)
+#' if (interactive()) {
+#'   psl_refresh()
+#'   psl_refresh(force = TRUE, activate = TRUE)
 #' }
 #' @export
 psl_refresh <- function(
@@ -389,9 +389,9 @@ psl_activate_path <- function(path) {
 #' @seealso [psl_refresh()], [psl_version()], [psl_rules()]
 #' @examples
 #' psl_use("bundled")
-#' \dontrun{
-#' psl_use("cache")
-#' psl_use("path", path = "my_list.dat")
+#' if (interactive()) {
+#'   psl_use("cache")
+#'   psl_use("path", path = "my_list.dat")
 #' }
 #' @export
 psl_use <- function(source = c("bundled", "cache", "path"), path = NULL) {

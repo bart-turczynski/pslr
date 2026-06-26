@@ -33,9 +33,9 @@ runtime normalizer; they never reuse the bundled generated index.
 }
 \examples{
 psl_use("bundled")
-\dontrun{
-psl_use("cache")
-psl_use("path", path = "my_list.dat")
+if (interactive()) {
+  psl_use("cache")
+  psl_use("path", path = "my_list.dat")
 }
 }
 \seealso{

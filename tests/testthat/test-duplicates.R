@@ -43,7 +43,7 @@ test_that("the same rule may appear once per section", {
     normal(2, "icann", "example"),
     normal(5, "private", "example")
   )
-  expect_silent(out <- apply_duplicate_policy(rules, "strict"))
+  out <- expect_silent(apply_duplicate_policy(rules, "strict"))
   expect_identical(nrow(out), 2L)
 })
 
@@ -66,9 +66,10 @@ test_that("lenient mode warns once and keeps the first occurrence", {
     normal(9, "icann", "net")
   )
   expect_warning(
-    out <- apply_duplicate_policy(rules, "lenient"),
+    apply_duplicate_policy(rules, "lenient"),
     "dropped 2 duplicate"
   )
+  out <- suppressWarnings(apply_duplicate_policy(rules, "lenient"))
   expect_identical(out$canonical_rule, c("com", "net"))
   # First source occurrences are retained.
   expect_identical(out$line, c(2L, 7L))
@@ -97,7 +98,7 @@ test_that("conflict detection is per-section, not cross-section", {
     normal(2, "icann", "com"),
     rule(6, "private", "wildcard", "*.com", "com", 2)
   )
-  expect_silent(out <- apply_duplicate_policy(rules, "strict"))
+  out <- expect_silent(apply_duplicate_policy(rules, "strict"))
   expect_identical(nrow(out), 2L)
 })
 
@@ -107,7 +108,7 @@ test_that("wildcard and exception with distinct keys do not conflict", {
     rule(2, "icann", "wildcard", "*.ck", "ck", 2),
     rule(3, "icann", "exception", "!www.ck", "www.ck", 2)
   )
-  expect_silent(out <- apply_duplicate_policy(rules, "strict"))
+  out <- expect_silent(apply_duplicate_policy(rules, "strict"))
   expect_identical(nrow(out), 2L)
 })
 
@@ -161,6 +162,7 @@ test_that("it integrates with the parser output", {
     apply_duplicate_policy(parsed, "strict"),
     class = "pslr_parse_error"
   )
-  expect_warning(out <- apply_duplicate_policy(parsed, "lenient"))
+  expect_warning(apply_duplicate_policy(parsed, "lenient"))
+  out <- suppressWarnings(apply_duplicate_policy(parsed, "lenient"))
   expect_identical(out$section, c("icann", "private"))
 })
