@@ -4,7 +4,8 @@
 
 # Count the elements passed across the two expensive crossings -- the punycoder
 # canonicalization and the cpp11 matcher -- during `expr`, by wrapping the live
-# bindings. Restores them afterwards. Returns list(norm =, match =).
+# bindings. Restores them afterwards. Returns list(norm =, match =, value =),
+# where `value` is the result of `expr`.
 count_crossings <- function(expr) {
   counts <- new.env(parent = emptyenv())
   counts$norm <- 0L
@@ -32,30 +33,30 @@ count_crossings <- function(expr) {
     orig_norm(x, ...)
   }, envir = puny_ns)
 
-  force(expr)
-  list(norm = counts$norm, match = counts$match)
+  value <- force(expr)
+  list(norm = counts$norm, match = counts$match, value = value)
 }
 
 test_that("a repeated host is normalized and matched exactly once", {
   local_pslr_clean()
   n <- 1000L
-  c <- count_crossings(out <- public_suffix(rep("www.example.co.uk", n)))
+  res <- count_crossings(public_suffix(rep("www.example.co.uk", n)))
 
-  expect_identical(c$norm, 1L)
-  expect_identical(c$match, 1L)
+  expect_identical(res$norm, 1L)
+  expect_identical(res$match, 1L)
   # ...but every input element still gets its own result.
-  expect_identical(out, rep("co.uk", n))
+  expect_identical(res$value, rep("co.uk", n))
 })
 
 test_that("dedup collapses to the number of distinct hosts, not inputs", {
   local_pslr_clean()
   hosts <- c("a.example.com", "b.co.uk", "x.kobe.jp")
-  c <- count_crossings(out <- public_suffix(rep(hosts, 500L)))
+  res <- count_crossings(public_suffix(rep(hosts, 500L)))
 
-  expect_identical(c$norm, length(hosts))
-  expect_identical(c$match, length(hosts))
+  expect_identical(res$norm, length(hosts))
+  expect_identical(res$match, length(hosts))
   # x.kobe.jp matches the *.kobe.jp wildcard, so it is its own public suffix.
-  expect_identical(out, rep(c("com", "co.uk", "x.kobe.jp"), 500L))
+  expect_identical(res$value, rep(c("com", "co.uk", "x.kobe.jp"), 500L))
 })
 
 test_that("distinct inputs that canonicalize equal share one match call", {
@@ -63,9 +64,9 @@ test_that("distinct inputs that canonicalize equal share one match call", {
   # Mixed-case and Unicode/A-label spellings collapse to one canonical host, so
   # the matcher is crossed once even though normalization sees each spelling.
   inputs <- c("EXAMPLE.CO.UK", "example.co.uk", "Example.Co.Uk")
-  c <- count_crossings(out <- public_suffix(inputs))
+  res <- count_crossings(public_suffix(inputs))
 
-  expect_identical(c$norm, length(inputs)) # distinct raw spellings
-  expect_identical(c$match, 1L) # one canonical host
-  expect_identical(out, rep("co.uk", length(inputs)))
+  expect_identical(res$norm, length(inputs)) # distinct raw spellings
+  expect_identical(res$match, 1L) # one canonical host
+  expect_identical(res$value, rep("co.uk", length(inputs)))
 })
