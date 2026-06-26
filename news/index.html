@@ -41,6 +41,7 @@
 <div class="section level3">
 <h3 id="internal-1-0-2">Internal<a class="anchor" aria-label="anchor" href="#internal-1-0-2"></a></h3>
 <ul><li>Dropped the redundant <code>strict = TRUE</code> argument from <code><a href="https://rdrr.io/pkg/punycoder/man/host_normalize.html" class="external-link">punycoder::host_normalize()</a></code> calls. <code>punycoder</code> removed the inert <code>strict</code> flag in favour of explicit UTS <a href="https://github.com/bart-turczynski/pslr/issues/46" class="external-link">#46</a> flags (all defaulting to the strict profile), so the bare call is behavior-preserving and forward-compatible with that release. No user-visible change; this keeps <code>pslr</code> installable against the upcoming <code>punycoder</code> release.</li>
+<li>Refactored <code>psl_canonicalize()</code>, <code>parse_psl_lines()</code>, the core matcher resolution, and <code><a href="../reference/psl_refresh.html">psl_refresh()</a></code>/<code><a href="../reference/psl_use.html">psl_use()</a></code> into smaller helpers to clear <code>goodpractice</code> cyclomatic-complexity and function-length findings. Pure internal restructuring; no behavior or API change.</li>
 </ul></div>
 </div>
     <div class="section level2">

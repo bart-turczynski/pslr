@@ -7,7 +7,7 @@ registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE
 rule sections, accepts Unicode and ASCII hostnames via 'punycoder'
 canonicalization, and supports an explicit, validated offline refresh
 path. The matcher is compiled with 'cpp11' and requires no external
-system library.
+system library. Used as the PSL engine by the 'rurl' package.
 
 ## See also
 
@@ -29,7 +29,9 @@ The `introduction` vignette is a full tour:
 ## Author
 
 **Maintainer**: Bart Turczynski <bartek+pslr@turczynski.pl>
+([ORCID](https://orcid.org/0000-0002-8788-7980))
 
 Authors:
 
 - Bart Turczynski <bartek+pslr@turczynski.pl>
+  ([ORCID](https://orcid.org/0000-0002-8788-7980))
