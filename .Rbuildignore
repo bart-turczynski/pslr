@@ -34,4 +34,6 @@
 ^CONTRIBUTING\.md$
 ^SECURITY\.md$
 ^CHANGELOG\.md$
+^CITATION\.cff$
+^codemeta\.json$
 ^\.DS_Store$

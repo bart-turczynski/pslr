@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "pslr: Public Suffix List Engine"
+version: 1.0.2
+abstract: >-
+  A focused implementation of the Public Suffix List (PSL). Bundles a
+  reproducible, pinned PSL snapshot and implements the official
+  prevailing-rule algorithm to answer public-suffix (eTLD) and
+  registrable-domain (eTLD+1) queries.
+authors:
+  - family-names: Turczynski
+    given-names: Bart
+    orcid: "https://orcid.org/0000-0002-8788-7980"
+repository-code: "https://github.com/bart-turczynski/pslr"
+url: "https://bart-turczynski.github.io/pslr/"
+license: MIT
+keywords:
+  - public suffix list
+  - PSL
+  - eTLD
+  - eTLD+1
+  - registrable domain
+  - ICANN
+  - domain parsing
+  - domain extraction
+  - domain names
+  - TLD
+  - cookie domains
+  - IDNA
+  - public suffix

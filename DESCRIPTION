@@ -3,7 +3,7 @@ Type: Package
 Title: Public Suffix List Engine
 Version: 1.0.2
 Authors@R:
-    person("Bart", "Turczynski", email = "bartek+pslr@turczynski.pl",
+    person("Bart", "Turczynski", email = "bartek@turczynski.pl",
            role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-8788-7980"))
 Description: A focused implementation of the Public Suffix List (PSL). Bundles a
@@ -16,7 +16,10 @@ Description: A focused implementation of the Public Suffix List (PSL). Bundles a
     package.
 License: MIT + file LICENSE
 Language: en-US
-URL: https://bart-turczynski.github.io/pslr/, https://github.com/bart-turczynski/pslr
+URL: https://bart-turczynski.github.io/pslr/,
+    https://github.com/bart-turczynski/pslr,
+    https://CRAN.R-project.org/package=pslr,
+    https://bart-turczynski.r-universe.dev
 BugReports: https://github.com/bart-turczynski/pslr/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -39,3 +42,6 @@ Suggests:
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.0.0
+X-schema.org-keywords: public suffix list, PSL, eTLD, eTLD+1, registrable
+    domain, ICANN, domain parsing, domain extraction, domain names, TLD, cookie
+    domains, IDNA, public suffix
