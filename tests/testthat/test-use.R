@@ -17,6 +17,28 @@ test_that("psl_use('cache') errors with remediation when no cache exists", {
   expect_error(psl_use("cache"), "No validated PSL cache")
 })
 
+test_that("psl_use('cache') reports a missing source file with remediation", {
+  dir <- local_pslr_clean()
+  withr::local_options(pslr.downloader = fake_downloader())
+  psl_refresh(force = TRUE)
+  cur <- readRDS(file.path(dir, "current.rds"))
+  unlink(file.path(dir, cur$dat_file))
+
+  expect_error(psl_use("cache"), "source file is missing")
+  expect_error(psl_use("cache"), "psl_refresh\\(force = TRUE\\)")
+})
+
+test_that("psl_use('cache') reports a checksum mismatch with remediation", {
+  dir <- local_pslr_clean()
+  withr::local_options(pslr.downloader = fake_downloader())
+  psl_refresh(force = TRUE)
+  cur <- readRDS(file.path(dir, "current.rds"))
+  writeLines("changed", file.path(dir, cur$dat_file))
+
+  expect_error(psl_use("cache"), "checksum mismatch")
+  expect_error(psl_use("cache"), "psl_refresh\\(force = TRUE\\)")
+})
+
 test_that("psl_use('bundled') is the offline default and returns metadata", {
   local_pslr_clean()
   meta <- withVisible(psl_use("bundled"))

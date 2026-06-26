@@ -97,6 +97,125 @@ psl_parse_rule_content <- function(content, line) {
   list(kind = kind, literal = literal)
 }
 
+psl_validate_source_lines <- function(lines) {
+  if (length(lines) == 0L) {
+    return(invisible(NULL))
+  }
+  if (!is.character(lines) || anyNA(lines)) {
+    psl_parse_abort("PSL source lines must be a character vector without NA")
+  }
+  if (!all(validUTF8(lines))) {
+    bad <- which(!validUTF8(lines))[1]
+    psl_parse_abort("source is not valid UTF-8", bad)
+  }
+  invisible(NULL)
+}
+
+psl_read_marker <- function(line, number) {
+  if (!grepl(psl_marker_like_re, line)) {
+    return(NULL)
+  }
+  m <- regmatches(line, regexec(psl_marker_re, line))[[1]]
+  if (length(m) == 0L) {
+    psl_parse_abort("malformed section marker", number)
+  }
+  list(verb = m[2], name = tolower(m[3]))
+}
+
+psl_update_section <- function(marker, section, section_opens, number) {
+  name <- marker$name
+  if (identical(marker$verb, "BEGIN")) {
+    if (!is.na(section)) {
+      psl_parse_abort(
+        sprintf("nested section: '%s' begins inside '%s'", name, section),
+        number
+      )
+    }
+    section_opens[[name]] <- section_opens[[name]] + 1L
+    if (section_opens[[name]] > 1L) {
+      psl_parse_abort(sprintf("section '%s' appears more than once", name),
+                      number)
+    }
+    return(list(section = name, section_opens = section_opens))
+  }
+
+  if (is.na(section)) {
+    psl_parse_abort(
+      sprintf("'%s' section ends without a matching BEGIN", name), number
+    )
+  }
+  if (section != name) {
+    psl_parse_abort(
+      sprintf("section end '%s' does not match open section '%s'",
+              name, section),
+      number
+    )
+  }
+  list(section = NA_character_, section_opens = section_opens)
+}
+
+psl_rule_token <- function(line) {
+  regmatches(line, regexpr("^[^[:space:]]+", line))
+}
+
+psl_build_rule_record <- function(token, section, number) {
+  parsed <- psl_parse_rule_content(token, number)
+  normalized <- punycoder::host_normalize(parsed$literal)
+  if (is.na(normalized)) {
+    psl_parse_abort(sprintf("rule '%s' could not be canonicalized", token),
+                    number)
+  }
+
+  canonical_rule <- switch(parsed$kind,
+    wildcard = paste0("*.", normalized),
+    exception = paste0("!", normalized),
+    normalized
+  )
+  depth <- length(strsplit(normalized, ".", fixed = TRUE)[[1]]) +
+    (parsed$kind == "wildcard")
+
+  list(
+    line = number, raw = token, section = section, kind = parsed$kind,
+    canonical_rule = canonical_rule, canonical_key = normalized, labels = depth
+  )
+}
+
+psl_rule_accumulator <- function() {
+  list(
+    line = integer(0),
+    raw = character(0),
+    section = character(0),
+    kind = character(0),
+    canonical_rule = character(0),
+    canonical_key = character(0),
+    labels = integer(0)
+  )
+}
+
+psl_append_rule <- function(out, record) {
+  out$line <- c(out$line, record$line)
+  out$raw <- c(out$raw, record$raw)
+  out$section <- c(out$section, record$section)
+  out$kind <- c(out$kind, record$kind)
+  out$canonical_rule <- c(out$canonical_rule, record$canonical_rule)
+  out$canonical_key <- c(out$canonical_key, record$canonical_key)
+  out$labels <- c(out$labels, record$labels)
+  out
+}
+
+psl_accumulator_df <- function(out) {
+  data.frame(
+    line = out$line,
+    raw = out$raw,
+    section = out$section,
+    kind = out$kind,
+    canonical_rule = out$canonical_rule,
+    canonical_key = out$canonical_key,
+    labels = out$labels,
+    stringsAsFactors = FALSE
+  )
+}
+
 #' Parse Public Suffix List source lines into a validated rule table
 #'
 #' Internal. Consumes a character vector of source lines (one PSL `.dat` line
@@ -114,22 +233,10 @@ parse_psl_lines <- function(lines) {
   if (length(lines) == 0L) {
     return(psl_empty_rules())
   }
-  if (!is.character(lines) || anyNA(lines)) {
-    psl_parse_abort("PSL source lines must be a character vector without NA")
-  }
-  if (!all(validUTF8(lines))) {
-    bad <- which(!validUTF8(lines))[1]
-    psl_parse_abort("source is not valid UTF-8", bad)
-  }
+  psl_validate_source_lines(lines)
 
   n <- length(lines)
-  out_line <- integer(0)
-  out_raw <- character(0)
-  out_section <- character(0)
-  out_kind <- character(0)
-  out_rule <- character(0)
-  out_key <- character(0)
-  out_labels <- integer(0)
+  out <- psl_rule_accumulator()
 
   section <- NA_character_
   # The official format carries exactly one complete ICANN section and one
@@ -140,42 +247,11 @@ parse_psl_lines <- function(lines) {
   for (i in seq_len(n)) {
     line <- lines[i]
 
-    if (grepl(psl_marker_like_re, line)) {
-      m <- regmatches(line, regexec(psl_marker_re, line))[[1]]
-      if (length(m) == 0L) {
-        psl_parse_abort("malformed section marker", i)
-      }
-      verb <- m[2]
-      name <- tolower(m[3])
-      if (verb == "BEGIN") {
-        if (!is.na(section)) {
-          psl_parse_abort(
-            sprintf("nested section: '%s' begins inside '%s'", name, section), i
-          )
-        }
-        section_opens[[name]] <- section_opens[[name]] + 1L
-        if (section_opens[[name]] > 1L) {
-          psl_parse_abort(
-            sprintf("section '%s' appears more than once", name), i
-          )
-        }
-        section <- name
-      } else {
-        if (is.na(section)) {
-          psl_parse_abort(
-            sprintf("'%s' section ends without a matching BEGIN", name), i
-          )
-        }
-        if (section != name) {
-          psl_parse_abort(
-            sprintf(
-              "section end '%s' does not match open section '%s'", name, section
-            ),
-            i
-          )
-        }
-        section <- NA_character_
-      }
+    marker <- psl_read_marker(line, i)
+    if (!is.null(marker)) {
+      state <- psl_update_section(marker, section, section_opens, i)
+      section <- state$section
+      section_opens <- state$section_opens
       next
     }
 
@@ -185,7 +261,7 @@ parse_psl_lines <- function(lines) {
 
     # Read rule content only up to the first whitespace (PRD s8.1). A line that
     # is blank or starts with whitespace yields no rule content.
-    token <- regmatches(line, regexpr("^[^[:space:]]+", line))
+    token <- psl_rule_token(line)
     if (length(token) == 0L) {
       next
     }
@@ -194,45 +270,14 @@ parse_psl_lines <- function(lines) {
       psl_parse_abort("rule appears outside any ICANN or PRIVATE section", i)
     }
 
-    parsed <- psl_parse_rule_content(token, i)
-    normalized <- punycoder::host_normalize(parsed$literal)
-    if (is.na(normalized)) {
-      psl_parse_abort(
-        sprintf("rule '%s' could not be canonicalized", token), i
-      )
-    }
-
-    canonical_rule <- switch(parsed$kind,
-      wildcard = paste0("*.", normalized),
-      exception = paste0("!", normalized),
-      normalized
-    )
-    depth <- length(strsplit(normalized, ".", fixed = TRUE)[[1]]) +
-      (parsed$kind == "wildcard")
-
-    out_line <- c(out_line, i)
-    out_raw <- c(out_raw, token)
-    out_section <- c(out_section, section)
-    out_kind <- c(out_kind, parsed$kind)
-    out_rule <- c(out_rule, canonical_rule)
-    out_key <- c(out_key, normalized)
-    out_labels <- c(out_labels, depth)
+    out <- psl_append_rule(out, psl_build_rule_record(token, section, i))
   }
 
   if (!is.na(section)) {
     psl_parse_abort(sprintf("section '%s' is never closed", section), n)
   }
 
-  data.frame(
-    line = out_line,
-    raw = out_raw,
-    section = out_section,
-    kind = out_kind,
-    canonical_rule = out_rule,
-    canonical_key = out_key,
-    labels = out_labels,
-    stringsAsFactors = FALSE
-  )
+  psl_accumulator_df(out)
 }
 
 #' Read and parse a Public Suffix List `.dat` file
@@ -252,7 +297,7 @@ read_psl_file <- function(path) {
     psl_parse_abort(sprintf("PSL source file not found: %s", path))
   }
   con <- file(path, open = "r", encoding = "UTF-8")
-  on.exit(close(con))
+  on.exit(close(con), add = TRUE)
   lines <- readLines(con, warn = FALSE)
   parse_psl_lines(lines)
 }

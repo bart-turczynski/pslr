@@ -17,8 +17,8 @@ test_that("the bundled source snapshot ships and is the MPL-2.0 list", {
 
 test_that("bundled metadata has the documented fields and types", {
   meta <- pslr_bundled$meta
-  expect_identical(
-    names(meta),
+  expect_named(
+    meta,
     c("source", "url", "commit", "retrieved_at", "list_date", "size",
       "checksum", "normalizer", "normalizer_version",
       "normalization_profile", "unicode_version")
@@ -57,5 +57,5 @@ test_that("the real list parses cleanly under the strict build policy", {
   rules <- pslr_bundled$rules
   expect_true(all(rules$section %in% c("icann", "private")))
   expect_true(all(rules$kind %in% c("normal", "wildcard", "exception")))
-  expect_true(nrow(rules) > 1000L)
+  expect_gt(nrow(rules), 1000L)
 })

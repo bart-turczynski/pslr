@@ -11,7 +11,7 @@ ps_rule_cols <- c(
 test_that("suffix_extract has the exact column schema, order, and types", {
   out <- suffix_extract("www.example.co.uk")
   expect_s3_class(out, "data.frame")
-  expect_identical(names(out), ps_extract_cols)
+  expect_named(out, ps_extract_cols)
   expect_true(all(vapply(out, is.character, logical(1))))
   expect_identical(nrow(out), 1L)
   expect_identical(
@@ -80,7 +80,7 @@ test_that("suffix_extract keeps the root dot on host/suffix/registrable", {
 test_that("suffix_extract zero-length is a zero-row typed frame", {
   out <- suffix_extract(character(0))
   expect_identical(nrow(out), 0L)
-  expect_identical(names(out), ps_extract_cols)
+  expect_named(out, ps_extract_cols)
   expect_true(all(vapply(out, is.character, logical(1))))
 })
 
@@ -97,7 +97,7 @@ test_that("suffix_extract does not turn input names into row names", {
 
 test_that("public_suffix_rule has the exact column schema, order, and types", {
   out <- public_suffix_rule("www.example.co.uk")
-  expect_identical(names(out), ps_rule_cols)
+  expect_named(out, ps_rule_cols)
   expect_true(all(vapply(out, is.character, logical(1))))
   expect_identical(
     unlist(out[1, ], use.names = FALSE),
@@ -128,7 +128,7 @@ test_that("public_suffix_rule keeps host_ascii but NAs rule for unresolved", {
 test_that("public_suffix_rule zero-length and all-invalid row counts", {
   z <- public_suffix_rule(character(0))
   expect_identical(nrow(z), 0L)
-  expect_identical(names(z), ps_rule_cols)
+  expect_named(z, ps_rule_cols)
   inv <- public_suffix_rule(c("a..b", "[::1]"))
   expect_identical(nrow(inv), 2L)
   expect_true(all(is.na(inv$rule)))

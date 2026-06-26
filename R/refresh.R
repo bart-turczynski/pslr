@@ -84,6 +84,103 @@ psl_load_source <- function(path, what = "list") {
   rules
 }
 
+# A current marker can be reused only when it is still within the upstream
+# courtesy window and still names an existing source file with the recorded
+# checksum.
+psl_reusable_cache_path <- function(current, cache_dir) {
+  if (is.null(current) || is.na(current$meta$retrieved_at)) {
+    return(NA_character_)
+  }
+  retrieved_at <- as.POSIXct(current$meta$retrieved_at, tz = "UTC")
+  fresh <- difftime(Sys.time(), retrieved_at, units = "hours") < 24
+  dat <- file.path(cache_dir, current$dat_file)
+  valid <- file.exists(dat) &&
+    identical(psl_source_checksum(dat), current$meta$checksum)
+  if (fresh && valid) dat else NA_character_
+}
+
+psl_cache_meta <- function(dat, current) {
+  psl_meta(
+    source = "cache", path = dat,
+    retrieved_at = current$meta$retrieved_at, size = current$meta$size,
+    checksum = current$meta$checksum
+  )
+}
+
+psl_cache_version <- function(dat, current, activate = FALSE) {
+  meta <- psl_cache_meta(dat, current)
+  if (activate) {
+    psl_set_active(psl_load_source(dat, "cache"), meta)
+  }
+  psl_version_df(meta)
+}
+
+psl_reused_cache_version <- function(force, current, cache_dir, activate) {
+  if (force || is.null(current)) {
+    return(NULL)
+  }
+  dat <- psl_reusable_cache_path(current, cache_dir)
+  if (is.na(dat)) {
+    return(NULL)
+  }
+  psl_cache_version(dat, current, activate)
+}
+
+psl_publish_download <- function(tmp, rules, cache_dir) {
+  checksum <- psl_source_checksum(tmp)
+  size <- as.integer(file.size(tmp))
+  retrieved_at <- format(Sys.time(), tz = "UTC", usetz = TRUE)
+
+  # Publish: content-addressed source first (immutable, never overwritten), then
+  # the commit marker as the single atomic commit point.
+  hex <- sub("^[^:]+:", "", checksum)
+  dat_final <- file.path(cache_dir, paste0("psl-", hex, ".dat"))
+  if (file.exists(dat_final) &&
+        identical(psl_source_checksum(dat_final), checksum)) {
+    unlink(tmp)
+  } else {
+    psl_atomic_rename(tmp, dat_final)
+  }
+
+  meta <- psl_meta(
+    source = "cache", path = dat_final, retrieved_at = retrieved_at,
+    size = size, checksum = checksum
+  )
+  tmp_marker <- tempfile("pslr-cur-", tmpdir = cache_dir, fileext = ".rds")
+  saveRDS(
+    list(dat_file = basename(dat_final), meta = meta), tmp_marker
+  )
+  psl_atomic_rename(tmp_marker, psl_cache_marker())
+  list(rules = rules, meta = meta)
+}
+
+psl_validate_refresh_args <- function(force, activate) {
+  if (!is.logical(force) || length(force) != 1L || is.na(force)) {
+    stop("`force` must be a single TRUE or FALSE.", call. = FALSE)
+  }
+  if (!is.logical(activate) || length(activate) != 1L || is.na(activate)) {
+    stop("`activate` must be a single TRUE or FALSE.", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+psl_stage_download <- function(url, downloader, cache_dir) {
+  dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+  tmp <- tempfile("pslr-dl-", tmpdir = cache_dir, fileext = ".part")
+  staged <- FALSE
+  on.exit(if (!staged) unlink(tmp), add = TRUE)
+  downloader(url, tmp, psl_max_source_bytes())
+  staged <- TRUE
+  tmp
+}
+
+psl_activate_published <- function(published, activate) {
+  if (activate) {
+    psl_set_active(published$rules, published$meta)
+  }
+  invisible(NULL)
+}
+
 # Read the cache commit marker, or NULL when no cache has been published.
 # A marker that exists but cannot be deserialized (corrupt/truncated bytes) is
 # handled per `on_corrupt`: "null" treats it as no cache (so a forced refresh
@@ -198,72 +295,73 @@ psl_refresh <- function(
     force = FALSE,
     activate = FALSE) {
   psl_validate_refresh_url(url)
-  if (!is.logical(force) || length(force) != 1L || is.na(force)) {
-    stop("`force` must be a single TRUE or FALSE.", call. = FALSE)
-  }
-  if (!is.logical(activate) || length(activate) != 1L || is.na(activate)) {
-    stop("`activate` must be a single TRUE or FALSE.", call. = FALSE)
-  }
+  psl_validate_refresh_args(force, activate)
   # Internal seam for tests: an injected downloader replaces the network call.
   downloader <- getOption("pslr.downloader", psl_default_download)
 
   cache_dir <- psl_cache_dir()
   current <- psl_cache_current()
-
-  # Reuse a fresh, still-valid cache without downloading or advancing its
-  # retrieval timestamp (PRD s7.4).
-  if (!force && !is.null(current)) {
-    dat <- file.path(cache_dir, current$dat_file)
-    fresh <- !is.na(current$meta$retrieved_at) &&
-      difftime(Sys.time(), as.POSIXct(current$meta$retrieved_at, tz = "UTC"),
-        units = "hours"
-      ) < 24
-    valid <- file.exists(dat) &&
-      identical(psl_source_checksum(dat), current$meta$checksum)
-    if (fresh && valid) {
-      meta <- psl_meta(
-        source = "cache", path = dat,
-        retrieved_at = current$meta$retrieved_at, size = current$meta$size,
-        checksum = current$meta$checksum
-      )
-      if (activate) {
-        psl_set_active(psl_load_source(dat, "cache"), meta)
-      }
-      return(invisible(psl_version_df(meta)))
-    }
+  reused <- psl_reused_cache_version(force, current, cache_dir, activate)
+  if (!is.null(reused)) {
+    return(invisible(reused))
   }
 
-  dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
-  tmp <- tempfile("pslr-dl-", tmpdir = cache_dir, fileext = ".part")
+  tmp <- psl_stage_download(url, downloader, cache_dir)
   on.exit(unlink(tmp), add = TRUE)
-
-  # Any download/validation failure aborts here, before the cache is touched.
-  downloader(url, tmp, psl_max_source_bytes())
   rules <- psl_load_source(tmp, "downloaded list")
-  checksum <- psl_source_checksum(tmp)
-  size <- as.integer(file.size(tmp))
-  retrieved_at <- format(Sys.time(), tz = "UTC", usetz = TRUE)
+  published <- psl_publish_download(tmp, rules, cache_dir)
+  psl_activate_published(published, activate)
+  invisible(psl_version_df(published$meta))
+}
 
-  # Publish: content-addressed source first (immutable, never overwritten), then
-  # the commit marker as the single atomic commit point.
-  hex <- sub("^[^:]+:", "", checksum)
-  dat_final <- file.path(cache_dir, paste0("psl-", hex, ".dat"))
-  if (file.exists(dat_final)) unlink(tmp) else psl_atomic_rename(tmp, dat_final)
-
-  meta <- psl_meta(
-    source = "cache", path = dat_final, retrieved_at = retrieved_at,
-    size = size, checksum = checksum
-  )
-  tmp_marker <- tempfile("pslr-cur-", tmpdir = cache_dir, fileext = ".rds")
-  saveRDS(
-    list(dat_file = basename(dat_final), meta = meta), tmp_marker
-  )
-  psl_atomic_rename(tmp_marker, psl_cache_marker())
-
-  if (activate) {
-    psl_set_active(rules, meta)
+psl_activate_cache <- function() {
+  current <- psl_cache_current(on_corrupt = "error")
+  if (is.null(current)) {
+    stop(
+      "No validated PSL cache found. Run psl_refresh(activate = TRUE) ",
+      "first, or use psl_use(\"bundled\").",
+      call. = FALSE
+    )
   }
-  invisible(psl_version_df(meta))
+  dat <- file.path(psl_cache_dir(), current$dat_file)
+  if (!file.exists(dat)) {
+    stop(
+      "PSL cache is corrupt: source file is missing. ",
+      "Run psl_refresh(force = TRUE).",
+      call. = FALSE
+    )
+  }
+  if (!identical(psl_source_checksum(dat), current$meta$checksum)) {
+    stop(
+      "PSL cache is corrupt: checksum mismatch. ",
+      "Run psl_refresh(force = TRUE).",
+      call. = FALSE
+    )
+  }
+  meta <- psl_cache_meta(dat, current)
+  psl_set_active(psl_load_source(dat, "cache"), meta)
+  invisible(psl_version())
+}
+
+psl_activate_path <- function(path) {
+  bad_path <- is.null(path) || !is.character(path) ||
+    length(path) != 1L || is.na(path)
+  if (bad_path) {
+    stop(
+      "`path` must be a single file path when `source = \"path\"`.",
+      call. = FALSE
+    )
+  }
+  if (!file.exists(path)) {
+    stop(sprintf("PSL source file not found: %s", path), call. = FALSE)
+  }
+  rules <- psl_load_source(path, "custom path list")
+  meta <- psl_meta(
+    source = "path", path = normalizePath(path),
+    size = as.integer(file.size(path)), checksum = psl_source_checksum(path)
+  )
+  psl_set_active(rules, meta)
+  invisible(psl_version())
 }
 
 #' Choose the active Public Suffix List for this session
@@ -309,56 +407,9 @@ psl_use <- function(source = c("bundled", "cache", "path"), path = NULL) {
   }
 
   if (identical(source, "cache")) {
-    current <- psl_cache_current(on_corrupt = "error")
-    if (is.null(current)) {
-      stop(
-        "No validated PSL cache found. Run psl_refresh(activate = TRUE) ",
-        "first, or use psl_use(\"bundled\").",
-        call. = FALSE
-      )
-    }
-    dat <- file.path(psl_cache_dir(), current$dat_file)
-    if (!file.exists(dat)) {
-      stop(
-        "PSL cache is corrupt: source file is missing. ",
-        "Run psl_refresh(force = TRUE).",
-        call. = FALSE
-      )
-    }
-    if (!identical(psl_source_checksum(dat), current$meta$checksum)) {
-      stop(
-        "PSL cache is corrupt: checksum mismatch. ",
-        "Run psl_refresh(force = TRUE).",
-        call. = FALSE
-      )
-    }
-    rules <- psl_load_source(dat, "cache")
-    meta <- psl_meta(
-      source = "cache", path = dat,
-      retrieved_at = current$meta$retrieved_at, size = current$meta$size,
-      checksum = current$meta$checksum
-    )
-    psl_set_active(rules, meta)
-    return(invisible(psl_version()))
+    return(psl_activate_cache())
   }
 
   # The remaining source is "path".
-  bad_path <- is.null(path) || !is.character(path) ||
-    length(path) != 1L || is.na(path)
-  if (bad_path) {
-    stop(
-      "`path` must be a single file path when `source = \"path\"`.",
-      call. = FALSE
-    )
-  }
-  if (!file.exists(path)) {
-    stop(sprintf("PSL source file not found: %s", path), call. = FALSE)
-  }
-  rules <- psl_load_source(path, "custom path list")
-  meta <- psl_meta(
-    source = "path", path = normalizePath(path),
-    size = as.integer(file.size(path)), checksum = psl_source_checksum(path)
-  )
-  psl_set_active(rules, meta)
-  invisible(psl_version())
+  psl_activate_path(path)
 }

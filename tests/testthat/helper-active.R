@@ -26,7 +26,13 @@ local_pslr_clean <- function(env = parent.frame()) {
     pslr.cache_dir = dir, pslr.downloader = NULL, pslr.max_bytes = NULL,
     .local_envir = env
   )
-  psl_reset_active()
-  withr::defer(psl_reset_active(), envir = env)
+  reset_active_for_test()
+  withr::defer(reset_active_for_test(), envir = env)
   dir
+}
+
+reset_active_for_test <- function() {
+  the_matcher$state <- NULL
+  psl_cache_clear()
+  invisible(NULL)
 }

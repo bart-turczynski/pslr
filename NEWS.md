@@ -7,6 +7,10 @@
   UTS #46 flags (all defaulting to the strict profile), so the bare call is
   behavior-preserving and forward-compatible with that release. No user-visible
   change; this keeps `pslr` installable against the upcoming `punycoder` release.
+* Refactored `psl_canonicalize()`, `parse_psl_lines()`, the core matcher
+  resolution, and `psl_refresh()`/`psl_use()` into smaller helpers to clear
+  `goodpractice` cyclomatic-complexity and function-length findings. Pure
+  internal restructuring; no behavior or API change.
 
 # pslr 1.0.1
 

@@ -40,6 +40,49 @@ is_ipv4_literal <- function(x) {
   out
 }
 
+psl_canonical_result <- function(domain) {
+  n <- length(domain)
+  list(
+    input = domain,
+    status = rep("ok", n),
+    host = rep(NA_character_, n),
+    core = rep(NA_character_, n),
+    had_dot = rep(FALSE, n)
+  )
+}
+
+psl_normalize_unique_hosts <- function(domain) {
+  uniq <- unique(domain)
+  idx <- match(domain, uniq)
+  list(
+    normalized = punycoder::host_normalize(uniq)[idx],
+    ipv4 = is_ipv4_literal(uniq)[idx]
+  )
+}
+
+psl_abort_invalid_host <- function(domain, bad) {
+  if (!any(bad)) {
+    return(invisible(NULL))
+  }
+  i <- which(bad)[1L]
+  stop(
+    sprintf("Invalid host at position %d: %s", i, trunc_for_msg(domain[i])),
+    call. = FALSE
+  )
+}
+
+psl_fill_valid_hosts <- function(out, normalized) {
+  valid <- out$status == "ok"
+  out$host[valid] <- normalized[valid]
+  out$had_dot[valid] <- endsWith(normalized[valid], ".")
+  out$core[valid] <- ifelse(
+    out$had_dot[valid],
+    substr(out$host[valid], 1L, nchar(out$host[valid]) - 1L),
+    out$host[valid]
+  )
+  out
+}
+
 #' Canonicalize a host vector against the input contract
 #'
 #' @param domain Character vector of hostnames (Unicode or ASCII).
@@ -58,20 +101,13 @@ psl_canonicalize <- function(domain, invalid = "na") {
   if (!is.character(domain)) {
     stop("`domain` must be a character vector.", call. = FALSE)
   }
-  n <- length(domain)
-  status <- rep("ok", n)
-  host <- rep(NA_character_, n)
-  core <- rep(NA_character_, n)
-  had_dot <- rep(FALSE, n)
-  if (n == 0L) {
-    return(list(
-      input = domain, status = status, host = host, core = core,
-      had_dot = had_dot
-    ))
+  out <- psl_canonical_result(domain)
+  if (length(domain) == 0L) {
+    return(out)
   }
 
   is_missing <- is.na(domain)
-  status[is_missing] <- "na"
+  out$status[is_missing] <- "na"
 
   # Deduplicate before normalization so a repeated host costs a single
   # `punycoder` canonicalization (and IPv4-literal check) regardless of its
@@ -79,35 +115,13 @@ psl_canonicalize <- function(domain, invalid = "na") {
   # the C++ matching call, so the per-duplicate cost of both crossings is
   # avoided. `match()` maps each input back to its unique representative, with
   # `NA` matching the single retained `NA`.
-  uniq <- unique(domain)
-  idx <- match(domain, uniq)
-  norm_uniq <- punycoder::host_normalize(uniq)
-  ipv4_uniq <- is_ipv4_literal(uniq)
-  normalized <- norm_uniq[idx]
-  bad <- !is_missing & (is.na(normalized) | ipv4_uniq[idx])
-  status[bad] <- "invalid"
+  norm <- psl_normalize_unique_hosts(domain)
+  bad <- !is_missing & (is.na(norm$normalized) | norm$ipv4)
+  out$status[bad] <- "invalid"
 
   if (identical(invalid, "error") && any(bad)) {
-    i <- which(bad)[1L]
-    stop(
-      sprintf(
-        "Invalid host at position %d: %s", i, trunc_for_msg(domain[i])
-      ),
-      call. = FALSE
-    )
+    psl_abort_invalid_host(domain, bad)
   }
 
-  valid <- status == "ok"
-  host[valid] <- normalized[valid]
-  had_dot[valid] <- endsWith(normalized[valid], ".")
-  core[valid] <- ifelse(
-    had_dot[valid],
-    substr(host[valid], 1L, nchar(host[valid]) - 1L),
-    host[valid]
-  )
-
-  list(
-    input = domain, status = status, host = host, core = core,
-    had_dot = had_dot
-  )
+  psl_fill_valid_hosts(out, norm$normalized)
 }

@@ -2,10 +2,12 @@
 
 0 errors | 0 warnings | 1 note
 
-The NOTE is the incoming-feasibility spell-check flagging domain-vocabulary
-terms in the Description (ICANN, PSL, eTLD, canonicalization, hostnames,
-matcher, registrable). These are correct and intentional; they are also listed
-in inst/WORDLIST.
+The NOTE is the incoming-feasibility timing flag:
+
+* Days since last update: 3
+
+This is an intentionally small maintenance resubmission to keep `pslr`
+installable with the current and upcoming `punycoder` API.
 
 ## Changes in this version
 
@@ -29,6 +31,9 @@ This is a small maintenance update (1.0.1 -> 1.0.2) with no user-visible change.
 * GitHub Actions (`.github/workflows/full-check.yml`): macOS-latest (release),
   Windows-latest (release), Ubuntu-latest (R devel, release, oldrel-1), all with
   `--as-cran`.
+* R-hub is configured through `.github/workflows/rhub.yaml`. Local release
+  checks can be launched with:
+  `rhub::rhub_check("https://github.com/bart-turczynski/pslr")`.
 
 ## Portability
 
