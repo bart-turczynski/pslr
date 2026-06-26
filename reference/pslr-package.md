@@ -28,10 +28,10 @@ The `introduction` vignette is a full tour:
 
 ## Author
 
-**Maintainer**: Bart Turczynski <bartek+pslr@turczynski.pl>
+**Maintainer**: Bart Turczynski <bartek@turczynski.pl>
 ([ORCID](https://orcid.org/0000-0002-8788-7980))
 
 Authors:
 
-- Bart Turczynski <bartek+pslr@turczynski.pl>
+- Bart Turczynski <bartek@turczynski.pl>
   ([ORCID](https://orcid.org/0000-0002-8788-7980))
