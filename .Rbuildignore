@@ -36,4 +36,6 @@
 ^CHANGELOG\.md$
 ^CITATION\.cff$
 ^codemeta\.json$
+^README\.Rmd$
+^README\.html$
 ^\.DS_Store$
