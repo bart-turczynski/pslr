@@ -1,7 +1,7 @@
 {
   "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
   "@type": "SoftwareSourceCode",
-  "identifier": "pslr",
+  "identifier": ["pslr", "https://doi.org/10.5281/zenodo.20973660"],
   "description": "A focused implementation of the Public Suffix List (PSL). Bundles a reproducible, pinned PSL snapshot and implements the official prevailing-rule algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and ASCII hostnames via 'punycoder' canonicalization, and supports an explicit, validated offline refresh path. The matcher is compiled with 'cpp11' and requires no external system library. Used as the PSL engine by the 'rurl' package.",
   "name": "pslr: Public Suffix List Engine",
   "relatedLink": ["https://bart-turczynski.github.io/pslr/", "https://CRAN.R-project.org/package=pslr", "https://bart-turczynski.r-universe.dev"],
@@ -164,6 +164,7 @@
   "citation": [
     {
       "@type": "SoftwareSourceCode",
+      "identifier": "https://doi.org/10.5281/zenodo.20973660",
       "datePublished": "2026",
       "author": [
         {

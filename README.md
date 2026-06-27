@@ -14,6 +14,7 @@ downloads](https://cranlogs.r-pkg.org/badges/pslr)](https://CRAN.R-project.org/p
 coverage](https://codecov.io/gh/bart-turczynski/pslr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/pslr)
 [![Lifecycle:
 stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20973660.svg)](https://doi.org/10.5281/zenodo.20973660)
 <!-- badges: end -->
 
 A focused, spec-complete implementation of the [Public Suffix
@@ -205,6 +206,17 @@ See [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md) for the full list of thanks.
   parsing, normalization, cleaning, and joining toolkit. Uses `pslr` as
   its PSL engine; reach for it when you need more than domain
   extraction.
+
+## Citation
+
+If you use `pslr` in your work, please cite it. Run `citation("pslr")` for
+the current citation, or see [`CITATION.cff`](CITATION.cff).
+
+Each release is archived on Zenodo. Cite the concept DOI
+[10.5281/zenodo.20973660](https://doi.org/10.5281/zenodo.20973660) to refer
+to the software in general (it always resolves to the latest version), or the
+version-specific DOI shown on the [Zenodo
+record](https://doi.org/10.5281/zenodo.20973660) for a particular release.
 
 ## License
 
