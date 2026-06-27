@@ -8,7 +8,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/bart-turczynski/pslr/blob/main/inst/CITATION)
+[`inst/CITATION`](https://github.com/bart-turczynski/pslr/blob/v1.0.2/inst/CITATION)
 
 Turczynski B (2026). *pslr: Public Suffix List Engine*. R package
 version 1.0.2, <https://CRAN.R-project.org/package=pslr>.
