@@ -184,6 +184,13 @@ recorded reference results are in
 - `docs/` — durable project context (`PRD.md`, `architecture.md`,
   `benchmarks.md`).
 
+## Acknowledgments
+
+These packages build on data, libraries, and prior work from many
+others. See
+[ACKNOWLEDGMENTS.md](https://bart-turczynski.github.io/pslr/ACKNOWLEDGMENTS.md)
+for the full list of thanks.
+
 ## Related packages
 
 `pslr` is part of a small ecosystem of R packages by the same author:
