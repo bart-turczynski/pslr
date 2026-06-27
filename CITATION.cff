@@ -3,6 +3,8 @@ message: "If you use this software, please cite it as below."
 type: software
 title: "pslr: Public Suffix List Engine"
 version: 1.0.2
+date-released: "2026-06-27"
+doi: 10.5281/zenodo.20973660
 abstract: >-
   A focused implementation of the Public Suffix List (PSL). Bundles a
   reproducible, pinned PSL snapshot and implements the official
@@ -13,8 +15,16 @@ authors:
     given-names: Bart
     orcid: "https://orcid.org/0000-0002-8788-7980"
 repository-code: "https://github.com/bart-turczynski/pslr"
+repository: "https://CRAN.R-project.org/package=pslr"
 url: "https://bart-turczynski.github.io/pslr/"
 license: MIT
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.20973660
+    description: "Concept DOI (all versions; resolves to the latest release)"
+  - type: doi
+    value: 10.5281/zenodo.20973661
+    description: "Version DOI for pslr 1.0.2"
 keywords:
   - public suffix list
   - PSL
