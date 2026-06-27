@@ -39,3 +39,4 @@
 ^README\.Rmd$
 ^README\.html$
 ^\.DS_Store$
+^ACKNOWLEDGMENTS\.md$
