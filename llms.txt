@@ -85,6 +85,72 @@ normalized.
 reports the active-list provenance plus the runtime normalization
 identifiers; record it alongside reproducibility-sensitive output.
 
+## How pslr compares to other PSL libraries
+
+The [Public Suffix List website](https://publicsuffix.org/learn/)
+catalogs implementations in C, C#, C++, Go, Haskell, Java, JavaScript,
+Perl, PHP, Python, Ruby, Rust, Swift, and more — but no R. `pslr` fills
+that gap, and it is built to be a *reproducibility- and
+correctness-first* engine rather than a quick suffix splitter.
+
+The table compares `pslr` with a representative set of the most
+established libraries from that catalog, across the dimensions that
+matter for correct, auditable suffix handling. ✅ first-class · ◐
+partial/limited · ❌ absent.
+
+| Library (language) | Full algorithm (`*`/`!`) | ICANN / PRIVATE / both | IDN + Punycode | Offline default + explicit refresh | Queryable provenance | Compiled core | Strict input validation | Unlisted-TLD policy configurable |
+|----|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| **pslr (R)** | ✅ | ✅ 3-way | ✅ in & out | ✅ bundled; validated HTTPS-only [`psl_refresh()`](https://bart-turczynski.github.io/pslr/reference/psl_refresh.md) | ✅ list **and** normalization identity | ✅ `cpp11` | ✅ rejects URLs, IPv4, IPv6 | ✅ `unknown=` |
+| libpsl (C) | ✅ | ✅ 3-way | ✅ | ✅ bundled; OS-package update | ◐ sha1 + mtime | ✅ | ◐ | ✅ |
+| x/net/publicsuffix (Go) | ✅ | ◐ `icann` flag | ❌ ASCII only | ✅ embedded; bump module | ◐ date constant | ✅ | ◐ | ❌ |
+| publicsuffix-go (Go) | ✅ | ◐ toggle private | ✅ | ✅ embedded | ❌ | ❌ | ◐ | ✅ |
+| psl crate (Rust) | ✅ | ◐ per-suffix type | ✅ | ✅ compiled-in | ◐ dated releases | ✅ | ❌ | ◐ |
+| tldextract (Python) | ✅ | ◐ private on/off | ✅ | ⚠️ network-first; offline opt-in | ❌ | ❌ | ◐ | ❌ |
+| publicsuffixlist (Python) | ✅ | ◐ exclude private | ✅ | ✅ bundled + updater | ◐ date in version | ❌ | ❌ | ❌ |
+| public_suffix (Ruby) | ✅ | ◐ `ignore_private` | ❌ caller pre-encodes | ✅ bundled | ❌ | ❌ | ◐ | ✅ |
+| php-domain-parser (PHP) | ✅ | ✅ 3-way | ✅ | ⚠️ not bundled; PSR-16 cache | ◐ `isKnown` flags | ❌ | ◐ | ◐ |
+| tldts (JS/TS) | ✅ | ◐ `allowPrivateDomains` | ✅ | ✅ embedded; npm bump | ◐ submodule pin | ◐ optional WASM | ✅ | ◐ |
+| Guava `InternetDomainName` (Java) | ◐ | ✅ registry vs public | ✅ | ◐ in-jar; bump Guava | ❌ | ❌ | ◐ | ❌ |
+
+### What `pslr` does differently
+
+- **Provenance is best-in-class.**
+  [`psl_version()`](https://bart-turczynski.github.io/pslr/reference/psl_version.md)
+  records the list identity (source, commit, date, SHA-256) *and* the
+  normalization identity (normalizer package + version, profile, Unicode
+  version). A PSL answer depends on both *which list* answered and *how
+  the host was normalized* — `pslr` is the only surveyed library that
+  surfaces both, so a result is genuinely reproducible.
+- **Conformance is verified.** The package ships the official upstream
+  `tests.txt` vectors, pinned in lockstep with the bundled snapshot and
+  run on every check.
+- **Offline by default, one hardened network path.** Every query works
+  with zero network access;
+  [`psl_refresh()`](https://bart-turczynski.github.io/pslr/reference/psl_refresh.md)
+  is the *only* code that touches the network — HTTPS-only, credential-
+  and downgrade-rejecting, size-capped, atomically committed. This is
+  stricter than network-first designs and pairs with the reproducibility
+  story rather than fighting it.
+- **Strict, policy-driven validation.** URLs, IPv6, dotted-decimal IPv4,
+  and malformed labels are rejected; `invalid = "na"` / `"error"` lets
+  you choose silent `NA` or a hard stop. Many libraries are deliberately
+  lenient.
+- **Vectorized, `NA`-safe, name-preserving.** Every function operates on
+  a whole character vector — the idiomatic shape for data work in R.
+
+### Trade-offs
+
+- **Session-global active list.** There is no per-call list switching
+  yet; the active list is per-session state
+  ([`psl_use()`](https://bart-turczynski.github.io/pslr/reference/psl_use.md)
+  /
+  [`psl_refresh()`](https://bart-turczynski.github.io/pslr/reference/psl_refresh.md)).
+- **Hostnames, not URLs.** URL-shaped input is rejected by design; parse
+  the host out first or use
+  [`rurl`](https://bart-turczynski.github.io/rurl/).
+- **No network-first auto-fetch.** Refreshing is always explicit — a
+  deliberate choice for reproducibility, not a convenience feature.
+
 ## Development
 
 Install dependencies plus the dev tooling used by the checks:

@@ -116,6 +116,192 @@
 <p>A result depends on both which list answered and how hosts were normalized. <code><a href="reference/psl_version.html">psl_version()</a></code> reports the active-list provenance plus the runtime normalization identifiers; record it alongside reproducibility-sensitive output.</p>
 </div>
 <div class="section level2">
+<h2 id="how-pslr-compares-to-other-psl-libraries">How pslr compares to other PSL libraries<a class="anchor" aria-label="anchor" href="#how-pslr-compares-to-other-psl-libraries"></a>
+</h2>
+<p>The <a href="https://publicsuffix.org/learn/" class="external-link">Public Suffix List website</a> catalogs implementations in C, C#, C++, Go, Haskell, Java, JavaScript, Perl, PHP, Python, Ruby, Rust, Swift, and more — but no R. <code>pslr</code> fills that gap, and it is built to be a <em>reproducibility- and correctness-first</em> engine rather than a quick suffix splitter.</p>
+<p>The table compares <code>pslr</code> with a representative set of the most established libraries from that catalog, across the dimensions that matter for correct, auditable suffix handling. ✅ first-class · ◐ partial/limited · ❌ absent.</p>
+<table style="width:100%;" class="table">
+<colgroup>
+<col width="11%">
+<col width="11%">
+<col width="11%">
+<col width="11%">
+<col width="11%">
+<col width="11%">
+<col width="11%">
+<col width="11%">
+<col width="11%">
+</colgroup>
+<thead><tr>
+<th>Library (language)</th>
+<th align="center">Full algorithm (<code>*</code>/<code>!</code>)</th>
+<th align="center">ICANN / PRIVATE / both</th>
+<th align="center">IDN + Punycode</th>
+<th align="center">Offline default + explicit refresh</th>
+<th align="center">Queryable provenance</th>
+<th align="center">Compiled core</th>
+<th align="center">Strict input validation</th>
+<th align="center">Unlisted-TLD policy configurable</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>pslr (R)</strong></td>
+<td align="center">✅</td>
+<td align="center">✅ 3-way</td>
+<td align="center">✅ in &amp; out</td>
+<td align="center">✅ bundled; validated HTTPS-only <code><a href="reference/psl_refresh.html">psl_refresh()</a></code>
+</td>
+<td align="center">✅ list <strong>and</strong> normalization identity</td>
+<td align="center">✅ <code>cpp11</code>
+</td>
+<td align="center">✅ rejects URLs, IPv4, IPv6</td>
+<td align="center">✅ <code>unknown=</code>
+</td>
+</tr>
+<tr>
+<td>libpsl (C)</td>
+<td align="center">✅</td>
+<td align="center">✅ 3-way</td>
+<td align="center">✅</td>
+<td align="center">✅ bundled; OS-package update</td>
+<td align="center">◐ sha1 + mtime</td>
+<td align="center">✅</td>
+<td align="center">◐</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>x/net/publicsuffix (Go)</td>
+<td align="center">✅</td>
+<td align="center">◐ <code>icann</code> flag</td>
+<td align="center">❌ ASCII only</td>
+<td align="center">✅ embedded; bump module</td>
+<td align="center">◐ date constant</td>
+<td align="center">✅</td>
+<td align="center">◐</td>
+<td align="center">❌</td>
+</tr>
+<tr>
+<td>publicsuffix-go (Go)</td>
+<td align="center">✅</td>
+<td align="center">◐ toggle private</td>
+<td align="center">✅</td>
+<td align="center">✅ embedded</td>
+<td align="center">❌</td>
+<td align="center">❌</td>
+<td align="center">◐</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>psl crate (Rust)</td>
+<td align="center">✅</td>
+<td align="center">◐ per-suffix type</td>
+<td align="center">✅</td>
+<td align="center">✅ compiled-in</td>
+<td align="center">◐ dated releases</td>
+<td align="center">✅</td>
+<td align="center">❌</td>
+<td align="center">◐</td>
+</tr>
+<tr>
+<td>tldextract (Python)</td>
+<td align="center">✅</td>
+<td align="center">◐ private on/off</td>
+<td align="center">✅</td>
+<td align="center">⚠️ network-first; offline opt-in</td>
+<td align="center">❌</td>
+<td align="center">❌</td>
+<td align="center">◐</td>
+<td align="center">❌</td>
+</tr>
+<tr>
+<td>publicsuffixlist (Python)</td>
+<td align="center">✅</td>
+<td align="center">◐ exclude private</td>
+<td align="center">✅</td>
+<td align="center">✅ bundled + updater</td>
+<td align="center">◐ date in version</td>
+<td align="center">❌</td>
+<td align="center">❌</td>
+<td align="center">❌</td>
+</tr>
+<tr>
+<td>public_suffix (Ruby)</td>
+<td align="center">✅</td>
+<td align="center">◐ <code>ignore_private</code>
+</td>
+<td align="center">❌ caller pre-encodes</td>
+<td align="center">✅ bundled</td>
+<td align="center">❌</td>
+<td align="center">❌</td>
+<td align="center">◐</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>php-domain-parser (PHP)</td>
+<td align="center">✅</td>
+<td align="center">✅ 3-way</td>
+<td align="center">✅</td>
+<td align="center">⚠️ not bundled; PSR-16 cache</td>
+<td align="center">◐ <code>isKnown</code> flags</td>
+<td align="center">❌</td>
+<td align="center">◐</td>
+<td align="center">◐</td>
+</tr>
+<tr>
+<td>tldts (JS/TS)</td>
+<td align="center">✅</td>
+<td align="center">◐ <code>allowPrivateDomains</code>
+</td>
+<td align="center">✅</td>
+<td align="center">✅ embedded; npm bump</td>
+<td align="center">◐ submodule pin</td>
+<td align="center">◐ optional WASM</td>
+<td align="center">✅</td>
+<td align="center">◐</td>
+</tr>
+<tr>
+<td>Guava <code>InternetDomainName</code> (Java)</td>
+<td align="center">◐</td>
+<td align="center">✅ registry vs public</td>
+<td align="center">✅</td>
+<td align="center">◐ in-jar; bump Guava</td>
+<td align="center">❌</td>
+<td align="center">❌</td>
+<td align="center">◐</td>
+<td align="center">❌</td>
+</tr>
+</tbody>
+</table>
+<div class="section level3">
+<h3 id="what-pslr-does-differently">What <code>pslr</code> does differently<a class="anchor" aria-label="anchor" href="#what-pslr-does-differently"></a>
+</h3>
+<ul>
+<li>
+<strong>Provenance is best-in-class.</strong> <code><a href="reference/psl_version.html">psl_version()</a></code> records the list identity (source, commit, date, SHA-256) <em>and</em> the normalization identity (normalizer package + version, profile, Unicode version). A PSL answer depends on both <em>which list</em> answered and <em>how the host was normalized</em> — <code>pslr</code> is the only surveyed library that surfaces both, so a result is genuinely reproducible.</li>
+<li>
+<strong>Conformance is verified.</strong> The package ships the official upstream <code>tests.txt</code> vectors, pinned in lockstep with the bundled snapshot and run on every check.</li>
+<li>
+<strong>Offline by default, one hardened network path.</strong> Every query works with zero network access; <code><a href="reference/psl_refresh.html">psl_refresh()</a></code> is the <em>only</em> code that touches the network — HTTPS-only, credential- and downgrade-rejecting, size-capped, atomically committed. This is stricter than network-first designs and pairs with the reproducibility story rather than fighting it.</li>
+<li>
+<strong>Strict, policy-driven validation.</strong> URLs, IPv6, dotted-decimal IPv4, and malformed labels are rejected; <code>invalid = "na"</code> / <code>"error"</code> lets you choose silent <code>NA</code> or a hard stop. Many libraries are deliberately lenient.</li>
+<li>
+<strong>Vectorized, <code>NA</code>-safe, name-preserving.</strong> Every function operates on a whole character vector — the idiomatic shape for data work in R.</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="trade-offs">Trade-offs<a class="anchor" aria-label="anchor" href="#trade-offs"></a>
+</h3>
+<ul>
+<li>
+<strong>Session-global active list.</strong> There is no per-call list switching yet; the active list is per-session state (<code><a href="reference/psl_use.html">psl_use()</a></code> / <code><a href="reference/psl_refresh.html">psl_refresh()</a></code>).</li>
+<li>
+<strong>Hostnames, not URLs.</strong> URL-shaped input is rejected by design; parse the host out first or use <a href="https://bart-turczynski.github.io/rurl/" class="external-link"><code>rurl</code></a>.</li>
+<li>
+<strong>No network-first auto-fetch.</strong> Refreshing is always explicit — a deliberate choice for reproducibility, not a convenience feature.</li>
+</ul>
+</div>
+</div>
+<div class="section level2">
 <h2 id="development">Development<a class="anchor" aria-label="anchor" href="#development"></a>
 </h2>
 <p>Install dependencies plus the dev tooling used by the checks:</p>
