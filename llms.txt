@@ -204,6 +204,19 @@ for the full list of thanks.
   its PSL engine; reach for it when you need more than domain
   extraction.
 
+## Citation
+
+If you use `pslr` in your work, please cite it. Run `citation("pslr")`
+for the current citation, or see
+[`CITATION.cff`](https://bart-turczynski.github.io/pslr/CITATION.cff).
+
+Each release is archived on Zenodo. Cite the concept DOI
+[10.5281/zenodo.20973660](https://doi.org/10.5281/zenodo.20973660) to
+refer to the software in general (it always resolves to the latest
+version), or the version-specific DOI shown on the [Zenodo
+record](https://doi.org/10.5281/zenodo.20973660) for a particular
+release.
+
 ## License
 
 Package code is MIT licensed. The bundled Public Suffix List data
