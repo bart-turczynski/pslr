@@ -1,0 +1,66 @@
+{
+  "upload_type": "software",
+  "title": "pslr: Public Suffix List Engine",
+  "version": "1.0.2",
+  "language": "eng",
+  "access_right": "open",
+  "license": "MIT",
+  "description": "<p>A focused R implementation of the Public Suffix List (PSL). Bundles a reproducible, pinned PSL snapshot and implements the official prevailing-rule algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and ASCII hostnames via <code>punycoder</code> canonicalization, and supports an explicit, validated offline refresh path. The matcher is compiled with <code>cpp11</code> and requires no external system library. Used as the PSL engine by the <code>rurl</code> package.</p>",
+  "creators": [
+    {
+      "name": "Turczynski, Bart",
+      "orcid": "0000-0002-8788-7980"
+    }
+  ],
+  "keywords": [
+    "public suffix list",
+    "PSL",
+    "eTLD",
+    "eTLD+1",
+    "registrable domain",
+    "ICANN",
+    "domain parsing",
+    "domain extraction",
+    "domain names",
+    "TLD",
+    "cookie domains",
+    "IDNA",
+    "public suffix",
+    "R",
+    "rstats",
+    "CRAN"
+  ],
+  "notes": "Part of a three-package ecosystem for URL handling in R: pslr (Public Suffix List matching), punycoder (Punycode/IDNA), and rurl (URL parsing/normalization). pslr bundles a pinned snapshot of the Public Suffix List as its source of truth for registrable domains; that data (inst/extdata/) is distributed under the Mozilla Public License 2.0, separately from the MIT-licensed package code.",
+  "related_identifiers": [
+    {
+      "identifier": "https://CRAN.R-project.org/package=pslr",
+      "relation": "isIdenticalTo",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://bart-turczynski.github.io/pslr/",
+      "relation": "isDocumentedBy",
+      "resource_type": "publication-softwaredocumentation",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://CRAN.R-project.org/package=rurl",
+      "relation": "isRequiredBy",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://CRAN.R-project.org/package=punycoder",
+      "relation": "requires",
+      "resource_type": "software",
+      "scheme": "url"
+    }
+  ],
+  "references": [
+    "Mozilla Foundation and contributors. Public Suffix List. https://publicsuffix.org/",
+    "Public Suffix List Format and Algorithm. https://github.com/publicsuffix/list/wiki/Format",
+    "Berners-Lee, T., Fielding, R., & Masinter, L. (2005). RFC 3986: Uniform Resource Identifier (URI): Generic Syntax. IETF.",
+    "Unicode Consortium. UTS #46: Unicode IDNA Compatibility Processing. https://www.unicode.org/reports/tr46/"
+  ]
+}
