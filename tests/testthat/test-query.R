@@ -21,7 +21,8 @@ test_that("section filters before prevailing-rule selection", {
   expect_identical(public_suffix("foo.github.io", section = "all"), "github.io")
   expect_identical(public_suffix("foo.github.io", section = "icann"), "io")
   expect_identical(
-    public_suffix("foo.github.io", section = "private"), "github.io"
+    public_suffix("foo.github.io", section = "private"),
+    "github.io"
   )
   # An ICANN host under section = "private" falls through to the default rule.
   expect_identical(public_suffix("example.com", section = "private"), "com")
@@ -35,7 +36,8 @@ test_that("unknown policy toggles the implicit default rule", {
   expect_identical(public_suffix("madeuptld", unknown = "na"), NA_character_)
   expect_identical(registrable_domain("foo.madeuptld"), "foo.madeuptld")
   expect_identical(
-    registrable_domain("foo.madeuptld", unknown = "na"), NA_character_
+    registrable_domain("foo.madeuptld", unknown = "na"),
+    NA_character_
   )
   expect_identical(registrable_domain("madeuptld"), NA_character_)
 })
@@ -49,7 +51,8 @@ cafe_nfd <- intToUtf8(c(0x63L, 0x61L, 0x66L, 0x65L, 0x0301L)) # decomposed
 test_that("output = unicode decodes A-labels; ascii is the default", {
   expect_identical(public_suffix("xn--85x722f.com.cn"), "com.cn")
   expect_identical(
-    public_suffix("a.xn--fiqs8s", output = "unicode"), zhongguo
+    public_suffix("a.xn--fiqs8s", output = "unicode"),
+    zhongguo
   )
   # U-label input, unicode output round-trips to the original script.
   expect_identical(
@@ -89,7 +92,8 @@ test_that("invalid policy returns NA by default and aborts on error", {
   out <- public_suffix(c("ok.com", "1.2.3.4", "[::1]", "a..b", NA))
   expect_identical(out, c("com", NA, NA, NA, NA))
   expect_error(
-    public_suffix(c("ok.com", "1.2.3.4"), invalid = "error"), "position 2"
+    public_suffix(c("ok.com", "1.2.3.4"), invalid = "error"),
+    "position 2"
   )
   # invalid never suppresses programming errors.
   expect_error(public_suffix("ok.com", section = "nope"), "must be one of")
@@ -103,7 +107,8 @@ test_that("explicit non-scalar option aborts even when equal to the default", {
   # Repro: passing the full default vector explicitly must not be mistaken for
   # the untouched default; option arguments must be scalar (PRD s5.2).
   expect_error(
-    public_suffix("ok.com", invalid = c("na", "error")), "must be one of"
+    public_suffix("ok.com", invalid = c("na", "error")),
+    "must be one of"
   )
   expect_error(
     public_suffix("ok.com", section = c("all", "icann", "private")),
@@ -114,7 +119,8 @@ test_that("explicit non-scalar option aborts even when equal to the default", {
     "must be one of"
   )
   expect_error(
-    is_public_suffix("ok.com", unknown = c("default", "na")), "must be one of"
+    is_public_suffix("ok.com", unknown = c("default", "na")),
+    "must be one of"
   )
   expect_error(
     public_suffix_rule("ok.com", section = c("all", "icann", "private")),

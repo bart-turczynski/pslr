@@ -19,9 +19,19 @@ test_that("bundled metadata has the documented fields and types", {
   meta <- pslr_bundled$meta
   expect_named(
     meta,
-    c("source", "url", "commit", "retrieved_at", "list_date", "size",
-      "checksum", "normalizer", "normalizer_version",
-      "normalization_profile", "unicode_version")
+    c(
+      "source",
+      "url",
+      "commit",
+      "retrieved_at",
+      "list_date",
+      "size",
+      "checksum",
+      "normalizer",
+      "normalizer_version",
+      "normalization_profile",
+      "unicode_version"
+    )
   )
   expect_identical(meta$source, "bundled")
   expect_identical(meta$normalizer, "punycoder")

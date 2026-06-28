@@ -1,0 +1,9 @@
+# Air formatter config (https://posit-dev.github.io/air/).
+# Air's defaults already match the tidyverse style this package targets
+# (line-width 80, 2-space indent, arrow assignment), so this file mostly exists
+# to anchor the project root for Air's CLI/editor integrations. Keep the few
+# choices below explicit so they survive any future change to Air's defaults.
+[format]
+line-width = 80
+indent-width = 2
+indent-style = "space"

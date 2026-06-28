@@ -24,14 +24,22 @@ count_crossings <- function(expr) {
 
   unlockBinding("psl_match", pkg_ns)
   unlockBinding("host_normalize", puny_ns)
-  assign("psl_match", function(ptr, hosts, section) {
-    counts$match <- counts$match + length(hosts)
-    orig_match(ptr, hosts, section)
-  }, envir = pkg_ns)
-  assign("host_normalize", function(x, ...) {
-    counts$norm <- counts$norm + length(x)
-    orig_norm(x, ...)
-  }, envir = puny_ns)
+  assign(
+    "psl_match",
+    function(ptr, hosts, section) {
+      counts$match <- counts$match + length(hosts)
+      orig_match(ptr, hosts, section)
+    },
+    envir = pkg_ns
+  )
+  assign(
+    "host_normalize",
+    function(x, ...) {
+      counts$norm <- counts$norm + length(x)
+      orig_norm(x, ...)
+    },
+    envir = puny_ns
+  )
 
   value <- force(expr)
   list(norm = counts$norm, match = counts$match, value = value)

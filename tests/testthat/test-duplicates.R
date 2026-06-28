@@ -18,8 +18,12 @@ make_rules <- function(...) {
 
 rule <- function(line, section, kind, canonical_rule, canonical_key, labels) {
   list(
-    line = as.integer(line), raw = canonical_rule, section = section,
-    kind = kind, canonical_rule = canonical_rule, canonical_key = canonical_key,
+    line = as.integer(line),
+    raw = canonical_rule,
+    section = section,
+    kind = kind,
+    canonical_rule = canonical_rule,
+    canonical_key = canonical_key,
     labels = as.integer(labels)
   )
 }

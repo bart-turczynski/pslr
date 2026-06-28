@@ -23,8 +23,10 @@
 # ASCII run must complete in <= 2 seconds after initialization.
 
 suppressMessages({
-  if (requireNamespace("pkgload", quietly = TRUE) &&
-        file.exists("DESCRIPTION")) {
+  if (
+    requireNamespace("pkgload", quietly = TRUE) &&
+      file.exists("DESCRIPTION")
+  ) {
     pkgload::load_all(".", quiet = TRUE)
   } else {
     library(pslr)
@@ -39,12 +41,35 @@ gate_seconds <- 2L
 make_fixtures <- function() {
   set.seed(20260615L)
   suffixes <- c(
-    "com", "co.uk", "org", "net", "io", "dev", "co.jp", "gov.uk",
-    "github.io", "s3.amazonaws.com", "kobe.jp", "ck"
+    "com",
+    "co.uk",
+    "org",
+    "net",
+    "io",
+    "dev",
+    "co.jp",
+    "gov.uk",
+    "github.io",
+    "s3.amazonaws.com",
+    "kobe.jp",
+    "ck"
   )
   labels <- c(
-    "www", "api", "mail", "shop", "app", "blog", "cdn", "dev", "staging",
-    "service", "node01", "eu-west-1", "internal", "data", "assets"
+    "www",
+    "api",
+    "mail",
+    "shop",
+    "app",
+    "blog",
+    "cdn",
+    "dev",
+    "staging",
+    "service",
+    "node01",
+    "eu-west-1",
+    "internal",
+    "data",
+    "assets"
   )
   rand_host <- function() {
     depth <- sample(1:3, 1L)
@@ -66,9 +91,13 @@ make_fixtures <- function() {
 timed <- function(expr, reps = 5L) {
   e <- substitute(expr)
   env <- parent.frame()
-  t <- vapply(seq_len(reps), function(i) {
-    as.numeric(system.time(eval(e, env))["elapsed"])
-  }, numeric(1))
+  t <- vapply(
+    seq_len(reps),
+    function(i) {
+      as.numeric(system.time(eval(e, env))["elapsed"])
+    },
+    numeric(1)
+  )
   stats::median(t)
 }
 
@@ -91,11 +120,15 @@ main <- function() {
     t_rep <- timed(public_suffix(rep_in, output = "ascii"))
 
     rows[[length(rows) + 1L]] <- data.frame(
-      hosts = n, variant = "unique", seconds = t_uniq,
+      hosts = n,
+      variant = "unique",
+      seconds = t_uniq,
       stringsAsFactors = FALSE
     )
     rows[[length(rows) + 1L]] <- data.frame(
-      hosts = n, variant = "repeated", seconds = t_rep,
+      hosts = n,
+      variant = "repeated",
+      seconds = t_rep,
       stringsAsFactors = FALSE
     )
   }
@@ -127,14 +160,22 @@ main <- function() {
   orig_norm <- get("host_normalize", envir = puny_ns)
   unlockBinding("psl_match", pkg_ns)
   unlockBinding("host_normalize", puny_ns)
-  assign("psl_match", function(ptr, hosts, section) {
-    counts$match <- counts$match + length(hosts)
-    orig_match(ptr, hosts, section)
-  }, envir = pkg_ns)
-  assign("host_normalize", function(x, ...) {
-    counts$norm <- counts$norm + length(x)
-    orig_norm(x, ...)
-  }, envir = puny_ns)
+  assign(
+    "psl_match",
+    function(ptr, hosts, section) {
+      counts$match <- counts$match + length(hosts)
+      orig_match(ptr, hosts, section)
+    },
+    envir = pkg_ns
+  )
+  assign(
+    "host_normalize",
+    function(x, ...) {
+      counts$norm <- counts$norm + length(x)
+      orig_norm(x, ...)
+    },
+    envir = puny_ns
+  )
   pslr:::psl_cache_clear()
   invisible(public_suffix(rep(fx$repeated_host, 100000L)))
   assign("psl_match", orig_match, envir = pkg_ns)
@@ -161,7 +202,9 @@ main <- function() {
   for (i in seq_len(nrow(tab))) {
     cat(sprintf(
       "| %d | %s | %s |\n",
-      tab$hosts[i], tab$variant[i], fmt_secs(tab$seconds[i])
+      tab$hosts[i],
+      tab$variant[i],
+      fmt_secs(tab$seconds[i])
     ))
   }
   cat(sprintf(
@@ -170,14 +213,17 @@ main <- function() {
   ))
   cat(sprintf(
     "Dedup proof (100k repeated host): %d normalization, %d C++ element\n",
-    counts$norm, counts$match
+    counts$norm,
+    counts$match
   ))
 
   gate <- tab$seconds[tab$hosts == 100000L & tab$variant == "unique"]
   pass <- gate <= gate_seconds
   cat(sprintf(
     "\nRelease gate: 100k unique ASCII = %s s (<= %d s): %s\n",
-    fmt_secs(gate), gate_seconds, if (pass) "PASS" else "FAIL"
+    fmt_secs(gate),
+    gate_seconds,
+    if (pass) "PASS" else "FAIL"
   ))
   if (!pass) {
     quit(status = 1L)

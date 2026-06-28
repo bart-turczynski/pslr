@@ -54,7 +54,9 @@ apply_duplicate_policy <- function(rules, mode = c("strict", "lenient")) {
 psl_check_conflicts <- function(rules, conflict_group) {
   kinds_by_group <- split(rules$kind, conflict_group)
   conflicted <- vapply(
-    kinds_by_group, function(k) length(unique(k)) > 1L, logical(1)
+    kinds_by_group,
+    function(k) length(unique(k)) > 1L,
+    logical(1)
   )
   if (!any(conflicted)) {
     return(invisible())

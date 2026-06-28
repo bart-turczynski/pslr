@@ -53,7 +53,9 @@ test_that("all official PSL test vectors pass on the bundled snapshot", {
       ifelse(is.na(expected_ascii[mismatch]), "null", expected_ascii[mismatch])
     )
     fail(paste0(
-      length(mismatch), " vector(s) failed:\n", paste(report, collapse = "\n")
+      length(mismatch),
+      " vector(s) failed:\n",
+      paste(report, collapse = "\n")
     ))
   } else {
     succeed()

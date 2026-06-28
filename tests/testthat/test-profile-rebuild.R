@@ -16,8 +16,10 @@ test_that("a mismatched Unicode version rebuilds from source", {
   testthat::local_mocked_bindings(
     runtime_normalizer_meta = function() {
       list(
-        normalizer = "punycoder", normalizer_version = "9.9.9",
-        normalization_profile = "fake-profile", unicode_version = "0.0.0"
+        normalizer = "punycoder",
+        normalizer_version = "9.9.9",
+        normalization_profile = "fake-profile",
+        unicode_version = "0.0.0"
       )
     }
   )
@@ -33,8 +35,10 @@ test_that("psl_version reports the runtime normalizer after a rebuild", {
   testthat::local_mocked_bindings(
     runtime_normalizer_meta = function() {
       list(
-        normalizer = "punycoder", normalizer_version = "9.9.9",
-        normalization_profile = "fake-profile", unicode_version = "0.0.0"
+        normalizer = "punycoder",
+        normalizer_version = "9.9.9",
+        normalization_profile = "fake-profile",
+        unicode_version = "0.0.0"
       )
     }
   )

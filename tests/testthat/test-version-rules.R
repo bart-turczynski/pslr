@@ -7,9 +7,19 @@ test_that("psl_version reports the documented columns and types", {
   expect_identical(nrow(v), 1L)
   expect_named(
     v,
-    c("source", "path", "retrieved_at", "list_date", "commit", "size",
-      "checksum", "normalizer", "normalizer_version",
-      "normalization_profile", "unicode_version")
+    c(
+      "source",
+      "path",
+      "retrieved_at",
+      "list_date",
+      "commit",
+      "size",
+      "checksum",
+      "normalizer",
+      "normalizer_version",
+      "normalization_profile",
+      "unicode_version"
+    )
   )
   expect_type(v$size, "integer")
   expect_type(v$checksum, "character")
@@ -25,7 +35,8 @@ test_that("the bundled list reports runtime normalizer identifiers", {
   expect_identical(v$normalization_profile, as.character(prof$profile))
   expect_identical(v$unicode_version, as.character(prof$unicode_version))
   expect_identical(
-    v$normalizer_version, as.character(utils::packageVersion("punycoder"))
+    v$normalizer_version,
+    as.character(utils::packageVersion("punycoder"))
   )
 })
 
@@ -41,7 +52,8 @@ test_that("psl_rules returns the documented schema, ordered", {
   local_pslr_clean()
   r <- psl_rules()
   expect_named(
-    r, c("rule", "canonical_rule", "kind", "section", "labels")
+    r,
+    c("rule", "canonical_rule", "kind", "section", "labels")
   )
   expect_type(r$labels, "integer")
   expect_true(all(r$kind %in% c("normal", "wildcard", "exception")))
@@ -61,7 +73,8 @@ test_that("psl_rules filters by section and never includes the default rule", {
   expect_false(any(psl_rules()$canonical_rule == "*"))
   # An explicit non-scalar section aborts, even when equal to the default.
   expect_error(
-    psl_rules(c("all", "icann", "private")), "must be one of"
+    psl_rules(c("all", "icann", "private")),
+    "must be one of"
   )
 })
 

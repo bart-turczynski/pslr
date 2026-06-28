@@ -23,7 +23,8 @@ match_opt <- function(value, choices, name, supplied) {
   if (!scalar_string || !value %in% choices) {
     stop(
       sprintf(
-        "`%s` must be one of: %s.", name,
+        "`%s` must be one of: %s.",
+        name,
         paste0("\"", choices, "\"", collapse = ", ")
       ),
       call. = FALSE
@@ -97,11 +98,18 @@ psl_query_frame <- function(domain, section, unknown, invalid) {
 
   data.frame(
     # unname so a named `domain` cannot become data.frame row names (PRD s7.2).
-    input = unname(canon$input), status = canon$status, had_dot = canon$had_dot,
-    host_ascii = canon$host, core = canon$core,
-    n_labels = n_labels, ps_depth = ps_depth,
-    public_suffix = public_suffix, registrable_domain = registrable_domain,
-    rule = rule, kind = kind, rule_section = rule_section,
+    input = unname(canon$input),
+    status = canon$status,
+    had_dot = canon$had_dot,
+    host_ascii = canon$host,
+    core = canon$core,
+    n_labels = n_labels,
+    ps_depth = ps_depth,
+    public_suffix = public_suffix,
+    registrable_domain = registrable_domain,
+    rule = rule,
+    kind = kind,
+    rule_section = rule_section,
     stringsAsFactors = FALSE
   )
 }
@@ -146,19 +154,27 @@ psl_query_frame <- function(domain, section, unknown, invalid) {
 #' public_suffix("example.com.")
 #' public_suffix("madeuptld", unknown = "na")
 #' @export
-public_suffix <- function(domain,
-                          section = c("all", "icann", "private"),
-                          output = c("ascii", "unicode"),
-                          unknown = c("default", "na"),
-                          invalid = c("na", "error")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section",
-                       !missing(section))
-  output <- match_opt(output, c("ascii", "unicode"), "output",
-                      !missing(output))
-  unknown <- match_opt(unknown, c("default", "na"), "unknown",
-                       !missing(unknown))
-  invalid <- match_opt(invalid, c("na", "error"), "invalid",
-                       !missing(invalid))
+public_suffix <- function(
+  domain,
+  section = c("all", "icann", "private"),
+  output = c("ascii", "unicode"),
+  unknown = c("default", "na"),
+  invalid = c("na", "error")
+) {
+  section <- match_opt(
+    section,
+    c("all", "icann", "private"),
+    "section",
+    !missing(section)
+  )
+  output <- match_opt(output, c("ascii", "unicode"), "output", !missing(output))
+  unknown <- match_opt(
+    unknown,
+    c("default", "na"),
+    "unknown",
+    !missing(unknown)
+  )
+  invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
   fr <- psl_query_frame(domain, section, unknown, invalid)
   out <- restore_root_dot(fr$public_suffix, fr$had_dot)
@@ -184,19 +200,27 @@ public_suffix <- function(domain,
 #' registrable_domain("com")
 #' registrable_domain("foo.madeuptld", unknown = "na")
 #' @export
-registrable_domain <- function(domain,
-                               section = c("all", "icann", "private"),
-                               output = c("ascii", "unicode"),
-                               unknown = c("default", "na"),
-                               invalid = c("na", "error")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section",
-                       !missing(section))
-  output <- match_opt(output, c("ascii", "unicode"), "output",
-                      !missing(output))
-  unknown <- match_opt(unknown, c("default", "na"), "unknown",
-                       !missing(unknown))
-  invalid <- match_opt(invalid, c("na", "error"), "invalid",
-                       !missing(invalid))
+registrable_domain <- function(
+  domain,
+  section = c("all", "icann", "private"),
+  output = c("ascii", "unicode"),
+  unknown = c("default", "na"),
+  invalid = c("na", "error")
+) {
+  section <- match_opt(
+    section,
+    c("all", "icann", "private"),
+    "section",
+    !missing(section)
+  )
+  output <- match_opt(output, c("ascii", "unicode"), "output", !missing(output))
+  unknown <- match_opt(
+    unknown,
+    c("default", "na"),
+    "unknown",
+    !missing(unknown)
+  )
+  invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
   fr <- psl_query_frame(domain, section, unknown, invalid)
   out <- restore_root_dot(fr$registrable_domain, fr$had_dot)
@@ -226,16 +250,25 @@ registrable_domain <- function(domain,
 #' is_public_suffix("madeuptld")
 #' is_public_suffix("madeuptld", unknown = "na")
 #' @export
-is_public_suffix <- function(domain,
-                             section = c("all", "icann", "private"),
-                             unknown = c("default", "na"),
-                             invalid = c("na", "error")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section",
-                       !missing(section))
-  unknown <- match_opt(unknown, c("default", "na"), "unknown",
-                       !missing(unknown))
-  invalid <- match_opt(invalid, c("na", "error"), "invalid",
-                       !missing(invalid))
+is_public_suffix <- function(
+  domain,
+  section = c("all", "icann", "private"),
+  unknown = c("default", "na"),
+  invalid = c("na", "error")
+) {
+  section <- match_opt(
+    section,
+    c("all", "icann", "private"),
+    "section",
+    !missing(section)
+  )
+  unknown <- match_opt(
+    unknown,
+    c("default", "na"),
+    "unknown",
+    !missing(unknown)
+  )
+  invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
   fr <- psl_query_frame(domain, section, unknown, invalid)
   out <- rep(NA, length(domain))
@@ -263,19 +296,27 @@ is_public_suffix <- function(domain,
 #' suffix_extract("www.example.co.uk")
 #' suffix_extract(c("example.com", "com", NA))
 #' @export
-suffix_extract <- function(domain,
-                           section = c("all", "icann", "private"),
-                           output = c("ascii", "unicode"),
-                           unknown = c("default", "na"),
-                           invalid = c("na", "error")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section",
-                       !missing(section))
-  output <- match_opt(output, c("ascii", "unicode"), "output",
-                      !missing(output))
-  unknown <- match_opt(unknown, c("default", "na"), "unknown",
-                       !missing(unknown))
-  invalid <- match_opt(invalid, c("na", "error"), "invalid",
-                       !missing(invalid))
+suffix_extract <- function(
+  domain,
+  section = c("all", "icann", "private"),
+  output = c("ascii", "unicode"),
+  unknown = c("default", "na"),
+  invalid = c("na", "error")
+) {
+  section <- match_opt(
+    section,
+    c("all", "icann", "private"),
+    "section",
+    !missing(section)
+  )
+  output <- match_opt(output, c("ascii", "unicode"), "output", !missing(output))
+  unknown <- match_opt(
+    unknown,
+    c("default", "na"),
+    "unknown",
+    !missing(unknown)
+  )
+  invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
   fr <- psl_query_frame(domain, section, unknown, invalid)
   n <- nrow(fr)
@@ -306,9 +347,13 @@ suffix_extract <- function(domain,
   }
 
   data.frame(
-    input = fr$input, host = host, subdomain = subdomain,
-    domain = domain_label, suffix = suffix,
-    registrable_domain = registrable, stringsAsFactors = FALSE
+    input = fr$input,
+    host = host,
+    subdomain = subdomain,
+    domain = domain_label,
+    suffix = suffix,
+    registrable_domain = registrable,
+    stringsAsFactors = FALSE
   )
 }
 
@@ -331,16 +376,25 @@ suffix_extract <- function(domain,
 #' public_suffix_rule("www.example.co.uk")
 #' public_suffix_rule("madeuptld")
 #' @export
-public_suffix_rule <- function(domain,
-                               section = c("all", "icann", "private"),
-                               unknown = c("default", "na"),
-                               invalid = c("na", "error")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section",
-                       !missing(section))
-  unknown <- match_opt(unknown, c("default", "na"), "unknown",
-                       !missing(unknown))
-  invalid <- match_opt(invalid, c("na", "error"), "invalid",
-                       !missing(invalid))
+public_suffix_rule <- function(
+  domain,
+  section = c("all", "icann", "private"),
+  unknown = c("default", "na"),
+  invalid = c("na", "error")
+) {
+  section <- match_opt(
+    section,
+    c("all", "icann", "private"),
+    "section",
+    !missing(section)
+  )
+  unknown <- match_opt(
+    unknown,
+    c("default", "na"),
+    "unknown",
+    !missing(unknown)
+  )
+  invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
   fr <- psl_query_frame(domain, section, unknown, invalid)
   data.frame(
