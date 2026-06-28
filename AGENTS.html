@@ -50,6 +50,10 @@
 <p>On every commit, lightweight hooks run: end-of-file fixer, trailing-whitespace trimming, merge-conflict detection, YAML/TOML validation, mixed-line-ending and case-conflict guards, and <code>check-added-large-files</code> — a portable 5 MB size guard that blocks accidentally committing heavy blobs (a big blob bloats <code>.git</code> history even after deletion).</p>
 </div>
 <div class="section level3">
+<h3 id="formatting">Formatting<a class="anchor" aria-label="anchor" href="#formatting"></a></h3>
+<p>R sources are formatted with <a href="https://posit-dev.github.io/air/" class="external-link">Air</a> (<code>air.toml</code>), which runs as a per-commit hook and auto-fixes layout. Air owns formatting; lintr (in the verify gate) owns logic and best-practice lints. Don’t reformat code unrelated to your change.</p>
+</div>
+<div class="section level3">
 <h3 id="pre-push-verify-gate">Pre-push verify gate<a class="anchor" aria-label="anchor" href="#pre-push-verify-gate"></a></h3>
 <p>On <code>git push</code>, the <code>verify</code> hook runs the project’s verify command — the same chain CI runs. Server-side branch protection is unavailable on this GitHub plan, so this local pre-push gate is the stand-in for branch protection: it blocks a push whose tree would turn CI red.</p>
 <p>@FP_AGENTS.md</p>

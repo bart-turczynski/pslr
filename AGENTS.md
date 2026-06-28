@@ -28,6 +28,13 @@ validation, mixed-line-ending and case-conflict guards, and
 accidentally committing heavy blobs (a big blob bloats `.git` history
 even after deletion).
 
+### Formatting
+
+R sources are formatted with [Air](https://posit-dev.github.io/air/)
+(`air.toml`), which runs as a per-commit hook and auto-fixes layout. Air
+owns formatting; lintr (in the verify gate) owns logic and best-practice
+lints. Don’t reformat code unrelated to your change.
+
 ### Pre-push verify gate
 
 On `git push`, the `verify` hook runs the project’s verify command — the

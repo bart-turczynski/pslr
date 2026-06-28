@@ -42,6 +42,9 @@
 <div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'pak::local_install_deps(dependencies = TRUE)'</span></span></code></pre></div>
 <p>Run verification:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'lints &lt;- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }'</span> <span class="kw">&amp;&amp;</span> <span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning")'</span></span></code></pre></div>
+<p>Format R sources with <a href="https://posit-dev.github.io/air/" class="external-link">Air</a> (a fast, R-free formatter; config in <code>air.toml</code>):</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="ex">air</span> format .</span></code></pre></div>
+<p>Air runs automatically as a pre-commit hook, so you rarely need to invoke it by hand. Air owns layout; lintr (in the verify gate above) owns logic and best-practice lints. Don’t reformat code unrelated to your change.</p>
 <p>Source lives in <code>src/</code>, behavior features live in <code>features/</code>, tests live in <code>tests/</code>, and durable project context lives in <code>docs/</code>.</p>
 <p>Keep local-only planning state in <code>_scratch/</code>. Do not commit <code>_scratch/</code>, <code>.fp/</code>, secrets, dependency folders, build outputs, or generated caches.</p>
 </div>
