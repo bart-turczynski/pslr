@@ -1,36 +1,35 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
+<!-- Regenerate with: devtools::build_readme() -->
+
+<!-- CI (verify.yml) fails if README.md is out of sync with README.Rmd. -->
+
 # pslr
 
 <!-- badges: start -->
 
 [![Verify](https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml/badge.svg)](https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml)
-[![CRAN
-status](https://www.r-pkg.org/badges/version/pslr)](https://CRAN.R-project.org/package=pslr)
-[![CRAN
-downloads](https://cranlogs.r-pkg.org/badges/pslr)](https://CRAN.R-project.org/package=pslr)
-[![Codecov
-coverage](https://codecov.io/gh/bart-turczynski/pslr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/pslr)
-[![Lifecycle:
-stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![CRAN status](https://www.r-pkg.org/badges/version/pslr)](https://CRAN.R-project.org/package=pslr)
+[![CRAN downloads](https://cranlogs.r-pkg.org/badges/pslr)](https://CRAN.R-project.org/package=pslr)
+[![Codecov coverage](https://codecov.io/gh/bart-turczynski/pslr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/pslr)
+[![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20973660.svg)](https://doi.org/10.5281/zenodo.20973660)
 [![Zenodo](https://img.shields.io/badge/Zenodo-all_software-1682D4?logo=zenodo&logoColor=white)](https://zenodo.org/search?q=metadata.creators.person_or_org.identifiers.identifier:0000-0002-8788-7980)
 <!-- badges: end -->
 
-A focused, spec-complete implementation of the [Public Suffix
-List](https://publicsuffix.org) (PSL) for R. `pslr` bundles a
-reproducible, pinned PSL snapshot and implements the official
-prevailing-rule algorithm to answer public-suffix (eTLD) and
-registrable-domain (eTLD+1) queries.
+A focused, spec-complete implementation of the
+[Public Suffix List](https://publicsuffix.org) (PSL) for R. `pslr` bundles a
+reproducible, pinned PSL snapshot and implements the official prevailing-rule
+algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1)
+queries.
 
 - Distinguishes the **ICANN** and **PRIVATE** rule sections.
 - Accepts Unicode, ASCII, and A-label hostnames via `punycoder`
   canonicalization; returns ASCII or Unicode output.
-- Works fully **offline** from the bundled snapshot; an explicit,
-  validated `psl_refresh()` is the only network path.
-- Matcher compiled with `cpp11`; **no external system library**
-  required.
+- Works fully **offline** from the bundled snapshot; an explicit, validated
+  `psl_refresh()` is the only network path.
+- Matcher compiled with `cpp11`; **no external system library** required.
 
 ## Installation
 
@@ -47,9 +46,8 @@ Or the development version from GitHub:
 pak::pak("bart-turczynski/pslr")
 ```
 
-`pslr` depends on
-[`punycoder`](https://cran.r-project.org/package=punycoder), which is
-installed automatically from CRAN.
+`pslr` depends on [`punycoder`](https://cran.r-project.org/package=punycoder),
+which is installed automatically from CRAN.
 
 ## Usage
 
@@ -84,29 +82,27 @@ public_suffix_rule("a.b.kobe.jp")
 #> 1 a.b.kobe.jp a.b.kobe.jp *.kobe.jp wildcard        icann           b.kobe.jp
 ```
 
-See `vignette("introduction", package = "pslr")` for the full tour:
-section choice, the unknown-suffix policy, IDN output, terminal dots,
-refresh and activation, reproducibility, and security notes.
+See `vignette("introduction", package = "pslr")` for the full tour: section
+choice, the unknown-suffix policy, IDN output, terminal dots, refresh and
+activation, reproducibility, and security notes.
 
 ## Reproducibility
 
-A result depends on both which list answered and how hosts were
-normalized. `psl_version()` reports the active-list provenance plus the
-runtime normalization identifiers; record it alongside
-reproducibility-sensitive output.
+A result depends on both which list answered and how hosts were normalized.
+`psl_version()` reports the active-list provenance plus the runtime
+normalization identifiers; record it alongside reproducibility-sensitive output.
 
 ## How pslr compares to other PSL libraries
 
-The [Public Suffix List website](https://publicsuffix.org/learn/)
-catalogs implementations in C, C#, C++, Go, Haskell, Java, JavaScript,
-Perl, PHP, Python, Ruby, Rust, Swift, and more — but no R. `pslr` fills
-that gap, and it is built to be a *reproducibility- and
-correctness-first* engine rather than a quick suffix splitter.
+The [Public Suffix List website](https://publicsuffix.org/learn/) catalogs
+implementations in C, C#, C++, Go, Haskell, Java, JavaScript, Perl, PHP, Python,
+Ruby, Rust, Swift, and more — but no R. `pslr` fills that gap, and it is built
+to be a *reproducibility- and correctness-first* engine rather than a quick
+suffix splitter.
 
-The table compares `pslr` with a representative set of the most
-established libraries from that catalog, across the dimensions that
-matter for correct, auditable suffix handling. ✅ first-class · ◐
-partial/limited · ❌ absent.
+The table compares `pslr` with a representative set of the most established
+libraries from that catalog, across the dimensions that matter for correct,
+auditable suffix handling. ✅ first-class · ◐ partial/limited · ❌ absent.
 
 | Library (language) | Full algorithm (`*`/`!`) | ICANN / PRIVATE / both | IDN + Punycode | Offline default + explicit refresh | Queryable provenance | Compiled core | Strict input validation | Unlisted-TLD policy configurable |
 |----|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
@@ -124,38 +120,33 @@ partial/limited · ❌ absent.
 
 ### What `pslr` does differently
 
-- **Provenance is best-in-class.** `psl_version()` records the list
-  identity (source, commit, date, SHA-256) *and* the normalization
-  identity (normalizer package + version, profile, Unicode version). A
-  PSL answer depends on both *which list* answered and *how the host was
-  normalized* — `pslr` is the only surveyed library that surfaces both,
-  so a result is genuinely reproducible.
+- **Provenance is best-in-class.** `psl_version()` records the list identity
+  (source, commit, date, SHA-256) *and* the normalization identity (normalizer
+  package + version, profile, Unicode version). A PSL answer depends on both
+  *which list* answered and *how the host was normalized* — `pslr` is the only
+  surveyed library that surfaces both, so a result is genuinely reproducible.
 - **Conformance is verified.** The package ships the official upstream
-  `tests.txt` vectors, pinned in lockstep with the bundled snapshot and
-  run on every check.
-- **Offline by default, one hardened network path.** Every query works
-  with zero network access; `psl_refresh()` is the *only* code that
-  touches the network — HTTPS-only, credential- and downgrade-rejecting,
-  size-capped, atomically committed. This is stricter than network-first
-  designs and pairs with the reproducibility story rather than fighting
-  it.
-- **Strict, policy-driven validation.** URLs, IPv6, dotted-decimal IPv4,
-  and malformed labels are rejected; `invalid = "na"` / `"error"` lets
-  you choose silent `NA` or a hard stop. Many libraries are deliberately
-  lenient.
-- **Vectorized, `NA`-safe, name-preserving.** Every function operates on
-  a whole character vector — the idiomatic shape for data work in R.
+  `tests.txt` vectors, pinned in lockstep with the bundled snapshot and run on
+  every check.
+- **Offline by default, one hardened network path.** Every query works with zero
+  network access; `psl_refresh()` is the *only* code that touches the network —
+  HTTPS-only, credential- and downgrade-rejecting, size-capped, atomically
+  committed. This is stricter than network-first designs and pairs with the
+  reproducibility story rather than fighting it.
+- **Strict, policy-driven validation.** URLs, IPv6, dotted-decimal IPv4, and
+  malformed labels are rejected; `invalid = "na"` / `"error"` lets you choose
+  silent `NA` or a hard stop. Many libraries are deliberately lenient.
+- **Vectorized, `NA`-safe, name-preserving.** Every function operates on a whole
+  character vector — the idiomatic shape for data work in R.
 
 ### Trade-offs
 
-- **Session-global active list.** There is no per-call list switching
-  yet; the active list is per-session state (`psl_use()` /
-  `psl_refresh()`).
-- **Hostnames, not URLs.** URL-shaped input is rejected by design; parse
-  the host out first or use
-  [`rurl`](https://bart-turczynski.github.io/rurl/).
-- **No network-first auto-fetch.** Refreshing is always explicit — a
-  deliberate choice for reproducibility, not a convenience feature.
+- **Session-global active list.** There is no per-call list switching yet; the
+  active list is per-session state (`psl_use()` / `psl_refresh()`).
+- **Hostnames, not URLs.** URL-shaped input is rejected by design; parse the host
+  out first or use [`rurl`](https://bart-turczynski.github.io/rurl/).
+- **No network-first auto-fetch.** Refreshing is always explicit — a deliberate
+  choice for reproducibility, not a convenience feature.
 
 ## Development
 
@@ -171,24 +162,20 @@ Run the same verification CI runs (lint + `R CMD check --as-cran`):
 Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }' && Rscript -e 'rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning")'
 ```
 
-`R CMD check` runs the testthat and cucumber specs, so the behaviour
-specs are verified as part of the check. A non-CRAN performance
-benchmark and its release gate live in
-[`bench/benchmark.R`](https://github.com/bart-turczynski/pslr/blob/main/bench/benchmark.R);
-recorded reference results are in
-[`docs/benchmarks.md`](https://github.com/bart-turczynski/pslr/blob/main/docs/benchmarks.md).
+`R CMD check` runs the testthat and cucumber specs, so the behaviour specs are
+verified as part of the check. A non-CRAN performance benchmark and its release
+gate live in [`bench/benchmark.R`](https://github.com/bart-turczynski/pslr/blob/main/bench/benchmark.R); recorded reference
+results are in [`docs/benchmarks.md`](https://github.com/bart-turczynski/pslr/blob/main/docs/benchmarks.md).
 
 ### Project layout
 
-- `R/` — package source (edit roxygen comments here, not `man/` or
-  `NAMESPACE`).
+- `R/` — package source (edit roxygen comments here, not `man/` or `NAMESPACE`).
 - `src/` — the `cpp11` matcher core.
 - `man/` — generated help pages (`devtools::document()`).
 - `tests/testthat/` — testthat tests and cucumber feature specs.
 - `vignettes/` — long-form documentation.
 - `data-raw/` — the deterministic snapshot regeneration pipeline.
-- `docs/` — durable project context (`PRD.md`, `architecture.md`,
-  `benchmarks.md`).
+- `docs/` — durable project context (`PRD.md`, `architecture.md`, `benchmarks.md`).
 
 ## Acknowledgments
 
@@ -199,28 +186,22 @@ See [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md) for the full list of thanks.
 
 `pslr` is part of a small ecosystem of R packages by the same author:
 
-- **[punycoder](https://bart-turczynski.github.io/punycoder/)** — the
-  Punycode and IDNA codec that `pslr` uses for host canonicalization
-  before PSL matching. Use it directly for raw Unicode ↔ ACE
-  round-trips.
-- **[rurl](https://bart-turczynski.github.io/rurl/)** — full URL
-  parsing, normalization, cleaning, and joining toolkit. Uses `pslr` as
-  its PSL engine; reach for it when you need more than domain
-  extraction.
+- **[punycoder](https://bart-turczynski.github.io/punycoder/)** — the Punycode and IDNA codec that `pslr` uses for host canonicalization before PSL matching. Use it directly for raw Unicode ↔ ACE round-trips.
+- **[rurl](https://bart-turczynski.github.io/rurl/)** — full URL parsing, normalization, cleaning, and joining toolkit. Uses `pslr` as its PSL engine; reach for it when you need more than domain extraction.
 
 ## Citation
 
-If you use `pslr` in your work, please cite it. Run `citation("pslr")` for
-the current citation, or see [`CITATION.cff`](CITATION.cff).
+If you use `pslr` in your work, please cite it. Run `citation("pslr")` for the
+current citation, or see [`CITATION.cff`](CITATION.cff).
 
 Each release is archived on Zenodo. Cite the concept DOI
-[10.5281/zenodo.20973660](https://doi.org/10.5281/zenodo.20973660) to refer
-to the software in general (it always resolves to the latest version), or the
+[10.5281/zenodo.20973660](https://doi.org/10.5281/zenodo.20973660) to refer to
+the software in general (it always resolves to the latest version), or the
 version-specific DOI shown on the [Zenodo
 record](https://doi.org/10.5281/zenodo.20973660) for a particular release.
 
 ## License
 
 Package code is MIT licensed. The bundled Public Suffix List data
-(`inst/extdata/`) is distributed under the Mozilla Public License 2.0;
-see `inst/NOTICE` and `inst/extdata/PSL-LICENSE`.
+(`inst/extdata/`) is distributed under the Mozilla Public License 2.0; see
+`inst/NOTICE` and `inst/extdata/PSL-LICENSE`.
