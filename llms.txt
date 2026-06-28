@@ -105,10 +105,10 @@ partial/limited · ❌ absent.
 | x/net/publicsuffix (Go) | ✅ | ◐ `icann` flag | ❌ ASCII only | ✅ embedded; bump module | ◐ date constant | ✅ | ◐ | ❌ |
 | publicsuffix-go (Go) | ✅ | ◐ toggle private | ✅ | ✅ embedded | ❌ | ❌ | ◐ | ✅ |
 | psl crate (Rust) | ✅ | ◐ per-suffix type | ✅ | ✅ compiled-in | ◐ dated releases | ✅ | ❌ | ◐ |
-| tldextract (Python) | ✅ | ◐ private on/off | ✅ | ⚠️ network-first; offline opt-in | ❌ | ❌ | ◐ | ❌ |
+| tldextract (Python) | ✅ | ◐ private on/off | ✅ | ⚠ network-first; offline opt-in | ❌ | ❌ | ◐ | ❌ |
 | publicsuffixlist (Python) | ✅ | ◐ exclude private | ✅ | ✅ bundled + updater | ◐ date in version | ❌ | ❌ | ❌ |
 | public_suffix (Ruby) | ✅ | ◐ `ignore_private` | ❌ caller pre-encodes | ✅ bundled | ❌ | ❌ | ◐ | ✅ |
-| php-domain-parser (PHP) | ✅ | ✅ 3-way | ✅ | ⚠️ not bundled; PSR-16 cache | ◐ `isKnown` flags | ❌ | ◐ | ◐ |
+| php-domain-parser (PHP) | ✅ | ✅ 3-way | ✅ | ⚠ not bundled; PSR-16 cache | ◐ `isKnown` flags | ❌ | ◐ | ◐ |
 | tldts (JS/TS) | ✅ | ◐ `allowPrivateDomains` | ✅ | ✅ embedded; npm bump | ◐ submodule pin | ◐ optional WASM | ✅ | ◐ |
 | Guava `InternetDomainName` (Java) | ◐ | ✅ registry vs public | ✅ | ◐ in-jar; bump Guava | ❌ | ❌ | ◐ | ❌ |
 
