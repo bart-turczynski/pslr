@@ -28,3 +28,7 @@ paths:
     - docs
     # R CMD check scratch output — build artifacts, never distributed.
     - '**/*.Rcheck'
+    # Test fixtures: upstream PSL test vectors carrying a third-party CC0
+    # (public-domain) header that raises a finding unrelated to the package.
+    # Test-only data, not part of the runtime/distributed code.
+    - tests/testthat/fixtures
