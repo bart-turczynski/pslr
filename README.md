@@ -16,6 +16,8 @@
 [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20973660.svg)](https://doi.org/10.5281/zenodo.20973660)
 [![Zenodo](https://img.shields.io/badge/Zenodo-all_software-1682D4?logo=zenodo&logoColor=white)](https://zenodo.org/search?q=metadata.creators.person_or_org.identifiers.identifier:0000-0002-8788-7980)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr?ref=badge_shield&issueType=license)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr?ref=badge_shield&issueType=security)
 <!-- badges: end -->
 
 A focused, spec-complete implementation of the
