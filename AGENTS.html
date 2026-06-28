@@ -41,9 +41,59 @@
 <p>Use committed docs for durable project knowledge. Keep raw planning notes, temporary context, and generated scratch work in <code>_scratch/</code>.</p>
 <p>Do not commit <code>_scratch/</code>, <code>.fp/</code>, secrets, dependencies, build outputs, or local caches.</p>
 <div class="section level2">
+<h2 id="r-package-conventions">R package conventions<a class="anchor" aria-label="anchor" href="#r-package-conventions"></a></h2>
+<p>Follow the tidyverse <a href="https://style.tidyverse.org" class="external-link">style guide</a> and <a href="https://design.tidyverse.org" class="external-link">design guide</a>.</p>
+<div class="section level3">
+<h3 id="dev-loop">Dev loop<a class="anchor" aria-label="anchor" href="#dev-loop"></a></h3>
+<ul><li><p>Load for interactive work: <code>devtools::load_all()</code> (or <code><a href="https://pkgload.r-lib.org/reference/load_all.html" class="external-link">pkgload::load_all()</a></code>).</p></li>
+<li><p>Run tests: <code>testthat::test_local(reporter = "check")</code>; a single file with <code>testthat::test_local(filter = "matcher")</code> (matches <code>test-matcher.R</code>).</p></li>
+<li><p>Regenerate docs: <code>devtools::document()</code> — rebuilds <code>man/</code> and <code>NAMESPACE</code> from the roxygen comments in <code>R/</code>.</p></li>
+<li><p>After changing any <code>[[cpp11::register]]</code> signature in <code>src/</code>, run <code><a href="https://cpp11.r-lib.org/reference/cpp_register.html" class="external-link">cpp11::cpp_register()</a></code> to regenerate <code>R/cpp11.R</code> and the C bindings.</p></li>
+<li>
+<p>Verify gate (mirrors CI; the pre-push hook runs exactly this):</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'lints &lt;- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }'</span> <span class="dt">\</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>  <span class="kw">&amp;&amp;</span> <span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning")'</span></span></code></pre></div>
+</li>
+<li><p>When no R REPL is available, run snippets with <code>Rscript -e "..."</code>.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="code-style">Code style<a class="anchor" aria-label="anchor" href="#code-style"></a></h3>
+<ul><li>Base pipe <code>|&gt;</code>, never magrittr <code>%&gt;%</code>.</li>
+<li>
+<code>\(x) ...</code> for one-line anonymous functions; <code>function(x) { ... }</code> otherwise.</li>
+<li>
+<code>snake_case</code> for functions and arguments; explicit <code>pkg::fn()</code> prefixes.</li>
+<li>Layout is automated by Air (see <a href="#formatting">Formatting</a>) — don’t restyle code unrelated to your change, and don’t modify deprecated functions.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="tests">Tests<a class="anchor" aria-label="anchor" href="#tests"></a></h3>
+<ul><li>testthat edition 3. <code>R/foo.R</code> is tested by <code>tests/testthat/test-foo.R</code>.</li>
+<li>Keep all code inside <code>test_that()</code> blocks; shared setup lives in <code>helper-*.R</code> / <code>setup-*.R</code>.</li>
+<li>Prefer specific expectations over <code>expect_true()</code> / <code>expect_false()</code>.</li>
+<li>Use <code>expect_snapshot()</code> for printed output and <code>expect_snapshot(error = TRUE)</code> for errors.</li>
+<li>Behavior specs are Cucumber <code>.feature</code> files under <code>tests/testthat/</code>, with steps in <code>setup-steps.R</code> run via <code>test-cucumber.R</code>; <code>R CMD check</code> exercises them.</li>
+<li>New code requires tests.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a></h3>
+<ul><li>Roxygen2 with markdown (<code>Roxygen: list(markdown = TRUE)</code>). <code>man/</code> and <code>NAMESPACE</code> are <strong>generated — never edit them by hand</strong>; edit the roxygen comments in <code>R/</code> and re-run <code>devtools::document()</code>.</li>
+<li>Every exported function needs a title, a <code>@param</code> per argument, <code>@return</code>, and runnable <code>@examples</code>. Internal helpers stay unexported and undocumented.</li>
+<li>Wrap roxygen comments at 80 columns; add new help topics to <code>_pkgdown.yml</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-functions">New functions<a class="anchor" aria-label="anchor" href="#new-functions"></a></h3>
+<p>Ship each new user-facing function with: runnable examples, tests, full argument docs, <code>snake_case</code> arguments with sensible defaults, and argument validation. Where a <code>...</code> separates required from optional arguments, guard it against unexpected (e.g. misspelled) arguments.</p>
+</div>
+<div class="section level3">
+<h3 id="news-and-generated-files">NEWS and generated files<a class="anchor" aria-label="anchor" href="#news-and-generated-files"></a></h3>
+<ul><li>Add a <code>NEWS.md</code> bullet for every user-facing change — one line, no wrapping, with the issue/PR number in parentheses. Internal-only refactors go under an <code>## Internal</code> heading (see the existing entries) or are omitted.</li>
+<li>Never hand-edit generated files: <code>NAMESPACE</code>, anything under <code>man/</code>, or <code>R/cpp11.R</code> and the cpp11 glue in <code>src/</code>.</li>
+</ul></div>
+</div>
+<div class="section level2">
 <h2 id="git-hygiene">Git hygiene<a class="anchor" aria-label="anchor" href="#git-hygiene"></a></h2>
 <p>This project uses the <a href="https://pre-commit.com" class="external-link">pre-commit</a> framework. Its config (<code>.pre-commit-config.yaml</code>) is cloned with the repo; each clone enables the hooks once:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">pre-commit</span> install <span class="kw">&amp;&amp;</span> <span class="ex">pre-commit</span> install <span class="at">--hook-type</span> pre-push</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="ex">pre-commit</span> install <span class="kw">&amp;&amp;</span> <span class="ex">pre-commit</span> install <span class="at">--hook-type</span> pre-push</span></code></pre></div>
 <p><code>pre-commit</code> is a Python tool. For non-Python templates, install it with <code>uv tool install pre-commit</code> or <code>pipx install pre-commit</code>.</p>
 <div class="section level3">
 <h3 id="per-commit-checks">Per-commit checks<a class="anchor" aria-label="anchor" href="#per-commit-checks"></a></h3>
