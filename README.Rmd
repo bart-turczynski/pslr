@@ -1,8 +1,17 @@
 ---
-output: github_document
+output:
+  github_document:
+    html_preview: false
+    # Pin the wrap mode so README.md renders byte-identically on any machine
+    # (pandoc's default --wrap=auto re-flows prose at a version-dependent
+    # width). `preserve` mirrors the line wrapping of this source file, so a
+    # prose edit here produces a matching, reviewable diff in README.md.
+    pandoc_args: ["--wrap=preserve"]
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+<!-- Regenerate with: devtools::build_readme() -->
+<!-- CI (verify.yml) fails if README.md is out of sync with README.Rmd. -->
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
