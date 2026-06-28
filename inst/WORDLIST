@@ -28,6 +28,7 @@ installable
 InternetDomainName
 IPv
 JavaScript
+JS
 libpsl
 Lifecycle
 matcher
@@ -38,7 +39,10 @@ mtime
 normalizer
 npm
 ORCID
+php
 PRD
+pre
+psl
 PSL
 PSR
 publicsuffix
@@ -51,6 +55,7 @@ registrable
 Registrable
 roxygen
 rurl
+sha
 SHA
 splitter
 submodule
@@ -60,3 +65,5 @@ tldextract
 tldts
 UTS
 WASM
+zenodo
+Zenodo
