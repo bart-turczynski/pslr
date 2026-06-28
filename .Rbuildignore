@@ -22,6 +22,8 @@
 ^\.gitignore$
 ^\.pre-commit-config\.yaml$
 ^\.fp$
+^\.fossa$
+^\.fossa\.yml$
 ^FP_CLAUDE\.md$
 ^FP_AGENTS\.md$
 ^_scratch$
