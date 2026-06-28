@@ -12,9 +12,20 @@ test_that("NA is missing, not invalid", {
 
 test_that("the documented invalid host shapes are rejected", {
   bad <- c(
-    "", "   ", ".com", "a..b", "a.b..", "example.com..",
-    "http://example.com", "user@example.com", "example.com:80",
-    "example.com/path", "[::1]", "::1", "a b.com", "foo_bar.com"
+    "",
+    "   ",
+    ".com",
+    "a..b",
+    "a.b..",
+    "example.com..",
+    "http://example.com",
+    "user@example.com",
+    "example.com:80",
+    "example.com/path",
+    "[::1]",
+    "::1",
+    "a b.com",
+    "foo_bar.com"
   )
   status <- psl_canonicalize(bad, invalid = "na")$status
   expect_true(all(status == "invalid"))

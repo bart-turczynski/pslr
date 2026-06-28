@@ -2,10 +2,20 @@
 # counts, NA propagation, root-dot placement (PRD s7.2, s7.3, s11.1).
 
 ps_extract_cols <- c(
-  "input", "host", "subdomain", "domain", "suffix", "registrable_domain"
+  "input",
+  "host",
+  "subdomain",
+  "domain",
+  "suffix",
+  "registrable_domain"
 )
 ps_rule_cols <- c(
-  "input", "host_ascii", "rule", "kind", "rule_section", "public_suffix_ascii"
+  "input",
+  "host_ascii",
+  "rule",
+  "kind",
+  "rule_section",
+  "public_suffix_ascii"
 )
 
 test_that("suffix_extract has the exact column schema, order, and types", {
@@ -16,8 +26,14 @@ test_that("suffix_extract has the exact column schema, order, and types", {
   expect_identical(nrow(out), 1L)
   expect_identical(
     unlist(out[1, ], use.names = FALSE),
-    c("www.example.co.uk", "www.example.co.uk", "www", "example",
-      "co.uk", "example.co.uk")
+    c(
+      "www.example.co.uk",
+      "www.example.co.uk",
+      "www",
+      "example",
+      "co.uk",
+      "example.co.uk"
+    )
   )
 })
 
@@ -101,8 +117,14 @@ test_that("public_suffix_rule has the exact column schema, order, and types", {
   expect_true(all(vapply(out, is.character, logical(1))))
   expect_identical(
     unlist(out[1, ], use.names = FALSE),
-    c("www.example.co.uk", "www.example.co.uk", "co.uk", "normal",
-      "icann", "co.uk")
+    c(
+      "www.example.co.uk",
+      "www.example.co.uk",
+      "co.uk",
+      "normal",
+      "icann",
+      "co.uk"
+    )
   )
 })
 
@@ -110,7 +132,8 @@ test_that("public_suffix_rule reports each rule kind with its markers", {
   out <- public_suffix_rule(c("x.ck", "www.ck", "a.b.kobe.jp", "madeuptld"))
   expect_identical(out$rule, c("*.ck", "!www.ck", "*.kobe.jp", "*"))
   expect_identical(
-    out$kind, c("wildcard", "exception", "wildcard", "default")
+    out$kind,
+    c("wildcard", "exception", "wildcard", "default")
   )
   expect_identical(out$rule_section, c("icann", "icann", "icann", NA))
   # Exception strips its leftmost label for the suffix but keeps '!' in rule.

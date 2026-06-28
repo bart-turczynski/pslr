@@ -46,9 +46,13 @@ runtime_normalizer_meta <- function() {
 psl_meta <- function(...) {
   base <- c(
     list(
-      source = NA_character_, path = NA_character_,
-      retrieved_at = NA_character_, list_date = NA_character_,
-      commit = NA_character_, size = NA_integer_, checksum = NA_character_
+      source = NA_character_,
+      path = NA_character_,
+      retrieved_at = NA_character_,
+      list_date = NA_character_,
+      commit = NA_character_,
+      size = NA_integer_,
+      checksum = NA_character_
     ),
     runtime_normalizer_meta()
   )
@@ -62,8 +66,11 @@ psl_meta <- function(...) {
 psl_set_active <- function(rules, meta, rebuilt = FALSE) {
   ptr <- build_matcher(rules)
   the_matcher$state <- list(
-    ptr = ptr, identity = meta$checksum, rules = rules,
-    meta = meta, rebuilt = rebuilt
+    ptr = ptr,
+    identity = meta$checksum,
+    rules = rules,
+    meta = meta,
+    rebuilt = rebuilt
   )
   psl_cache_clear()
   invisible(meta)
@@ -90,15 +97,19 @@ activate_bundled <- function() {
   rt <- runtime_normalizer_meta()
   bm <- pslr_bundled$meta
   profile_match <- identical(
-    bm$normalization_profile, rt$normalization_profile
+    bm$normalization_profile,
+    rt$normalization_profile
   )
   unicode_match <- identical(bm$unicode_version, rt$unicode_version)
   mismatch <- !profile_match || !unicode_match
   rules <- if (mismatch) rebuild_bundled_rules() else pslr_bundled$rules
   meta <- psl_meta(
-    source = "bundled", retrieved_at = bm$retrieved_at,
-    list_date = bm$list_date, commit = bm$commit,
-    size = bm$size, checksum = bm$checksum
+    source = "bundled",
+    retrieved_at = bm$retrieved_at,
+    list_date = bm$list_date,
+    commit = bm$commit,
+    size = bm$size,
+    checksum = bm$checksum
   )
   psl_set_active(rules, meta, rebuilt = mismatch)
 }
@@ -131,7 +142,8 @@ derive_one <- function(labels, depth, kind) {
 
   if (is.na(depth) || depth < 1L) {
     return(list(
-      public_suffix = NA_character_, registrable_domain = NA_character_,
+      public_suffix = NA_character_,
+      registrable_domain = NA_character_,
       rule = NA_character_
     ))
   }
@@ -142,7 +154,8 @@ derive_one <- function(labels, depth, kind) {
     NA_character_
   }
 
-  rule <- switch(psl_kind_labels[kind + 1L],
+  rule <- switch(
+    psl_kind_labels[kind + 1L],
     normal = public_suffix,
     wildcard = paste0("*.", suffix_labels(depth - 1L)),
     exception = paste0("!", suffix_labels(depth + 1L)),
@@ -157,9 +170,13 @@ derive_one <- function(labels, depth, kind) {
 
 psl_empty_match_result <- function() {
   data.frame(
-    public_suffix = character(0), registrable_domain = character(0),
-    rule = character(0), kind = character(0), rule_section = character(0),
-    ps_depth = integer(0), stringsAsFactors = FALSE
+    public_suffix = character(0),
+    registrable_domain = character(0),
+    rule = character(0),
+    kind = character(0),
+    rule_section = character(0),
+    ps_depth = integer(0),
+    stringsAsFactors = FALSE
   )
 }
 
@@ -173,7 +190,9 @@ psl_match_records <- function(cores, section_code) {
     list(
       public_suffix = d$public_suffix,
       registrable_domain = d$registrable_domain,
-      rule = d$rule, kind = kind[j], rule_section = sec[j],
+      rule = d$rule,
+      kind = kind[j],
+      rule_section = sec[j],
       ps_depth = res$ps_depth[j]
     )
   })
@@ -221,15 +240,21 @@ psl_resolve_cores <- function(cores, section) {
   idx <- match(cores, uniq)
   data.frame(
     public_suffix = psl_result_field(
-      cached, "public_suffix", NA_character_
+      cached,
+      "public_suffix",
+      NA_character_
     )[idx],
     registrable_domain = psl_result_field(
-      cached, "registrable_domain", NA_character_
+      cached,
+      "registrable_domain",
+      NA_character_
     )[idx],
     rule = psl_result_field(cached, "rule", NA_character_)[idx],
     kind = psl_result_field(cached, "kind", NA_character_)[idx],
     rule_section = psl_result_field(
-      cached, "rule_section", NA_character_
+      cached,
+      "rule_section",
+      NA_character_
     )[idx],
     ps_depth = psl_result_field(cached, "ps_depth", NA_integer_)[idx],
     stringsAsFactors = FALSE

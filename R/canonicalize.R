@@ -32,9 +32,13 @@ is_ipv4_literal <- function(x) {
   res <- rep(FALSE, length(s))
   if (any(shaped)) {
     parts <- strsplit(s[shaped], ".", fixed = TRUE)
-    res[shaped] <- vapply(parts, function(p) {
-      all(grepl("^(0|[1-9][0-9]{0,2})$", p)) && all(as.integer(p) <= 255L)
-    }, logical(1))
+    res[shaped] <- vapply(
+      parts,
+      function(p) {
+        all(grepl("^(0|[1-9][0-9]{0,2})$", p)) && all(as.integer(p) <= 255L)
+      },
+      logical(1)
+    )
   }
   out[present] <- res
   out

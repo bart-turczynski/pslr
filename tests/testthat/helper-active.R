@@ -23,7 +23,9 @@ fake_downloader <- function(src = bundled_dat_path()) {
 local_pslr_clean <- function(env = parent.frame()) {
   dir <- withr::local_tempdir(.local_envir = env)
   withr::local_options(
-    pslr.cache_dir = dir, pslr.downloader = NULL, pslr.max_bytes = NULL,
+    pslr.cache_dir = dir,
+    pslr.downloader = NULL,
+    pslr.max_bytes = NULL,
     .local_envir = env
   )
   reset_active_for_test()

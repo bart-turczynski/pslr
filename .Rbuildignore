@@ -8,6 +8,7 @@
 ^.*\.Rcheck$
 ^.*\.tar\.gz$
 ^\.lintr$
+^air\.toml$
 ^cran-comments\.md$
 ^CRAN-SUBMISSION$
 ^doc$

@@ -35,7 +35,8 @@ dat_url <- sprintf("%s/%s/public_suffix_list.dat", raw_base, commit)
 license_url <- sprintf("%s/%s/LICENSE", raw_base, commit)
 tests_url <- sprintf("%s/%s/tests/tests.txt", raw_base, commit)
 api_url <- sprintf(
-  "https://api.github.com/repos/publicsuffix/list/commits/%s", commit
+  "https://api.github.com/repos/publicsuffix/list/commits/%s",
+  commit
 )
 
 dat_path <- "inst/extdata/public_suffix_list.dat"
@@ -132,7 +133,9 @@ notice <- sprintf(
     "separate; use of the bundled list data is governed by MPL-2.0.",
     sep = "\n"
   ),
-  dat_url, commit, checksum
+  dat_url,
+  commit,
+  checksum
 )
 writeLines(notice, notice_path)
 
@@ -144,10 +147,20 @@ message("  commit:     ", commit)
 message("  list_date:  ", list_date)
 message("  size:       ", dat_bytes, " bytes")
 message("  checksum:   ", checksum)
-message("  rules:      ", nrow(rules),
-        " (icann: ", sum(rules$section == "icann"),
-        ", private: ", sum(rules$section == "private"), ")")
-message("  profile:    ", meta$normalization_profile,
-        " / Unicode ", meta$unicode_version)
+message(
+  "  rules:      ",
+  nrow(rules),
+  " (icann: ",
+  sum(rules$section == "icann"),
+  ", private: ",
+  sum(rules$section == "private"),
+  ")"
+)
+message(
+  "  profile:    ",
+  meta$normalization_profile,
+  " / Unicode ",
+  meta$unicode_version
+)
 message("  vectors:    ", tests_path)
 message("Review the upstream diff before committing the regenerated artifacts.")

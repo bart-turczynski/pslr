@@ -4,15 +4,25 @@
 # independent of the bundled snapshot.
 synthetic_matcher <- function() {
   keys <- c(
-    "com", "a.com", "co.uk", "jp",
-    "ck", "www.ck",          # *.ck + !www.ck
-    "kobe.jp", "city.kobe.jp", # *.kobe.jp + !city.kobe.jp
-    "example.priv"           # PRIVATE-only
+    "com",
+    "a.com",
+    "co.uk",
+    "jp",
+    "ck",
+    "www.ck", # *.ck + !www.ck
+    "kobe.jp",
+    "city.kobe.jp", # *.kobe.jp + !city.kobe.jp
+    "example.priv" # PRIVATE-only
   )
   kinds <- c(
-    "normal", "normal", "normal", "normal",
-    "wildcard", "exception",
-    "wildcard", "exception",
+    "normal",
+    "normal",
+    "normal",
+    "normal",
+    "wildcard",
+    "exception",
+    "wildcard",
+    "exception",
     "normal"
   )
   sections <- c(0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 1L)
@@ -24,8 +34,11 @@ synthetic_matcher <- function() {
 core_match <- function(m, hosts, section = "all") {
   res <- psl_match(m, hosts, psl_section_code(section))
   data.frame(
-    host = hosts, ps_depth = res$ps_depth, kind = res$kind,
-    section = res$section, stringsAsFactors = FALSE
+    host = hosts,
+    ps_depth = res$ps_depth,
+    kind = res$kind,
+    section = res$section,
+    stringsAsFactors = FALSE
   )
 }
 
@@ -97,7 +110,10 @@ test_that("Unicode and punycode inputs produce equal ASCII results", {
   u <- public_suffix_rule("食狮.com.cn") # IDN labels
   p <- public_suffix_rule("xn--85x722f.com.cn")
   expect_identical(u$host_ascii, "xn--85x722f.com.cn")
-  expect_identical(registrable_domain("食狮.com.cn"), registrable_domain(p$input))
+  expect_identical(
+    registrable_domain("食狮.com.cn"),
+    registrable_domain(p$input)
+  )
   expect_identical(u$public_suffix_ascii, "com.cn")
 })
 
@@ -105,7 +121,8 @@ test_that("the terminal root dot is preserved on hostname-shaped outputs", {
   expect_identical(public_suffix("example.com."), "com.")
   expect_identical(registrable_domain("example.com."), "example.com.")
   expect_identical(
-    public_suffix_rule("example.com.")$host_ascii, "example.com."
+    public_suffix_rule("example.com.")$host_ascii,
+    "example.com."
   )
   expect_identical(public_suffix_rule("example.com.")$rule, "com")
 })
@@ -113,7 +130,8 @@ test_that("the terminal root dot is preserved on hostname-shaped outputs", {
 test_that("invalid and NA inputs yield NA rows", {
   domain <- c(".com", "a..b", "", NA_character_, "ok.com")
   expect_identical(
-    is.na(public_suffix(domain)), c(TRUE, TRUE, TRUE, TRUE, FALSE)
+    is.na(public_suffix(domain)),
+    c(TRUE, TRUE, TRUE, TRUE, FALSE)
   )
   expect_identical(registrable_domain(domain)[5], "ok.com")
 })
@@ -125,7 +143,9 @@ test_that("zero-length input returns zero-length vectors", {
 
 test_that("repeated hosts are deduplicated yet expand to full length", {
   out <- registrable_domain(c(
-    "a.example.com", "a.example.com", "b.example.org"
+    "a.example.com",
+    "a.example.com",
+    "b.example.org"
   ))
   expect_length(out, 3L)
   expect_identical(

@@ -22,7 +22,8 @@ psl_version_df <- function(meta) {
     normalizer_version = as.character(meta$normalizer_version),
     normalization_profile = as.character(meta$normalization_profile),
     unicode_version = as.character(meta$unicode_version),
-    stringsAsFactors = FALSE, row.names = NULL
+    stringsAsFactors = FALSE,
+    row.names = NULL
   )
 }
 
@@ -88,8 +89,12 @@ psl_version <- function() {
 #' nrow(psl_rules("private"))
 #' @export
 psl_rules <- function(section = c("all", "icann", "private")) {
-  section <- match_opt(section, c("all", "icann", "private"), "section",
-                       !missing(section))
+  section <- match_opt(
+    section,
+    c("all", "icann", "private"),
+    "section",
+    !missing(section)
+  )
   r <- active_rules()
   if (!identical(section, "all")) {
     r <- r[r$section == section, , drop = FALSE]
@@ -102,6 +107,7 @@ psl_rules <- function(section = c("all", "icann", "private")) {
     kind = r$kind,
     section = r$section,
     labels = as.integer(r$labels),
-    stringsAsFactors = FALSE, row.names = NULL
+    stringsAsFactors = FALSE,
+    row.names = NULL
   )
 }

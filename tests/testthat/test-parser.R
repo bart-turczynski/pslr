@@ -1,7 +1,13 @@
 # Tests for the PSL-format parser (PRD s8.1, s11.1).
 
 psl_cols <- c(
-  "line", "raw", "section", "kind", "canonical_rule", "canonical_key", "labels"
+  "line",
+  "raw",
+  "section",
+  "kind",
+  "canonical_rule",
+  "canonical_key",
+  "labels"
 )
 
 # Wrap rule bodies in the two official sections so fixtures stay compact.
@@ -47,13 +53,15 @@ test_that("rule content is read only up to the first whitespace", {
 })
 
 test_that("comments, blank lines, and indented lines produce no rules", {
-  rules <- parse_psl_lines(psl_doc(icann = c(
-    "// a full line comment",
-    "",
-    "   ",
-    "  indented-is-not-a-rule",
-    "com"
-  )))
+  rules <- parse_psl_lines(psl_doc(
+    icann = c(
+      "// a full line comment",
+      "",
+      "   ",
+      "  indented-is-not-a-rule",
+      "com"
+    )
+  ))
   expect_identical(rules$canonical_rule, "com")
 })
 
@@ -88,20 +96,28 @@ test_that("empty and section-only input yields a typed zero-row table", {
 
 test_that("malformed and mismatched section markers are rejected", {
   expect_error(
-    parse_psl_lines(c("// ===BEGIN ICANN DOMAINS===", "com",
-                      "// ===END PRIVATE DOMAINS===")),
+    parse_psl_lines(c(
+      "// ===BEGIN ICANN DOMAINS===",
+      "com",
+      "// ===END PRIVATE DOMAINS==="
+    )),
     class = "pslr_parse_error"
   )
   # A marker-like typo.
   expect_error(
-    parse_psl_lines(c("// ===BEGIN COFFEE DOMAINS===", "com",
-                      "// ===END COFFEE DOMAINS===")),
+    parse_psl_lines(c(
+      "// ===BEGIN COFFEE DOMAINS===",
+      "com",
+      "// ===END COFFEE DOMAINS==="
+    )),
     class = "pslr_parse_error"
   )
   # Nested BEGIN.
   expect_error(
-    parse_psl_lines(c("// ===BEGIN ICANN DOMAINS===",
-                      "// ===BEGIN PRIVATE DOMAINS===")),
+    parse_psl_lines(c(
+      "// ===BEGIN ICANN DOMAINS===",
+      "// ===BEGIN PRIVATE DOMAINS==="
+    )),
     class = "pslr_parse_error"
   )
   # END with no open section.
@@ -125,9 +141,14 @@ test_that("a repeated ICANN or PRIVATE section is rejected", {
   # official format carries exactly one of each (PRD s8.1).
   expect_error(
     parse_psl_lines(c(
-      "// ===BEGIN ICANN DOMAINS===", "com", "// ===END ICANN DOMAINS===",
-      "// ===BEGIN ICANN DOMAINS===", "net", "// ===END ICANN DOMAINS===",
-      "// ===BEGIN PRIVATE DOMAINS===", "github.io",
+      "// ===BEGIN ICANN DOMAINS===",
+      "com",
+      "// ===END ICANN DOMAINS===",
+      "// ===BEGIN ICANN DOMAINS===",
+      "net",
+      "// ===END ICANN DOMAINS===",
+      "// ===BEGIN PRIVATE DOMAINS===",
+      "github.io",
       "// ===END PRIVATE DOMAINS==="
     )),
     "appears more than once"
@@ -135,10 +156,14 @@ test_that("a repeated ICANN or PRIVATE section is rejected", {
   # A repeated PRIVATE section is rejected the same way.
   expect_error(
     parse_psl_lines(c(
-      "// ===BEGIN ICANN DOMAINS===", "com", "// ===END ICANN DOMAINS===",
-      "// ===BEGIN PRIVATE DOMAINS===", "github.io",
+      "// ===BEGIN ICANN DOMAINS===",
+      "com",
+      "// ===END ICANN DOMAINS===",
+      "// ===BEGIN PRIVATE DOMAINS===",
+      "github.io",
       "// ===END PRIVATE DOMAINS===",
-      "// ===BEGIN PRIVATE DOMAINS===", "example.com",
+      "// ===BEGIN PRIVATE DOMAINS===",
+      "example.com",
       "// ===END PRIVATE DOMAINS==="
     )),
     "appears more than once"
@@ -147,8 +172,11 @@ test_that("a repeated ICANN or PRIVATE section is rejected", {
 
 test_that("the abort condition carries the offending line number", {
   err <- tryCatch(
-    parse_psl_lines(c("// ===BEGIN ICANN DOMAINS===", "a..b",
-                      "// ===END ICANN DOMAINS===")),
+    parse_psl_lines(c(
+      "// ===BEGIN ICANN DOMAINS===",
+      "a..b",
+      "// ===END ICANN DOMAINS==="
+    )),
     pslr_parse_error = function(e) e
   )
   expect_identical(err$line, 2L)
@@ -193,9 +221,11 @@ test_that("rules that fail canonicalization are rejected", {
 })
 
 test_that("invalid UTF-8 source is rejected", {
-  bad <- c("// ===BEGIN ICANN DOMAINS===",
-           rawToChar(as.raw(c(0x63, 0xff, 0x6d))),
-           "// ===END ICANN DOMAINS===")
+  bad <- c(
+    "// ===BEGIN ICANN DOMAINS===",
+    rawToChar(as.raw(c(0x63, 0xff, 0x6d))),
+    "// ===END ICANN DOMAINS==="
+  )
   expect_error(parse_psl_lines(bad), class = "pslr_parse_error")
 })
 

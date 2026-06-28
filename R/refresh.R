@@ -65,7 +65,9 @@ psl_load_source <- function(path, what = "list") {
     stop(
       sprintf(
         "%s source is %.0f bytes, over the %.0f-byte maximum.",
-        what, size, max_bytes
+        what,
+        size,
+        max_bytes
       ),
       call. = FALSE
     )
@@ -101,8 +103,10 @@ psl_reusable_cache_path <- function(current, cache_dir) {
 
 psl_cache_meta <- function(dat, current) {
   psl_meta(
-    source = "cache", path = dat,
-    retrieved_at = current$meta$retrieved_at, size = current$meta$size,
+    source = "cache",
+    path = dat,
+    retrieved_at = current$meta$retrieved_at,
+    size = current$meta$size,
     checksum = current$meta$checksum
   )
 }
@@ -135,20 +139,26 @@ psl_publish_download <- function(tmp, rules, cache_dir) {
   # the commit marker as the single atomic commit point.
   hex <- sub("^[^:]+:", "", checksum)
   dat_final <- file.path(cache_dir, paste0("psl-", hex, ".dat"))
-  if (file.exists(dat_final) &&
-        identical(psl_source_checksum(dat_final), checksum)) {
+  if (
+    file.exists(dat_final) &&
+      identical(psl_source_checksum(dat_final), checksum)
+  ) {
     unlink(tmp)
   } else {
     psl_atomic_rename(tmp, dat_final)
   }
 
   meta <- psl_meta(
-    source = "cache", path = dat_final, retrieved_at = retrieved_at,
-    size = size, checksum = checksum
+    source = "cache",
+    path = dat_final,
+    retrieved_at = retrieved_at,
+    size = size,
+    checksum = checksum
   )
   tmp_marker <- tempfile("pslr-cur-", tmpdir = cache_dir, fileext = ".rds")
   saveRDS(
-    list(dat_file = basename(dat_final), meta = meta), tmp_marker
+    list(dat_file = basename(dat_final), meta = meta),
+    tmp_marker
   )
   psl_atomic_rename(tmp_marker, psl_cache_marker())
   list(rules = rules, meta = meta)
@@ -220,7 +230,8 @@ psl_default_download <- function(url, destfile, max_bytes) {
     )
   }
   h <- curl::new_handle(
-    followlocation = TRUE, maxfilesize_large = as.numeric(max_bytes)
+    followlocation = TRUE,
+    maxfilesize_large = as.numeric(max_bytes)
   )
   res <- curl::curl_fetch_disk(url, destfile, handle = h)
   if (!startsWith(tolower(res$url), "https://")) {
@@ -291,9 +302,10 @@ psl_validate_refresh_url <- function(url) {
 #' }
 #' @export
 psl_refresh <- function(
-    url = "https://publicsuffix.org/list/public_suffix_list.dat",
-    force = FALSE,
-    activate = FALSE) {
+  url = "https://publicsuffix.org/list/public_suffix_list.dat",
+  force = FALSE,
+  activate = FALSE
+) {
   psl_validate_refresh_url(url)
   psl_validate_refresh_args(force, activate)
   # Internal seam for tests: an injected downloader replaces the network call.
@@ -344,8 +356,10 @@ psl_activate_cache <- function() {
 }
 
 psl_activate_path <- function(path) {
-  bad_path <- is.null(path) || !is.character(path) ||
-    length(path) != 1L || is.na(path)
+  bad_path <- is.null(path) ||
+    !is.character(path) ||
+    length(path) != 1L ||
+    is.na(path)
   if (bad_path) {
     stop(
       "`path` must be a single file path when `source = \"path\"`.",
@@ -357,8 +371,10 @@ psl_activate_path <- function(path) {
   }
   rules <- psl_load_source(path, "custom path list")
   meta <- psl_meta(
-    source = "path", path = normalizePath(path),
-    size = as.integer(file.size(path)), checksum = psl_source_checksum(path)
+    source = "path",
+    path = normalizePath(path),
+    size = as.integer(file.size(path)),
+    checksum = psl_source_checksum(path)
   )
   psl_set_active(rules, meta)
   invisible(psl_version())
@@ -395,8 +411,12 @@ psl_activate_path <- function(path) {
 #' }
 #' @export
 psl_use <- function(source = c("bundled", "cache", "path"), path = NULL) {
-  source <- match_opt(source, c("bundled", "cache", "path"), "source",
-                      !missing(source))
+  source <- match_opt(
+    source,
+    c("bundled", "cache", "path"),
+    "source",
+    !missing(source)
+  )
   if (!identical(source, "path") && !is.null(path)) {
     stop("`path` is only used when `source = \"path\"`.", call. = FALSE)
   }

@@ -144,21 +144,27 @@ psl_update_section <- function(marker, section, section_opens, number) {
     }
     section_opens[[name]] <- section_opens[[name]] + 1L
     if (section_opens[[name]] > 1L) {
-      psl_parse_abort(sprintf("section '%s' appears more than once", name),
-                      number)
+      psl_parse_abort(
+        sprintf("section '%s' appears more than once", name),
+        number
+      )
     }
     return(list(section = name, section_opens = section_opens))
   }
 
   if (is.na(section)) {
     psl_parse_abort(
-      sprintf("'%s' section ends without a matching BEGIN", name), number
+      sprintf("'%s' section ends without a matching BEGIN", name),
+      number
     )
   }
   if (section != name) {
     psl_parse_abort(
-      sprintf("section end '%s' does not match open section '%s'",
-              name, section),
+      sprintf(
+        "section end '%s' does not match open section '%s'",
+        name,
+        section
+      ),
       number
     )
   }
@@ -173,11 +179,14 @@ psl_build_rule_record <- function(token, section, number) {
   parsed <- psl_parse_rule_content(token, number)
   normalized <- punycoder::host_normalize(parsed$literal)
   if (is.na(normalized)) {
-    psl_parse_abort(sprintf("rule '%s' could not be canonicalized", token),
-                    number)
+    psl_parse_abort(
+      sprintf("rule '%s' could not be canonicalized", token),
+      number
+    )
   }
 
-  canonical_rule <- switch(parsed$kind,
+  canonical_rule <- switch(
+    parsed$kind,
     wildcard = paste0("*.", normalized),
     exception = paste0("!", normalized),
     normalized
@@ -186,8 +195,13 @@ psl_build_rule_record <- function(token, section, number) {
     (parsed$kind == "wildcard")
 
   list(
-    line = number, raw = token, section = section, kind = parsed$kind,
-    canonical_rule = canonical_rule, canonical_key = normalized, labels = depth
+    line = number,
+    raw = token,
+    section = section,
+    kind = parsed$kind,
+    canonical_rule = canonical_rule,
+    canonical_key = normalized,
+    labels = depth
   )
 }
 

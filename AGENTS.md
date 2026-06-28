@@ -18,6 +18,13 @@ pre-commit install && pre-commit install --hook-type pre-push
 
 On every commit, lightweight hooks run: end-of-file fixer, trailing-whitespace trimming, merge-conflict detection, YAML/TOML validation, mixed-line-ending and case-conflict guards, and `check-added-large-files` — a portable 5 MB size guard that blocks accidentally committing heavy blobs (a big blob bloats `.git` history even after deletion).
 
+### Formatting
+
+R sources are formatted with [Air](https://posit-dev.github.io/air/) (`air.toml`),
+which runs as a per-commit hook and auto-fixes layout. Air owns formatting; lintr
+(in the verify gate) owns logic and best-practice lints. Don't reformat code
+unrelated to your change.
+
 ### Pre-push verify gate
 
 On `git push`, the `verify` hook runs the project's verify command — the same chain CI runs. Server-side branch protection is unavailable on this GitHub plan, so this local pre-push gate is the stand-in for branch protection: it blocks a push whose tree would turn CI red.

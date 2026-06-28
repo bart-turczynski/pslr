@@ -61,8 +61,10 @@ test_that("a stale cache triggers a fresh download", {
   # Backdate the recorded retrieval timestamp past the 24h window.
   marker <- file.path(dir, "current.rds")
   cur <- readRDS(marker)
-  cur$meta$retrieved_at <- format(Sys.time() - as.difftime(48, units = "hours"),
-    tz = "UTC", usetz = TRUE
+  cur$meta$retrieved_at <- format(
+    Sys.time() - as.difftime(48, units = "hours"),
+    tz = "UTC",
+    usetz = TRUE
   )
   saveRDS(cur, marker)
   refreshed <- psl_refresh()
@@ -151,7 +153,8 @@ test_that("psl_use('cache') reports a corrupt marker with remediation", {
 test_that("an oversized download is rejected before publication", {
   dir <- local_pslr_clean()
   withr::local_options(
-    pslr.downloader = fake_downloader(), pslr.max_bytes = 1024L
+    pslr.downloader = fake_downloader(),
+    pslr.max_bytes = 1024L
   )
   expect_error(psl_refresh(force = TRUE), "over the .* maximum")
   expect_false(file.exists(file.path(dir, "current.rds")))
@@ -171,18 +174,24 @@ test_that("exact same-section duplicates warn once and are deduplicated", {
   dup <- tempfile(fileext = ".dat")
   writeLines(
     c(
-      "// ===BEGIN ICANN DOMAINS===", "com", "com",
+      "// ===BEGIN ICANN DOMAINS===",
+      "com",
+      "com",
       "// ===END ICANN DOMAINS===",
-      "// ===BEGIN PRIVATE DOMAINS===", "example.com",
+      "// ===BEGIN PRIVATE DOMAINS===",
+      "example.com",
       "// ===END PRIVATE DOMAINS==="
     ),
     dup
   )
   withr::local_options(pslr.downloader = fake_downloader(dup))
   expect_warning(psl_refresh(force = TRUE, activate = TRUE), "duplicate")
-  expect_identical(anyDuplicated(
-    paste(psl_rules()$section, psl_rules()$canonical_rule)
-  ), 0L)
+  expect_identical(
+    anyDuplicated(
+      paste(psl_rules()$section, psl_rules()$canonical_rule)
+    ),
+    0L
+  )
 })
 
 test_that("the default downloader refuses a non-HTTPS redirect", {

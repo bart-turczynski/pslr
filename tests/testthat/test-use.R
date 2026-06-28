@@ -5,7 +5,8 @@ test_that("psl_use validates the source and the path argument", {
   expect_error(psl_use("nope"), "must be one of")
   # An explicit non-scalar source aborts, even when equal to the default vector.
   expect_error(
-    psl_use(c("bundled", "cache", "path")), "must be one of"
+    psl_use(c("bundled", "cache", "path")),
+    "must be one of"
   )
   expect_error(psl_use("bundled", path = "x"), "only used when")
   expect_error(psl_use("path"), "single file path")
@@ -65,7 +66,8 @@ test_that("psl_use('path') rejects a file missing an official section", {
     only_icann
   )
   expect_error(
-    psl_use("path", path = only_icann), "both an ICANN and a PRIVATE section"
+    psl_use("path", path = only_icann),
+    "both an ICANN and a PRIVATE section"
   )
 })
 
@@ -74,15 +76,21 @@ test_that("psl_use('path') rejects a file with a repeated section", {
   repeated <- tempfile(fileext = ".dat")
   writeLines(
     c(
-      "// ===BEGIN ICANN DOMAINS===", "com", "// ===END ICANN DOMAINS===",
-      "// ===BEGIN ICANN DOMAINS===", "net", "// ===END ICANN DOMAINS===",
-      "// ===BEGIN PRIVATE DOMAINS===", "github.io",
+      "// ===BEGIN ICANN DOMAINS===",
+      "com",
+      "// ===END ICANN DOMAINS===",
+      "// ===BEGIN ICANN DOMAINS===",
+      "net",
+      "// ===END ICANN DOMAINS===",
+      "// ===BEGIN PRIVATE DOMAINS===",
+      "github.io",
       "// ===END PRIVATE DOMAINS==="
     ),
     repeated
   )
   expect_error(
-    psl_use("path", path = repeated), "appears more than once"
+    psl_use("path", path = repeated),
+    "appears more than once"
   )
 })
 

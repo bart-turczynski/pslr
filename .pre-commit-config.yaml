@@ -20,6 +20,13 @@ repos:
       - id: mixed-line-ending
         exclude: '^inst/extdata/'
       - id: check-case-conflict
+  # Air: fast, R-free (Rust binary) formatter for R sources. Runs per commit and
+  # auto-fixes; layout is Air's job, while lintr (in the verify gate) owns
+  # logic/best-practice lints. https://posit-dev.github.io/air/
+  - repo: https://github.com/posit-dev/air-pre-commit
+    rev: 0.8.2
+    hooks:
+      - id: air-format
   - repo: local
     hooks:
       - id: verify
