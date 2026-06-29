@@ -47,9 +47,29 @@
 <p>Air runs automatically as a pre-commit hook, so you rarely need to invoke it by hand. Air owns layout; lintr (in the verify gate above) owns logic and best-practice lints. Don’t reformat code unrelated to your change.</p>
 <p>Source lives in <code>src/</code>, behavior features live in <code>features/</code>, tests live in <code>tests/</code>, and durable project context lives in <code>docs/</code>.</p>
 <p>Keep local-only planning state in <code>_scratch/</code>. Do not commit <code>_scratch/</code>, <code>.fp/</code>, secrets, dependency folders, build outputs, or generated caches.</p>
+<div class="section level2">
+<h2 id="release-process">Release process<a class="anchor" aria-label="anchor" href="#release-process"></a></h2>
+<div class="section level3">
+<h3 id="bundled-psl-snapshot">Bundled PSL snapshot<a class="anchor" aria-label="anchor" href="#bundled-psl-snapshot"></a></h3>
+<p>The bundled Public Suffix List snapshot (<code>inst/extdata/public_suffix_list.dat</code>, <code>R/sysdata.rda</code>, <code>inst/NOTICE</code>, and the conformance vectors in <code>tests/testthat/fixtures/psl-vectors.txt</code>) must be regenerated before any release that should ship a current list. This is a deliberate, maintainer-gated step — do NOT automate it as a silent commit or CI job (CRAN/package policy forbids network access at build/check time).</p>
+<p>Run from the package root in a network-enabled maintainer environment:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="ex">Rscript</span> data-raw/update_psl.R [<span class="op">&lt;</span>new-40-char-commit-sha<span class="op">&gt;</span>]</span></code></pre></div>
+<p>Omit the SHA to re-pin the same upstream commit (idempotent check); supply a new 40-character SHA to advance the snapshot to a later upstream commit.</p>
+<p>After running the script, complete these steps before committing:</p>
+<ol style="list-style-type: decimal"><li>
+<strong>Review the upstream diff.</strong> A bundled-data change alters query results and is release-shaped — it must land as a new package version, not a silent commit. Inspect <code>git diff inst/extdata/public_suffix_list.dat</code>.</li>
+<li>
+<strong>Run <code>R CMD check --as-cran</code> in full.</strong> The conformance vectors in <code>tests/testthat/fixtures/psl-vectors.txt</code> are re-pinned in lockstep; they must stay green.</li>
+<li>
+<strong>Add a NEWS.md entry</strong> recording the new <code>list_date</code>, <code>commit</code>, and <code>checksum</code> from <code><a href="reference/psl_version.html">psl_version()</a></code>.</li>
+<li>
+<strong>Commit the regenerated artifacts</strong> (<code>inst/extdata/</code>, <code>inst/NOTICE</code>, <code>R/sysdata.rda</code>, <code>tests/testthat/fixtures/psl-vectors.txt</code>) as part of the release commit.</li>
+</ol></div>
+</div>
 </div>
 
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
