@@ -100,6 +100,18 @@ list psl_match(SEXP matcher, strings hosts, int section_code) {
   writable::integers ps_depth(n);
   writable::integers kind(n);
   writable::integers section(n);
+  // 1-based byte offsets into the canonical ASCII host, letting the R layer
+  // derive the suffix / registrable / rule strings with a single vectorized
+  // substr per column instead of a per-host paste loop. Inputs are canonical
+  // ASCII (host_normalize output), so byte offset == character offset.
+  //   ps_start  : where the public suffix (ps_depth labels) begins.
+  //   rd_start  : where the registrable domain (ps_depth + 1 labels) begins;
+  //               NA when there is no registrant label (n_labels <= ps_depth).
+  //   ps1_start : where the wildcard rule body (ps_depth - 1 labels, i.e. the
+  //               suffix minus its leftmost label) begins; NA when ps_depth < 2.
+  writable::integers ps_start(n);
+  writable::integers rd_start(n);
+  writable::integers ps1_start(n);
 
   for (R_xlen_t i = 0; i < n; ++i) {
     std::string host = hosts[i];
@@ -158,21 +170,39 @@ list psl_match(SEXP matcher, strings hosts, int section_code) {
       }
     }
 
+    int pd;
     if (has_exc) {
+      pd = exc_ps;
       ps_depth[i] = exc_ps;
       kind[i] = KIND_EXCEPTION;
       section[i] = exc_sec;
     } else if (best_kind >= 0) {
+      pd = best_ps;
       ps_depth[i] = best_ps;
       kind[i] = best_kind;
       section[i] = best_sec;
     } else {
       // Implicit default '*' rule: the rightmost single label is its own
       // public suffix.
+      pd = 1;
       ps_depth[i] = 1;
       kind[i] = 3;  // default
       section[i] = NA_INTEGER;
     }
+
+    // Byte offset (1-based) where the rightmost `d` labels begin: suf[nlab - d]
+    // is exactly that string, so it starts host.size() - suf[nlab - d].size()
+    // bytes in. Valid only for 1 <= d <= nlab; NA_INTEGER otherwise (which the
+    // R layer maps to an NA / absent string, matching the old derive_one guard
+    // that returns NA for a public-suffix depth < 1).
+    std::size_t host_len = host.size();
+    auto start_for_depth = [&](int d) -> int {
+      if (d < 1 || d > nlab) return NA_INTEGER;
+      return static_cast<int>(host_len - suf[nlab - d].size()) + 1;
+    };
+    ps_start[i] = start_for_depth(pd);
+    rd_start[i] = start_for_depth(pd + 1);
+    ps1_start[i] = start_for_depth(pd - 1);
   }
 
   using namespace cpp11::literals;
@@ -180,5 +210,8 @@ list psl_match(SEXP matcher, strings hosts, int section_code) {
       "ps_depth"_nm = ps_depth,
       "kind"_nm = kind,
       "section"_nm = section,
+      "ps_start"_nm = ps_start,
+      "rd_start"_nm = rd_start,
+      "ps1_start"_nm = ps1_start,
   });
 }
