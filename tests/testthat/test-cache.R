@@ -57,6 +57,35 @@ test_that("the cache is bounded and evicts by full flush on overflow", {
   expect_identical(psl_cache_env$n, 0L)
 })
 
+test_that("options(pslr.cache = FALSE) skips storage, keeps results", {
+  on.exit({
+    options(pslr.cache = NULL)
+    psl_cache_clear()
+  })
+  hosts <- c("www.example.com", "a.b.co.uk", "x.ck", "www.ck", "madeuptld")
+
+  # With caching disabled nothing is stored, on cold or repeated calls.
+  options(pslr.cache = FALSE)
+  psl_cache_clear()
+  off_ps <- public_suffix(hosts)
+  off_rd <- registrable_domain(hosts)
+  public_suffix(hosts) # a second pass must still not populate the cache
+  expect_identical(psl_cache_env$n, 0L)
+
+  # With caching enabled the results are byte-identical and the cache fills.
+  options(pslr.cache = TRUE)
+  psl_cache_clear()
+  on_ps <- public_suffix(hosts)
+  on_rd <- registrable_domain(hosts)
+  expect_gt(psl_cache_env$n, 0L)
+  expect_identical(off_ps, on_ps)
+  expect_identical(off_rd, on_rd)
+
+  # A pre-seeded cache is ignored for reads while disabled (still same result).
+  options(pslr.cache = FALSE)
+  expect_identical(public_suffix(hosts), on_ps)
+})
+
 test_that("psl_cache_clear empties the table", {
   public_suffix("example.com")
   expect_gt(psl_cache_env$n, 0L)

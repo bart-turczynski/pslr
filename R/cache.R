@@ -26,7 +26,16 @@
 # Default maximum number of (host, list, section) records retained at once. The
 # effective bound lives in `psl_cache_env$capacity` so it stays mutable (package
 # bindings are locked); this constant only seeds it.
-psl_cache_default_capacity <- 50000L
+#
+# Raised 50000 -> 200000 (PSLR-ynbfnhkp) now that P2-P4 made each entry cheap:
+# the columnar store measures ~80 bytes/entry (15.9 MB for a full 200000-entry
+# table), and memory scales with live entries so a small session pays nothing.
+# The higher bound lets a large working set (up to 200000 canonical hosts)
+# re-queried across calls stay warm instead of tripping the full-flush cliff --
+# on the 200000-unique benchmark this turns the second pass from a flush-and-
+# rederive (~1.63 s) into a true cache hit (~0.83 s, ~2x). Above the bound the
+# full-flush semantics are unchanged.
+psl_cache_default_capacity <- 200000L
 
 # The names of the parallel column vectors held in `psl_cache_env`, in a single
 # place so clear/grow/store/read stay in lockstep. Character columns plus the
