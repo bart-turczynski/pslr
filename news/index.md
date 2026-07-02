@@ -26,6 +26,29 @@
   over the whole unique-host list. Pure internal restructuring; the
   cache key semantics and the differential oracle are unchanged, but the
   warm-cache query path is dramatically faster.
+- The shared per-element query builder (`psl_query_frame()`, now
+  `psl_query_cols()`) returns a plain list of parallel column vectors
+  instead of constructing a 12-column `data.frame` on every call. The
+  length-preserving accessors
+  ([`public_suffix()`](https://bart-turczynski.github.io/pslr/reference/public_suffix.md)
+  /
+  [`registrable_domain()`](https://bart-turczynski.github.io/pslr/reference/registrable_domain.md)
+  /
+  [`is_public_suffix()`](https://bart-turczynski.github.io/pslr/reference/is_public_suffix.md))
+  read the one or two columns they need directly; only
+  [`suffix_extract()`](https://bart-turczynski.github.io/pslr/reference/suffix_extract.md)
+  and
+  [`public_suffix_rule()`](https://bart-turczynski.github.io/pslr/reference/public_suffix_rule.md)
+  build a `data.frame`, once, at the end.
+  [`suffix_extract()`](https://bart-turczynski.github.io/pslr/reference/suffix_extract.md)
+  additionally drops its per-row `strsplit` loop, slicing the registrant
+  label and subdomain out of the canonical host with vectorized
+  [`substr()`](https://rdrr.io/r/base/substr.html) over the matcher’s
+  `ps_start` / `rd_start` byte offsets. Pure internal restructuring;
+  query results and the differential oracle are unchanged, but the fixed
+  per-call overhead falls sharply (warm scalar
+  [`registrable_domain()`](https://bart-turczynski.github.io/pslr/reference/registrable_domain.md)
+  roughly halves).
 
 ## pslr 1.0.2
 
