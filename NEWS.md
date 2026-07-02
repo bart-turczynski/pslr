@@ -10,6 +10,14 @@
   removed). Pure internal restructuring; query results are byte-identical (the
   differential oracle is unchanged), but the miss-path string derivation is
   roughly 40x faster and drops out of the query profile.
+* The session result cache is now columnar. Instead of one R list per host, it
+  keeps a key -> integer-index environment alongside parallel column vectors
+  (including the `ps_start` / `rd_start` byte offsets), grown by doubling. Cache
+  hits resolve via a single `mget()` of indices plus vectorized column
+  subsetting, and `psl_resolve_cores()` returns its columns directly, removing
+  the six per-call `vapply()` reassembly passes over the whole unique-host list.
+  Pure internal restructuring; the cache key semantics and the differential
+  oracle are unchanged, but the warm-cache query path is dramatically faster.
 
 # pslr 1.0.2
 
