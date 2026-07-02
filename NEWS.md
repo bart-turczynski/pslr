@@ -18,6 +18,18 @@
   the six per-call `vapply()` reassembly passes over the whole unique-host list.
   Pure internal restructuring; the cache key semantics and the differential
   oracle are unchanged, but the warm-cache query path is dramatically faster.
+* The shared per-element query builder (`psl_query_frame()`, now
+  `psl_query_cols()`) returns a plain list of parallel column vectors instead of
+  constructing a 12-column `data.frame` on every call. The length-preserving
+  accessors (`public_suffix()` / `registrable_domain()` / `is_public_suffix()`)
+  read the one or two columns they need directly; only `suffix_extract()` and
+  `public_suffix_rule()` build a `data.frame`, once, at the end. `suffix_extract()`
+  additionally drops its per-row `strsplit` loop, slicing the registrant label
+  and subdomain out of the canonical host with vectorized `substr()` over the
+  matcher's `ps_start` / `rd_start` byte offsets. Pure internal restructuring;
+  query results and the differential oracle are unchanged, but the fixed
+  per-call overhead falls sharply (warm scalar `registrable_domain()` roughly
+  halves).
 
 # pslr 1.0.2
 
