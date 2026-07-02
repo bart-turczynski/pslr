@@ -1,3 +1,16 @@
+# pslr (development version)
+
+## Internal
+
+* The core C++ matcher (`psl_match()`) now also returns 1-based byte offsets
+  into the canonical ASCII host (`ps_start` / `rd_start` / `ps1_start`). The R
+  engine derives the public-suffix, registrable-domain, and rule strings for the
+  whole miss vector at once with a single vectorized `substr()` per column,
+  replacing the per-host `derive_one()`/`suffix_labels()` `paste()` loop (now
+  removed). Pure internal restructuring; query results are byte-identical (the
+  differential oracle is unchanged), but the miss-path string derivation is
+  roughly 40x faster and drops out of the query profile.
+
 # pslr 1.0.2
 
 ## Internal

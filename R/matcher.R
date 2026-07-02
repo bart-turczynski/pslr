@@ -133,41 +133,6 @@ active_list_identity <- function() active_state()$identity
 active_meta <- function() active_state()$meta
 active_rules <- function() active_state()$rules
 
-# Derive the ASCII rule, public suffix, and registrable domain for one host.
-# `labels` are the canonical host labels (leftmost first); `depth` is the
-# prevailing public-suffix label count and `kind` its 0-3 code.
-derive_one <- function(labels, depth, kind) {
-  n <- length(labels)
-  suffix_labels <- function(d) paste(labels[(n - d + 1L):n], collapse = ".")
-
-  if (is.na(depth) || depth < 1L) {
-    return(list(
-      public_suffix = NA_character_,
-      registrable_domain = NA_character_,
-      rule = NA_character_
-    ))
-  }
-  public_suffix <- suffix_labels(depth)
-  registrable_domain <- if (n > depth) {
-    suffix_labels(depth + 1L)
-  } else {
-    NA_character_
-  }
-
-  rule <- switch(
-    psl_kind_labels[kind + 1L],
-    normal = public_suffix,
-    wildcard = paste0("*.", suffix_labels(depth - 1L)),
-    exception = paste0("!", suffix_labels(depth + 1L)),
-    default = "*"
-  )
-  list(
-    public_suffix = public_suffix,
-    registrable_domain = registrable_domain,
-    rule = rule
-  )
-}
-
 psl_empty_match_result <- function() {
   data.frame(
     public_suffix = character(0),
@@ -180,17 +145,49 @@ psl_empty_match_result <- function() {
   )
 }
 
+# Derive the ASCII public suffix / registrable domain / rule strings for the
+# WHOLE miss vector at once, using the 1-based byte offsets the C++ matcher
+# returns (`ps_start` / `rd_start` / `ps1_start`) with a single vectorized
+# `substr()` per column. Reproduces the old per-host `derive_one()` exactly: an
+# NA offset (public-suffix depth < 1, or no registrant label) yields NA.
 psl_match_records <- function(cores, section_code) {
   res <- psl_match(active_matcher(), cores, section_code)
-  labels <- strsplit(cores, ".", fixed = TRUE)
+  end <- nchar(cores)
   kind <- psl_kind_labels[res$kind + 1L]
   sec <- c("icann", "private")[res$section + 1L] # NA section -> NA
-  lapply(seq_along(labels), function(j) {
-    d <- derive_one(labels[[j]], res$ps_depth[j], res$kind[j])
+
+  public_suffix <- ifelse(
+    is.na(res$ps_start),
+    NA_character_,
+    substr(cores, res$ps_start, end)
+  )
+  registrable_domain <- ifelse(
+    is.na(res$rd_start),
+    NA_character_,
+    substr(cores, res$rd_start, end)
+  )
+
+  rule <- rep(NA_character_, length(cores))
+  # Only a valid public-suffix depth (ps_start present) carries a rule string;
+  # this mirrors derive_one()'s `depth < 1` guard returning NA for every field.
+  has_ps <- !is.na(res$ps_start)
+  is_normal <- has_ps & kind == "normal"
+  is_wild <- has_ps & kind == "wildcard"
+  is_exc <- has_ps & kind == "exception"
+  is_def <- has_ps & kind == "default"
+  rule[is_normal] <- public_suffix[is_normal]
+  rule[is_wild] <- paste0(
+    "*.",
+    substr(cores[is_wild], res$ps1_start[is_wild], end[is_wild])
+  )
+  rule[is_exc] <- paste0("!", registrable_domain[is_exc])
+  rule[is_def] <- "*"
+
+  lapply(seq_along(cores), function(j) {
     list(
-      public_suffix = d$public_suffix,
-      registrable_domain = d$registrable_domain,
-      rule = d$rule,
+      public_suffix = public_suffix[j],
+      registrable_domain = registrable_domain[j],
+      rule = rule[j],
       kind = kind[j],
       rule_section = sec[j],
       ps_depth = res$ps_depth[j]
