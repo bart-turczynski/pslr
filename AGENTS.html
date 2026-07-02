@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">pslr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.2.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,9 +45,9 @@
 <p>Follow the tidyverse <a href="https://style.tidyverse.org" class="external-link">style guide</a> and <a href="https://design.tidyverse.org" class="external-link">design guide</a>.</p>
 <div class="section level3">
 <h3 id="dev-loop">Dev loop<a class="anchor" aria-label="anchor" href="#dev-loop"></a></h3>
-<ul><li><p>Load for interactive work: <code>devtools::load_all()</code> (or <code><a href="https://pkgload.r-lib.org/reference/load_all.html" class="external-link">pkgload::load_all()</a></code>).</p></li>
+<ul><li><p>Load for interactive work: <code><a href="https://devtools.r-lib.org/reference/load_all.html" class="external-link">devtools::load_all()</a></code> (or <code><a href="https://pkgload.r-lib.org/reference/load_all.html" class="external-link">pkgload::load_all()</a></code>).</p></li>
 <li><p>Run tests: <code>testthat::test_local(reporter = "check")</code>; a single file with <code>testthat::test_local(filter = "matcher")</code> (matches <code>test-matcher.R</code>).</p></li>
-<li><p>Regenerate docs: <code>devtools::document()</code> — rebuilds <code>man/</code> and <code>NAMESPACE</code> from the roxygen comments in <code>R/</code>.</p></li>
+<li><p>Regenerate docs: <code><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">devtools::document()</a></code> — rebuilds <code>man/</code> and <code>NAMESPACE</code> from the roxygen comments in <code>R/</code>.</p></li>
 <li><p>After changing any <code>[[cpp11::register]]</code> signature in <code>src/</code>, run <code><a href="https://cpp11.r-lib.org/reference/cpp_register.html" class="external-link">cpp11::cpp_register()</a></code> to regenerate <code>R/cpp11.R</code> and the C bindings.</p></li>
 <li>
 <p>Verify gate (mirrors CI; the pre-push hook runs exactly this):</p>
@@ -76,7 +76,7 @@
 </ul></div>
 <div class="section level3">
 <h3 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a></h3>
-<ul><li>Roxygen2 with markdown (<code>Roxygen: list(markdown = TRUE)</code>). <code>man/</code> and <code>NAMESPACE</code> are <strong>generated — never edit them by hand</strong>; edit the roxygen comments in <code>R/</code> and re-run <code>devtools::document()</code>.</li>
+<ul><li>Roxygen2 with markdown (<code>Roxygen: list(markdown = TRUE)</code>). <code>man/</code> and <code>NAMESPACE</code> are <strong>generated — never edit them by hand</strong>; edit the roxygen comments in <code>R/</code> and re-run <code><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">devtools::document()</a></code>.</li>
 <li>Every exported function needs a title, a <code>@param</code> per argument, <code>@return</code>, and runnable <code>@examples</code>. Internal helpers stay unexported and undocumented.</li>
 <li>Wrap roxygen comments at 80 columns; add new help topics to <code>_pkgdown.yml</code>.</li>
 </ul></div>

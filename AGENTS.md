@@ -13,15 +13,18 @@ Follow the tidyverse [style guide](https://style.tidyverse.org) and
 
 ### Dev loop
 
-- Load for interactive work: `devtools::load_all()` (or
+- Load for interactive work:
+  [`devtools::load_all()`](https://devtools.r-lib.org/reference/load_all.html)
+  (or
   [`pkgload::load_all()`](https://pkgload.r-lib.org/reference/load_all.html)).
 
 - Run tests: `testthat::test_local(reporter = "check")`; a single file
   with `testthat::test_local(filter = "matcher")` (matches
   `test-matcher.R`).
 
-- Regenerate docs: `devtools::document()` — rebuilds `man/` and
-  `NAMESPACE` from the roxygen comments in `R/`.
+- Regenerate docs:
+  [`devtools::document()`](https://devtools.r-lib.org/reference/document.html)
+  — rebuilds `man/` and `NAMESPACE` from the roxygen comments in `R/`.
 
 - After changing any `[[cpp11::register]]` signature in `src/`, run
   [`cpp11::cpp_register()`](https://cpp11.r-lib.org/reference/cpp_register.html)
@@ -65,7 +68,8 @@ Follow the tidyverse [style guide](https://style.tidyverse.org) and
 
 - Roxygen2 with markdown (`Roxygen: list(markdown = TRUE)`). `man/` and
   `NAMESPACE` are **generated — never edit them by hand**; edit the
-  roxygen comments in `R/` and re-run `devtools::document()`.
+  roxygen comments in `R/` and re-run
+  [`devtools::document()`](https://devtools.r-lib.org/reference/document.html).
 - Every exported function needs a title, a `@param` per argument,
   `@return`, and runnable `@examples`. Internal helpers stay unexported
   and undocumented.

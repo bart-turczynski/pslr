@@ -177,7 +177,8 @@ recorded reference results are in
 - `R/` — package source (edit roxygen comments here, not `man/` or
   `NAMESPACE`).
 - `src/` — the `cpp11` matcher core.
-- `man/` — generated help pages (`devtools::document()`).
+- `man/` — generated help pages
+  ([`devtools::document()`](https://devtools.r-lib.org/reference/document.html)).
 - `tests/testthat/` — testthat tests and cucumber feature specs.
 - `vignettes/` — long-form documentation.
 - `data-raw/` — the deterministic snapshot regeneration pipeline.
