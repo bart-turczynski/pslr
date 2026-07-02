@@ -226,6 +226,12 @@ psl_resolve_cores <- function(cores, section) {
     return(psl_empty_match_result())
   }
 
+  # Escape hatch (PRD s8.2): `options(pslr.cache = FALSE)` skips every cache
+  # read and write for the call. It changes only whether entries are stored or
+  # read -- never a result: the misses are derived by the same code path, so the
+  # output is byte-identical to the cached path (verified by test-cache.R).
+  cache_on <- !isFALSE(getOption("pslr.cache", TRUE))
+
   psl_cache_ensure()
   section_code <- psl_section_code(section)
   prefix <- paste0(active_list_identity(), "|", section_code, "|")
@@ -233,10 +239,14 @@ psl_resolve_cores <- function(cores, section) {
   uniq <- unique(cores)
   nu <- length(uniq)
   keys <- paste0(prefix, uniq)
-  cache_idx <- unlist(
-    mget(keys, envir = psl_cache_env$idx, ifnotfound = list(NA_integer_)),
-    use.names = FALSE
-  )
+  cache_idx <- if (cache_on) {
+    unlist(
+      mget(keys, envir = psl_cache_env$idx, ifnotfound = list(NA_integer_)),
+      use.names = FALSE
+    )
+  } else {
+    rep(NA_integer_, nu)
+  }
   hit <- !is.na(cache_idx)
   miss <- !hit
 
@@ -274,7 +284,9 @@ psl_resolve_cores <- function(cores, section) {
     ps_depth[miss] <- records$ps_depth
     ps_start[miss] <- records$ps_start
     rd_start[miss] <- records$rd_start
-    psl_cache_store(keys[miss], records)
+    if (cache_on) {
+      psl_cache_store(keys[miss], records)
+    }
   }
 
   idx <- match(cores, uniq)

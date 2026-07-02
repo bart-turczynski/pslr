@@ -19,19 +19,45 @@
 #   * scalar  -- 1k separate scalar calls (per-call fixed-cost sensitivity).
 #
 # ---------------------------------------------------------------------------
-# BASELINE (record before the rewrite; re-measure after to prove no regression)
-# Machine: Apple Silicon (darwin 25.4.0), R via devtools::load_all, pslr 1.0.2.
-# Measured 2026-07-02 on current main (feature/pslr-p1-bench-oracle):
+# BASELINE. Machine: Apple Silicon (darwin 25.4.0), R via devtools::load_all.
+#
+# P1 baseline, pslr 1.0.2 (pre-rewrite, feature/pslr-p1-bench-oracle):
 #
 #   cold      200000 hosts in  4.262 s  ->    46,926 hosts/s
 #   warm      200000 hosts in  3.294 s  ->    60,716 hosts/s
 #   dupheavy  200000 hosts in  0.084 s  -> 2,380,952 hosts/s (1k unique, cached)
 #   scalar      1000 calls  in  0.517 s  ->  0.517 ms/call (1,934 hosts/s)
 #
-# (Ticket cited ~3.85 s cold / 3.25 s warm / ~0.45 ms per scalar call for 200k;
-# the measured cold/warm/scalar above confirm that order of magnitude. Treat the
-# numbers this run prints, not these comments, as the live baseline -- see the
-# tail of this script's stdout.)
+# Post-P4, pslr 1.0.2.9000 (feature/pslr-p5-cache-policy; measured 2026-07-02
+# via devtools::load_all -- NB `Rscript inst/bench/match-bench.R` alone loads
+# the INSTALLED pslr, so run it under load_all to bench the source tree):
+#
+#   cold      200000 hosts in  2.03 s  ->    98,800 hosts/s   (~2.1x vs P1)
+#   warm      200000 hosts in  1.50 s  ->   133,000 hosts/s   (~2.2x vs P1)
+#   dupheavy  200000 hosts in  0.09 s  -> 2,270,000 hosts/s
+#   scalar      1000 calls  in  0.11 s  ->     8,900 hosts/s   (~4.6x vs P1)
+#
+# P5 cache-policy experiment (cache DISABLED via options(pslr.cache = FALSE);
+# same machine/run). Within a single vectorized call `unique()` already dedups,
+# so the cache only pays off ACROSS calls -- on one-shot UNIQUE-host batches the
+# cache READ (mget of every key, all misses) is pure overhead:
+#
+#   cold      200000 hosts in  1.38 s  ->   145,000 hosts/s   (cache-off ~1.5x)
+#   warm      200000 hosts in  1.36 s  ->   147,000 hosts/s
+#   scalar      1000 calls  in  0.07 s  ->    14,900 hosts/s   (cache-off ~1.7x)
+#
+# ...but on the cache's home turf -- the SAME hosts re-queried across separate
+# calls -- caching is the clear winner:
+#
+#   repeat-batch1k (200 calls x 1k hosts)  cache-on 0.70 s vs off 1.33 s (~1.9x)
+#   repeat-scalar  ( 20 calls x 100 hosts) cache-on 0.11 s vs off 0.13 s (~1.2x)
+#
+# Policy (PSLR-ynbfnhkp): keep the cache always-on by default; add the
+# `options(pslr.cache = FALSE)` escape hatch (results identical, only storage/
+# reads toggled) for one-shot unique-host batches; raise the bound 50000->200000
+# (columnar entries are ~80 bytes; a 200000-unique warm pass drops 1.63->0.83s).
+#
+# Treat the numbers this run prints, not these comments, as the live baseline.
 # ---------------------------------------------------------------------------
 
 suppressMessages({
