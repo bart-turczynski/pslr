@@ -2,7 +2,27 @@
 
 ## pslr (development version)
 
+- New `options(pslr.cache = FALSE)` escape hatch disables the session
+  result cache for the current session, skipping every cache read and
+  write. It never changes a result – misses are derived by the same code
+  path – so output is byte-identical to the cached path; it only
+  controls whether entries are stored and read. Useful for one-shot
+  batches of mostly-unique hosts, where within a single vectorized call
+  [`unique()`](https://rdrr.io/r/base/unique.html) already deduplicates
+  and the per-key cache read is pure overhead (roughly 1.5x faster with
+  the cache off on a 200,000-unique batch). Caching stays on by default.
+
 ### Internal
+
+- Raised the default session-cache bound from 50,000 to 200,000 entries.
+  The columnar store (from the P2-P4 rewrite) costs about 80 bytes per
+  entry (~16 MB for a full 200,000-entry table) and memory scales with
+  live entries, so small sessions pay nothing. The higher bound lets a
+  large working set re-queried across calls stay warm instead of
+  tripping the full-flush eviction cliff – on a 200,000-unique benchmark
+  the second pass drops from ~1.63 s (flush and re-derive) to ~0.83 s (a
+  true cache hit). The full-flush eviction semantics above the bound are
+  unchanged.
 
 - The core C++ matcher (`psl_match()`) now also returns 1-based byte
   offsets into the canonical ASCII host (`ps_start` / `rd_start` /
@@ -15,6 +35,7 @@
   Pure internal restructuring; query results are byte-identical (the
   differential oracle is unchanged), but the miss-path string derivation
   is roughly 40x faster and drops out of the query profile.
+
 - The session result cache is now columnar. Instead of one R list per
   host, it keeps a key -\> integer-index environment alongside parallel
   column vectors (including the `ps_start` / `rd_start` byte offsets),
@@ -26,6 +47,7 @@
   over the whole unique-host list. Pure internal restructuring; the
   cache key semantics and the differential oracle are unchanged, but the
   warm-cache query path is dramatically faster.
+
 - The shared per-element query builder (`psl_query_frame()`, now
   `psl_query_cols()`) returns a plain list of parallel column vectors
   instead of constructing a 12-column `data.frame` on every call. The
