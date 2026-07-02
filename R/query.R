@@ -58,12 +58,19 @@ name_like <- function(out, domain) {
   out
 }
 
-# Build the shared per-element result frame used by every public function.
-# Returns canonical ASCII (no terminal dot) match fields plus the input status,
-# canonical host, label counts, and the `had_dot` flag. The `unknown = "na"`
-# policy is applied here by erasing the implicit-default rule's derived fields;
-# `output` and terminal-dot restoration are left to the callers.
-psl_query_frame <- function(domain, section, unknown, invalid) {
+# Build the shared per-element result columns used by every public function.
+# Returns a plain LIST of parallel column vectors (not a data.frame): canonical
+# ASCII (no terminal dot) match fields plus the input status, canonical host,
+# label counts, the `had_dot` flag, and the byte offsets `ps_start` / `rd_start`
+# (used by `suffix_extract()` to slice out the registrant label and subdomain
+# without a per-row `strsplit`). Returning a bare list avoids the ~0.1-0.2 ms
+# `data.frame()` construction on every call: the length-preserving accessors
+# (`public_suffix()` / `registrable_domain()` / `is_public_suffix()`) read the
+# one or two columns they need directly, and only `suffix_extract()` /
+# `public_suffix_rule()` pay for a `data.frame()` -- once, at the end. The
+# `unknown = "na"` policy is applied here by erasing the implicit-default rule's
+# derived fields; `output` and terminal-dot restoration are left to the callers.
+psl_query_cols <- function(domain, section, unknown, invalid) {
   canon <- psl_canonicalize(domain, invalid)
   n <- length(canon$input)
   public_suffix <- rep(NA_character_, n)
@@ -72,6 +79,8 @@ psl_query_frame <- function(domain, section, unknown, invalid) {
   kind <- rep(NA_character_, n)
   rule_section <- rep(NA_character_, n)
   ps_depth <- rep(NA_integer_, n)
+  ps_start <- rep(NA_integer_, n)
+  rd_start <- rep(NA_integer_, n)
   n_labels <- rep(NA_integer_, n)
 
   valid <- canon$status == "ok"
@@ -83,6 +92,8 @@ psl_query_frame <- function(domain, section, unknown, invalid) {
     kind[valid] <- res$kind
     rule_section[valid] <- res$rule_section
     ps_depth[valid] <- res$ps_depth
+    ps_start[valid] <- res$ps_start
+    rd_start[valid] <- res$rd_start
     n_labels[valid] <- lengths(strsplit(canon$core[valid], ".", fixed = TRUE))
   }
 
@@ -96,8 +107,9 @@ psl_query_frame <- function(domain, section, unknown, invalid) {
     ps_depth[drop] <- NA_integer_
   }
 
-  data.frame(
-    # unname so a named `domain` cannot become data.frame row names (PRD s7.2).
+  list(
+    # unname so a named `domain` cannot become data.frame row names when a
+    # caller wraps these columns in a data.frame (PRD s7.2).
     input = unname(canon$input),
     status = canon$status,
     had_dot = canon$had_dot,
@@ -105,12 +117,13 @@ psl_query_frame <- function(domain, section, unknown, invalid) {
     core = canon$core,
     n_labels = n_labels,
     ps_depth = ps_depth,
+    ps_start = ps_start,
+    rd_start = rd_start,
     public_suffix = public_suffix,
     registrable_domain = registrable_domain,
     rule = rule,
     kind = kind,
-    rule_section = rule_section,
-    stringsAsFactors = FALSE
+    rule_section = rule_section
   )
 }
 
@@ -176,8 +189,8 @@ public_suffix <- function(
   )
   invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
-  fr <- psl_query_frame(domain, section, unknown, invalid)
-  out <- restore_root_dot(fr$public_suffix, fr$had_dot)
+  cols <- psl_query_cols(domain, section, unknown, invalid)
+  out <- restore_root_dot(cols$public_suffix, cols$had_dot)
   if (identical(output, "unicode")) {
     out <- decode_ascii(out)
   }
@@ -222,8 +235,8 @@ registrable_domain <- function(
   )
   invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
-  fr <- psl_query_frame(domain, section, unknown, invalid)
-  out <- restore_root_dot(fr$registrable_domain, fr$had_dot)
+  cols <- psl_query_cols(domain, section, unknown, invalid)
+  out <- restore_root_dot(cols$registrable_domain, cols$had_dot)
   if (identical(output, "unicode")) {
     out <- decode_ascii(out)
   }
@@ -270,10 +283,10 @@ is_public_suffix <- function(
   )
   invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
-  fr <- psl_query_frame(domain, section, unknown, invalid)
+  cols <- psl_query_cols(domain, section, unknown, invalid)
   out <- rep(NA, length(domain))
-  resolved <- !is.na(fr$public_suffix)
-  out[resolved] <- fr$n_labels[resolved] == fr$ps_depth[resolved]
+  resolved <- !is.na(cols$public_suffix)
+  out[resolved] <- cols$n_labels[resolved] == cols$ps_depth[resolved]
   name_like(out, domain)
 }
 
@@ -318,24 +331,33 @@ suffix_extract <- function(
   )
   invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
-  fr <- psl_query_frame(domain, section, unknown, invalid)
-  n <- nrow(fr)
-  host <- fr$host_ascii
-  suffix <- restore_root_dot(fr$public_suffix, fr$had_dot)
-  registrable <- restore_root_dot(fr$registrable_domain, fr$had_dot)
+  cols <- psl_query_cols(domain, section, unknown, invalid)
+  n <- length(cols$input)
+  host <- cols$host_ascii
+  suffix <- restore_root_dot(cols$public_suffix, cols$had_dot)
+  registrable <- restore_root_dot(cols$registrable_domain, cols$had_dot)
   domain_label <- rep(NA_character_, n)
   subdomain <- rep(NA_character_, n)
 
-  has_rd <- !is.na(fr$registrable_domain)
-  for (i in which(has_rd)) {
-    labels <- strsplit(fr$core[i], ".", fixed = TRUE)[[1L]]
-    cut <- fr$n_labels[i] - fr$ps_depth[i] # index of the registrant label
-    domain_label[i] <- labels[cut]
-    subdomain[i] <- if (cut > 1L) {
-      paste(labels[seq_len(cut - 1L)], collapse = ".")
-    } else {
+  # Slice the registrant label and subdomain straight out of the canonical core
+  # using the byte offsets from the matcher, replacing the old per-row
+  # `strsplit`. In a core `subdomain.domain.suffix`, `rd_start` points at the
+  # registrable domain (`domain.suffix`) and `ps_start` at the suffix, so the
+  # registrant label spans `[rd_start, ps_start - 2]` (dropping the dot at
+  # `ps_start - 1`) and the subdomain is `[1, rd_start - 2]`. A registrable
+  # domain that starts at position 1 has no subdomain (`""`), matching the old
+  # `cut > 1` rule.
+  has_rd <- !is.na(cols$registrable_domain)
+  if (any(has_rd)) {
+    core_rd <- cols$core[has_rd]
+    rd0 <- cols$rd_start[has_rd]
+    ps0 <- cols$ps_start[has_rd]
+    domain_label[has_rd] <- substr(core_rd, rd0, ps0 - 2L)
+    subdomain[has_rd] <- ifelse(
+      rd0 > 1L,
+      substr(core_rd, 1L, rd0 - 2L),
       ""
-    }
+    )
   }
 
   if (identical(output, "unicode")) {
@@ -347,7 +369,7 @@ suffix_extract <- function(
   }
 
   data.frame(
-    input = fr$input,
+    input = cols$input,
     host = host,
     subdomain = subdomain,
     domain = domain_label,
@@ -396,14 +418,14 @@ public_suffix_rule <- function(
   )
   invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
-  fr <- psl_query_frame(domain, section, unknown, invalid)
+  cols <- psl_query_cols(domain, section, unknown, invalid)
   data.frame(
-    input = fr$input,
-    host_ascii = fr$host_ascii,
-    rule = fr$rule,
-    kind = fr$kind,
-    rule_section = fr$rule_section,
-    public_suffix_ascii = restore_root_dot(fr$public_suffix, fr$had_dot),
+    input = cols$input,
+    host_ascii = cols$host_ascii,
+    rule = cols$rule,
+    kind = cols$kind,
+    rule_section = cols$rule_section,
+    public_suffix_ascii = restore_root_dot(cols$public_suffix, cols$had_dot),
     stringsAsFactors = FALSE
   )
 }
