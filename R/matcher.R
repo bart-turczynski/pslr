@@ -134,14 +134,15 @@ active_meta <- function() active_state()$meta
 active_rules <- function() active_state()$rules
 
 psl_empty_match_result <- function() {
-  data.frame(
+  list(
     public_suffix = character(0),
     registrable_domain = character(0),
     rule = character(0),
     kind = character(0),
     rule_section = character(0),
     ps_depth = integer(0),
-    stringsAsFactors = FALSE
+    ps_start = integer(0),
+    rd_start = integer(0)
   )
 }
 
@@ -149,7 +150,10 @@ psl_empty_match_result <- function() {
 # WHOLE miss vector at once, using the 1-based byte offsets the C++ matcher
 # returns (`ps_start` / `rd_start` / `ps1_start`) with a single vectorized
 # `substr()` per column. Reproduces the old per-host `derive_one()` exactly: an
-# NA offset (public-suffix depth < 1, or no registrant label) yields NA.
+# NA offset (public-suffix depth < 1, or no registrant label) yields NA. Returns
+# a list of parallel column vectors (one per field, all `length(cores)`),
+# including the raw `ps_start` / `rd_start` offsets so the columnar cache can
+# carry them for P4's `suffix_extract`.
 psl_match_records <- function(cores, section_code) {
   res <- psl_match(active_matcher(), cores, section_code)
   end <- nchar(cores)
@@ -183,20 +187,16 @@ psl_match_records <- function(cores, section_code) {
   rule[is_exc] <- paste0("!", registrable_domain[is_exc])
   rule[is_def] <- "*"
 
-  lapply(seq_along(cores), function(j) {
-    list(
-      public_suffix = public_suffix[j],
-      registrable_domain = registrable_domain[j],
-      rule = rule[j],
-      kind = kind[j],
-      rule_section = sec[j],
-      ps_depth = res$ps_depth[j]
-    )
-  })
-}
-
-psl_result_field <- function(cached, name, na) {
-  vapply(cached, function(r) if (is.null(r[[name]])) na else r[[name]], na)
+  list(
+    public_suffix = public_suffix,
+    registrable_domain = registrable_domain,
+    rule = rule,
+    kind = kind,
+    rule_section = sec,
+    ps_depth = res$ps_depth,
+    ps_start = res$ps_start,
+    rd_start = res$rd_start
+  )
 }
 
 #' Resolve canonical hosts to ASCII match results, with session caching
@@ -205,14 +205,21 @@ psl_result_field <- function(cached, name, na) {
 #' previously seen (host, active-list, section) triples from the bounded session
 #' cache, deduplicates the remaining misses before crossing into C++ once each,
 #' runs the prevailing-rule algorithm, caches the derived metadata, and returns
-#' one row per input core. Results are canonical ASCII without the terminal dot:
-#' the `unknown`/`output` policies and dot restoration are applied by callers,
-#' so they are deliberately absent from the cache key (PRD s8.2).
+#' one entry per input core. Results are canonical ASCII without the terminal
+#' dot: the `unknown`/`output` policies and dot restoration are applied by
+#' callers, so they are deliberately absent from the cache key (PRD s8.2).
+#'
+#' Hits are read from the columnar cache by a single `mget()` of indices
+#' followed by vectorized column subsetting (no per-host closures); misses are
+#' derived by `psl_match_records()`, written into the unique-level columns, and
+#' appended to the cache. The final result is one entry per input via a
+#' `match()` back onto the unique cores.
 #'
 #' @param cores Character vector of canonical hosts (no terminal dot, no `NA`).
 #' @param section One of `"all"`, `"icann"`, `"private"`.
-#' @return A data frame with `length(cores)` rows and columns `public_suffix`,
-#'   `registrable_domain`, `rule`, `kind`, `rule_section`, `ps_depth`.
+#' @return A list of parallel column vectors, each `length(cores)`:
+#'   `public_suffix`, `registrable_domain`, `rule`, `kind`, `rule_section`,
+#'   `ps_depth`, and the byte offsets `ps_start` / `rd_start`.
 #' @noRd
 psl_resolve_cores <- function(cores, section) {
   if (length(cores) == 0L) {
@@ -224,36 +231,61 @@ psl_resolve_cores <- function(cores, section) {
   prefix <- paste0(active_list_identity(), "|", section_code, "|")
 
   uniq <- unique(cores)
+  nu <- length(uniq)
   keys <- paste0(prefix, uniq)
-  cached <- mget(keys, envir = psl_cache_env$tbl, ifnotfound = list(NULL))
-  miss <- vapply(cached, is.null, logical(1))
+  cache_idx <- unlist(
+    mget(keys, envir = psl_cache_env$idx, ifnotfound = list(NA_integer_)),
+    use.names = FALSE
+  )
+  hit <- !is.na(cache_idx)
+  miss <- !hit
 
+  public_suffix <- character(nu)
+  registrable_domain <- character(nu)
+  rule <- character(nu)
+  kind <- character(nu)
+  rule_section <- character(nu)
+  ps_depth <- integer(nu)
+  ps_start <- integer(nu)
+  rd_start <- integer(nu)
+
+  # Warm path: resolve every hit by vectorized subsetting of the cache columns.
+  if (any(hit)) {
+    hi <- cache_idx[hit]
+    public_suffix[hit] <- psl_cache_env$public_suffix[hi]
+    registrable_domain[hit] <- psl_cache_env$registrable_domain[hi]
+    rule[hit] <- psl_cache_env$rule[hi]
+    kind[hit] <- psl_cache_env$kind[hi]
+    rule_section[hit] <- psl_cache_env$rule_section[hi]
+    ps_depth[hit] <- psl_cache_env$ps_depth[hi]
+    ps_start[hit] <- psl_cache_env$ps_start[hi]
+    rd_start[hit] <- psl_cache_env$rd_start[hi]
+  }
+
+  # Cold path: derive the misses once, place them, and append to the cache
+  # (which may flush first per the capacity bound; hits are already copied out).
   if (any(miss)) {
     records <- psl_match_records(uniq[miss], section_code)
+    public_suffix[miss] <- records$public_suffix
+    registrable_domain[miss] <- records$registrable_domain
+    rule[miss] <- records$rule
+    kind[miss] <- records$kind
+    rule_section[miss] <- records$rule_section
+    ps_depth[miss] <- records$ps_depth
+    ps_start[miss] <- records$ps_start
+    rd_start[miss] <- records$rd_start
     psl_cache_store(keys[miss], records)
-    cached[miss] <- records
   }
 
   idx <- match(cores, uniq)
-  data.frame(
-    public_suffix = psl_result_field(
-      cached,
-      "public_suffix",
-      NA_character_
-    )[idx],
-    registrable_domain = psl_result_field(
-      cached,
-      "registrable_domain",
-      NA_character_
-    )[idx],
-    rule = psl_result_field(cached, "rule", NA_character_)[idx],
-    kind = psl_result_field(cached, "kind", NA_character_)[idx],
-    rule_section = psl_result_field(
-      cached,
-      "rule_section",
-      NA_character_
-    )[idx],
-    ps_depth = psl_result_field(cached, "ps_depth", NA_integer_)[idx],
-    stringsAsFactors = FALSE
+  list(
+    public_suffix = public_suffix[idx],
+    registrable_domain = registrable_domain[idx],
+    rule = rule[idx],
+    kind = kind[idx],
+    rule_section = rule_section[idx],
+    ps_depth = ps_depth[idx],
+    ps_start = ps_start[idx],
+    rd_start = rd_start[idx]
   )
 }
