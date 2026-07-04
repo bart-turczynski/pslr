@@ -23,6 +23,8 @@ Inspect the active Public Suffix List snapshot.
   : Identity of the active Public Suffix List
 - [`psl_rules()`](https://bart-turczynski.github.io/pslr/reference/psl_rules.md)
   : Rules of the active Public Suffix List
+- [`psl_outdated()`](https://bart-turczynski.github.io/pslr/reference/psl_outdated.md)
+  : Is the active Public Suffix List snapshot stale?
 
 ## List Management
 

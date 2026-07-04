@@ -247,6 +247,24 @@ profile or Unicode version than the installed `punycoder`, the list is
 transparently rebuilt in memory from source on activation, so an index
 is never mixed with hosts normalized under a different profile.
 
+The list drifts from the live upstream over time, so
+[`psl_outdated()`](https://bart-turczynski.github.io/pslr/reference/psl_outdated.md)
+offers an offline staleness check against the active `list_date` — the
+cue to consider a
+[`psl_refresh()`](https://bart-turczynski.github.io/pslr/reference/psl_refresh.md).
+It never touches the network; the snapshot age in days is returned in
+the `"age_days"` attribute.
+
+``` r
+
+psl_outdated() # older than the 180-day default?
+#> [1] FALSE
+#> attr(,"age_days")
+#> [1] 20.54757
+attr(psl_outdated(), "age_days") # active snapshot age, in days
+#> [1] 20.54757
+```
+
 ## Security and scope notes
 
 - **Hostnames, not URLs.** The query functions accept DNS hostnames.
