@@ -70,6 +70,74 @@ psl_version <- function() {
   psl_version_df(active_meta())
 }
 
+# Parse a stored `list_date` string to POSIXct in UTC. Accepts the ISO 8601
+# "Z" form the bundled snapshot records (e.g. "2026-06-13T21:47:08Z"), a
+# space-separated timestamp, or a plain calendar date. NA in -> NA out; an
+# unparseable string also yields NA so `psl_outdated()` degrades to "unknown".
+psl_parse_list_date <- function(x) {
+  na <- as.POSIXct(NA_character_, tz = "UTC")
+  if (length(x) != 1L || is.na(x)) {
+    return(na)
+  }
+  for (fmt in c("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d")) {
+    parsed <- as.POSIXct(x, format = fmt, tz = "UTC")
+    if (!is.na(parsed)) {
+      return(parsed)
+    }
+  }
+  na
+}
+
+#' Is the active Public Suffix List snapshot stale?
+#'
+#' An offline staleness check: compares the `list_date` of the list currently
+#' active in this session (see [psl_version()]) against the current time and
+#' reports whether it is older than `max_age` days. The Public Suffix List
+#' changes continually upstream, so a long-lived bundled snapshot drifts from
+#' the live list over time; this is the signal to consider [psl_refresh()].
+#'
+#' @details
+#' The check reads only the already-loaded active metadata: it never touches the
+#' network and never activates a different list. When the active list's
+#' `list_date` is unknown (`NA`) or cannot be parsed, the result is `NA` --
+#' staleness is undetermined rather than assumed either way.
+#'
+#' The age of the active snapshot in days is attached to the result as the
+#' `"age_days"` attribute (a double, or `NA` when the date is unknown), so a
+#' caller that wants the magnitude as well as the verdict need not recompute it.
+#'
+#' @param max_age Maximum age, in days, before the active snapshot is considered
+#'   outdated. A single positive number; defaults to 180.
+#' @return A single logical, with an `"age_days"` attribute: `TRUE` when the
+#'   active list is more than `max_age` days old, `FALSE` when it is fresher,
+#'   and `NA` when its date is unknown.
+#' @seealso [psl_version()], [psl_refresh()]
+#' @examples
+#' # Is the active snapshot older than the default threshold?
+#' psl_outdated()
+#'
+#' # The age in days is available without recomputing it:
+#' attr(psl_outdated(), "age_days")
+#'
+#' # Use a stricter threshold:
+#' psl_outdated(max_age = 30)
+#' @export
+psl_outdated <- function(max_age = 180) {
+  if (
+    !is.numeric(max_age) ||
+      length(max_age) != 1L ||
+      is.na(max_age) ||
+      max_age <= 0
+  ) {
+    stop("`max_age` must be a single positive number of days.", call. = FALSE)
+  }
+  list_date <- psl_parse_list_date(active_meta()$list_date)
+  age_days <- as.numeric(difftime(Sys.time(), list_date, units = "days"))
+  outdated <- age_days > max_age
+  attr(outdated, "age_days") <- age_days
+  outdated
+}
+
 #' Rules of the active Public Suffix List
 #'
 #' Returns the explicit rules of the active list as a base [data.frame], one row
