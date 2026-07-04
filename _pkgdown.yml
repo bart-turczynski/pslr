@@ -34,6 +34,7 @@ reference:
     contents:
       - psl_version
       - psl_rules
+      - psl_outdated
 
   - title: List Management
     desc: >

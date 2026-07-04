@@ -78,6 +78,67 @@ test_that("psl_rules filters by section and never includes the default rule", {
   )
 })
 
+# Activate the bundled rule table under a meta whose list_date is `age_days`
+# days in the past, so psl_outdated() has a deterministic, time-controlled
+# snapshot to judge. A negative/NA `age_days` records the list_date verbatim.
+local_active_dated <- function(age_days) {
+  psl_use("bundled")
+  stamp <- if (is.na(age_days)) {
+    NA_character_
+  } else {
+    format(Sys.time() - age_days * 86400, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  }
+  meta <- psl_meta(source = "bundled", list_date = stamp)
+  psl_set_active(active_rules(), meta)
+}
+
+test_that("psl_outdated flags a stale snapshot and passes a fresh one", {
+  local_pslr_clean()
+
+  local_active_dated(400)
+  stale <- psl_outdated()
+  expect_true(stale)
+  expect_equal(attr(stale, "age_days"), 400, tolerance = 0.01)
+
+  local_active_dated(10)
+  fresh <- psl_outdated()
+  expect_false(fresh)
+  expect_equal(attr(fresh, "age_days"), 10, tolerance = 0.01)
+
+  # A stricter threshold flips a 10-day-old snapshot to outdated.
+  expect_true(psl_outdated(max_age = 5))
+})
+
+test_that("psl_outdated is NA when the list date is unknown", {
+  local_pslr_clean()
+  local_active_dated(NA)
+  unknown <- psl_outdated()
+  expect_true(is.na(unknown))
+  expect_type(unknown, "logical")
+  expect_true(is.na(attr(unknown, "age_days")))
+})
+
+test_that("psl_outdated validates max_age", {
+  local_pslr_clean()
+  expect_error(psl_outdated(0), "single positive number")
+  expect_error(psl_outdated(-1), "single positive number")
+  expect_error(psl_outdated(c(30, 60)), "single positive number")
+  expect_error(psl_outdated(NA_real_), "single positive number")
+  expect_error(psl_outdated("30"), "single positive number")
+})
+
+test_that("psl_parse_list_date reads ISO, space, and plain-date forms", {
+  ref <- as.POSIXct("2026-06-13 21:47:08", tz = "UTC")
+  expect_equal(psl_parse_list_date("2026-06-13T21:47:08Z"), ref)
+  expect_equal(psl_parse_list_date("2026-06-13 21:47:08"), ref)
+  expect_equal(
+    psl_parse_list_date("2026-06-13"),
+    as.POSIXct("2026-06-13", tz = "UTC")
+  )
+  expect_true(is.na(psl_parse_list_date(NA_character_)))
+  expect_true(is.na(psl_parse_list_date("not a date")))
+})
+
 test_that("canonical_rule keeps wildcard and exception markers", {
   local_pslr_clean()
   r <- psl_rules()
