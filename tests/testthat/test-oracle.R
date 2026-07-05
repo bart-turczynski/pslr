@@ -73,7 +73,7 @@ test_that("current outputs match the pinned baseline (byte-identical)", {
   current <- oracle_run(oracle_corpus())
 
   # Same keys, same order: a drift in the matrix itself is a failure.
-  expect_identical(names(current), names(baseline))
+  expect_named(current, names(baseline))
 
   # Every pinned result must be identical (values, types, names, frame shape).
   for (key in names(baseline)) {
