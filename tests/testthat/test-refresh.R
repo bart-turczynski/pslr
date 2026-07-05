@@ -208,3 +208,129 @@ test_that("the default downloader refuses a non-HTTPS redirect", {
     "non-HTTPS"
   )
 })
+
+test_that("the default downloader requires the curl package", {
+  # With curl absent the downloader must abort with install guidance rather
+  # than attempting a fetch.
+  testthat::local_mocked_bindings(
+    requireNamespace = function(package, ...) FALSE,
+    .package = "base"
+  )
+  expect_error(
+    psl_default_download("https://x/list.dat", tempfile(), 1e6),
+    "'curl' package"
+  )
+})
+
+test_that("the default downloader rejects an HTTP error status", {
+  skip_if_not_installed("curl")
+  testthat::local_mocked_bindings(
+    curl_fetch_disk = function(url, path, handle) {
+      list(url = "https://publicsuffix.example/list.dat", status_code = 404L)
+    },
+    new_handle = function(...) NULL,
+    .package = "curl"
+  )
+  expect_error(
+    psl_default_download("https://x/list.dat", tempfile(), 1e6),
+    "HTTP status 404"
+  )
+})
+
+test_that("the default downloader accepts an https 200 response", {
+  skip_if_not_installed("curl")
+  dest <- tempfile()
+  testthat::local_mocked_bindings(
+    curl_fetch_disk = function(url, path, handle) {
+      list(url = "https://publicsuffix.example/list.dat", status_code = 200L)
+    },
+    new_handle = function(...) NULL,
+    .package = "curl"
+  )
+  expect_identical(
+    psl_default_download("https://x/list.dat", dest, 1e6),
+    dest
+  )
+})
+
+test_that("the source checksum falls back to md5 when digest is absent", {
+  # A clean install without the optional 'digest' package still gets a
+  # prefixed checksum, via base-R md5sum.
+  testthat::local_mocked_bindings(
+    requireNamespace = function(package, ...) FALSE,
+    .package = "base"
+  )
+  expect_match(psl_source_checksum(bundled_dat_path()), "^md5:")
+})
+
+test_that("an unreadable source file is rejected before parsing", {
+  expect_error(
+    psl_load_source(tempfile(), "custom path list"),
+    "not readable"
+  )
+})
+
+test_that("a cache marker with no retrieval timestamp is not reusable", {
+  current <- list(
+    dat_file = "psl-x.dat",
+    meta = list(retrieved_at = NA_character_, checksum = "sha256:x")
+  )
+  expect_identical(psl_reusable_cache_path(current, tempdir()), NA_character_)
+})
+
+test_that("atomic rename removes an existing destination and retries", {
+  dir <- withr::local_tempdir()
+  from <- file.path(dir, "from")
+  to <- file.path(dir, "to")
+  writeLines("new", from)
+  writeLines("old", to)
+  calls <- 0L
+  testthat::local_mocked_bindings(
+    # The first rename fails (as onto an existing dest on Windows); the retry
+    # performs the move via copy+remove so it cannot recurse into the mock.
+    file.rename = function(from, to) {
+      calls <<- calls + 1L
+      if (calls == 1L) {
+        return(FALSE)
+      }
+      file.copy(from, to, overwrite = TRUE) && file.remove(from)
+    },
+    .package = "base"
+  )
+  expect_identical(psl_atomic_rename(from, to), to)
+  expect_identical(calls, 2L)
+  expect_identical(readLines(to), "new")
+})
+
+test_that("atomic rename aborts when the retried rename also fails", {
+  dir <- withr::local_tempdir()
+  from <- file.path(dir, "from")
+  writeLines("new", from)
+  testthat::local_mocked_bindings(
+    file.rename = function(from, to) FALSE,
+    .package = "base"
+  )
+  expect_error(
+    psl_atomic_rename(from, file.path(dir, "to")),
+    "could not publish cache file"
+  )
+})
+
+test_that("reusing a fresh cache can activate it", {
+  local_pslr_clean()
+  withr::local_options(pslr.downloader = fake_downloader())
+  psl_refresh(force = TRUE) # publish, but leave the active list unchanged
+  v <- psl_refresh(activate = TRUE) # reused within 24h and activated
+  expect_identical(v$source, "cache")
+  expect_identical(psl_version()$source, "cache")
+})
+
+test_that("psl_use('cache') activates a validated cache snapshot", {
+  local_pslr_clean()
+  withr::local_options(pslr.downloader = fake_downloader())
+  psl_refresh(force = TRUE)
+  v <- psl_use("cache")
+  expect_identical(v$source, "cache")
+  expect_identical(psl_version()$source, "cache")
+  expect_identical(public_suffix("www.example.co.uk"), "co.uk")
+})
