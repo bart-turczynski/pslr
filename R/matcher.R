@@ -135,12 +135,15 @@ active_rules <- function() active_state()$rules
 
 # Allocate the eight parallel match columns, typed and named per the shared
 # cache schema (`psl_cache_char_cols` character, `psl_cache_int_cols` integer),
-# each of length `n`. Keeping this schema-driven means the resolver and the
-# columnar cache never drift apart.
+# each `NA`-filled and of length `n`. Keeping this schema-driven means the
+# resolver and the columnar cache never drift apart. The `NA` fill is what the
+# query builder (`psl_query_cols()`) relies on for invalid inputs; the resolver
+# overwrites every slot (each core is either a hit or a miss), so the fill is
+# inert there.
 psl_match_alloc <- function(n) {
   cols <- c(
-    lapply(psl_cache_char_cols, \(col) character(n)),
-    lapply(psl_cache_int_cols, \(col) integer(n))
+    lapply(psl_cache_char_cols, \(col) rep(NA_character_, n)),
+    lapply(psl_cache_int_cols, \(col) rep(NA_integer_, n))
   )
   names(cols) <- psl_cache_cols
   cols

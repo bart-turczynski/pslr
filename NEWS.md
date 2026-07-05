@@ -13,6 +13,8 @@
 
 ## Internal
 
+* Collapsed the repeated `section`/`unknown`/`invalid` option-validation preamble across the five exported query functions into a shared `resolve_common_opts()` helper, factored `suffix_extract()`'s byte-offset slicing into `psl_slice_registrant()`, and drove `psl_query_cols()`'s eight match columns off the shared schema (reusing `psl_match_alloc()`, now `NA`-filled). Clears the remaining `goodpractice` function-length findings for `R/query.R`; results are byte-identical (oracle unchanged) (#65).
+
 * Drove `psl_resolve_cores()`'s eight parallel match columns off the shared cache schema (`psl_cache_cols`) instead of spelling each column out four times, and factored the cache-index lookup into `psl_cache_lookup()`. Clears the `goodpractice` function-length finding; results are byte-identical (oracle and cache tests unchanged) (#64).
 
 * Raised the default session-cache bound from 50,000 to 200,000 entries. The
