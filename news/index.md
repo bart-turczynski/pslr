@@ -24,6 +24,15 @@
 
 ### Internal
 
+- Raised test coverage from 96% to 100% by exercising the
+  previously-uncovered error and fallback branches across `refresh.R`,
+  `matcher.R`, `cache.R`, `canonicalize.R`, `duplicates.R`, and
+  `parser.R` (mocked downloader/`digest`/`curl`/`system.file` seams,
+  crafted inputs); the one unreachable C++ epilogue brace in
+  `matcher.cpp` is excluded with a `# nocov` marker. No behaviour
+  change; the differential oracle is unchanged
+  ([\#66](https://github.com/bart-turczynski/pslr/issues/66)).
+
 - Collapsed the repeated `section`/`unknown`/`invalid` option-validation
   preamble across the five exported query functions into a shared
   `resolve_common_opts()` helper, factored
