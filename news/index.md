@@ -10,7 +10,7 @@
   `list_date`, as a nudge toward
   [`psl_refresh()`](https://bart-turczynski.github.io/pslr/reference/psl_refresh.md);
   the snapshot age in days is returned in the `"age_days"` attribute
-  (PSLR-vzvghdie).
+  ([\#62](https://github.com/bart-turczynski/pslr/issues/62)).
 
 - New `options(pslr.cache = FALSE)` escape hatch disables the session
   result cache for the current session, skipping every cache read and
