@@ -33,6 +33,35 @@ match_opt <- function(value, choices, name, supplied) {
   value
 }
 
+# Validate the three option arguments every query function shares (`section`,
+# `unknown`, `invalid`) and return them as a list. `missing()` only works on a
+# formal in its own frame, so each caller passes the supplied-flags it computed
+# with `!missing()`; `output` is validated by the callers that accept it.
+resolve_common_opts <- function(
+  section,
+  unknown,
+  invalid,
+  section_supplied,
+  unknown_supplied,
+  invalid_supplied
+) {
+  list(
+    section = match_opt(
+      section,
+      c("all", "icann", "private"),
+      "section",
+      section_supplied
+    ),
+    unknown = match_opt(
+      unknown,
+      c("default", "na"),
+      "unknown",
+      unknown_supplied
+    ),
+    invalid = match_opt(invalid, c("na", "error"), "invalid", invalid_supplied)
+  )
+}
+
 # Append the terminal root dot where the input carried one and the value is not
 # NA. Used for hostname-shaped outputs only (PRD s5.3, s6.3).
 restore_root_dot <- function(x, had_dot) {
@@ -73,38 +102,27 @@ name_like <- function(out, domain) {
 psl_query_cols <- function(domain, section, unknown, invalid) {
   canon <- psl_canonicalize(domain, invalid)
   n <- length(canon$input)
-  public_suffix <- rep(NA_character_, n)
-  registrable_domain <- rep(NA_character_, n)
-  rule <- rep(NA_character_, n)
-  kind <- rep(NA_character_, n)
-  rule_section <- rep(NA_character_, n)
-  ps_depth <- rep(NA_integer_, n)
-  ps_start <- rep(NA_integer_, n)
-  rd_start <- rep(NA_integer_, n)
-  n_labels <- rep(NA_integer_, n)
-
   valid <- canon$status == "ok"
+
+  # The eight match columns start NA (via the shared schema) so invalid inputs
+  # stay NA; valid cores are resolved once and copied in column by column.
+  m <- psl_match_alloc(n)
+  n_labels <- rep(NA_integer_, n)
   if (any(valid)) {
     res <- psl_resolve_cores(canon$core[valid], section)
-    public_suffix[valid] <- res$public_suffix
-    registrable_domain[valid] <- res$registrable_domain
-    rule[valid] <- res$rule
-    kind[valid] <- res$kind
-    rule_section[valid] <- res$rule_section
-    ps_depth[valid] <- res$ps_depth
-    ps_start[valid] <- res$ps_start
-    rd_start[valid] <- res$rd_start
+    for (col in psl_cache_cols) {
+      m[[col]][valid] <- res[[col]]
+    }
     n_labels[valid] <- lengths(strsplit(canon$core[valid], ".", fixed = TRUE))
   }
 
+  # `unknown = "na"` erases the implicit-default rule's derived fields.
   if (identical(unknown, "na")) {
-    drop <- !is.na(kind) & kind == "default"
-    public_suffix[drop] <- NA_character_
-    registrable_domain[drop] <- NA_character_
-    rule[drop] <- NA_character_
-    rule_section[drop] <- NA_character_
-    kind[drop] <- NA_character_
-    ps_depth[drop] <- NA_integer_
+    drop <- !is.na(m$kind) & m$kind == "default"
+    for (col in psl_cache_char_cols) {
+      m[[col]][drop] <- NA_character_
+    }
+    m$ps_depth[drop] <- NA_integer_
   }
 
   list(
@@ -116,14 +134,14 @@ psl_query_cols <- function(domain, section, unknown, invalid) {
     host_ascii = canon$host,
     core = canon$core,
     n_labels = n_labels,
-    ps_depth = ps_depth,
-    ps_start = ps_start,
-    rd_start = rd_start,
-    public_suffix = public_suffix,
-    registrable_domain = registrable_domain,
-    rule = rule,
-    kind = kind,
-    rule_section = rule_section
+    ps_depth = m$ps_depth,
+    ps_start = m$ps_start,
+    rd_start = m$rd_start,
+    public_suffix = m$public_suffix,
+    registrable_domain = m$registrable_domain,
+    rule = m$rule,
+    kind = m$kind,
+    rule_section = m$rule_section
   )
 }
 
@@ -174,22 +192,17 @@ public_suffix <- function(
   unknown = c("default", "na"),
   invalid = c("na", "error")
 ) {
-  section <- match_opt(
+  opts <- resolve_common_opts(
     section,
-    c("all", "icann", "private"),
-    "section",
-    !missing(section)
+    unknown,
+    invalid,
+    !missing(section),
+    !missing(unknown),
+    !missing(invalid)
   )
   output <- match_opt(output, c("ascii", "unicode"), "output", !missing(output))
-  unknown <- match_opt(
-    unknown,
-    c("default", "na"),
-    "unknown",
-    !missing(unknown)
-  )
-  invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
-  cols <- psl_query_cols(domain, section, unknown, invalid)
+  cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
   out <- restore_root_dot(cols$public_suffix, cols$had_dot)
   if (identical(output, "unicode")) {
     out <- decode_ascii(out)
@@ -220,22 +233,17 @@ registrable_domain <- function(
   unknown = c("default", "na"),
   invalid = c("na", "error")
 ) {
-  section <- match_opt(
+  opts <- resolve_common_opts(
     section,
-    c("all", "icann", "private"),
-    "section",
-    !missing(section)
+    unknown,
+    invalid,
+    !missing(section),
+    !missing(unknown),
+    !missing(invalid)
   )
   output <- match_opt(output, c("ascii", "unicode"), "output", !missing(output))
-  unknown <- match_opt(
-    unknown,
-    c("default", "na"),
-    "unknown",
-    !missing(unknown)
-  )
-  invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
-  cols <- psl_query_cols(domain, section, unknown, invalid)
+  cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
   out <- restore_root_dot(cols$registrable_domain, cols$had_dot)
   if (identical(output, "unicode")) {
     out <- decode_ascii(out)
@@ -269,25 +277,43 @@ is_public_suffix <- function(
   unknown = c("default", "na"),
   invalid = c("na", "error")
 ) {
-  section <- match_opt(
+  opts <- resolve_common_opts(
     section,
-    c("all", "icann", "private"),
-    "section",
-    !missing(section)
-  )
-  unknown <- match_opt(
     unknown,
-    c("default", "na"),
-    "unknown",
-    !missing(unknown)
+    invalid,
+    !missing(section),
+    !missing(unknown),
+    !missing(invalid)
   )
-  invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
-  cols <- psl_query_cols(domain, section, unknown, invalid)
+  cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
   out <- rep(NA, length(domain))
   resolved <- !is.na(cols$public_suffix)
   out[resolved] <- cols$n_labels[resolved] == cols$ps_depth[resolved]
   name_like(out, domain)
+}
+
+# Slice the registrant label and subdomain straight out of the canonical core
+# using the byte offsets from the matcher, replacing a per-row `strsplit`. In a
+# core `subdomain.domain.suffix`, `rd_start` points at the registrable domain
+# (`domain.suffix`) and `ps_start` at the suffix, so the registrant label spans
+# `[rd_start, ps_start - 2]` (dropping the dot at `ps_start - 1`) and the
+# subdomain is `[1, rd_start - 2]`. A registrable domain starting at position 1
+# has no subdomain (`""`), matching the old `cut > 1` rule. Returns a two-column
+# list (`domain`, `subdomain`), both NA where there is no registrable domain.
+psl_slice_registrant <- function(cols) {
+  n <- length(cols$input)
+  domain_label <- rep(NA_character_, n)
+  subdomain <- rep(NA_character_, n)
+  has_rd <- !is.na(cols$registrable_domain)
+  if (any(has_rd)) {
+    core_rd <- cols$core[has_rd]
+    rd0 <- cols$rd_start[has_rd]
+    ps0 <- cols$ps_start[has_rd]
+    domain_label[has_rd] <- substr(core_rd, rd0, ps0 - 2L)
+    subdomain[has_rd] <- ifelse(rd0 > 1L, substr(core_rd, 1L, rd0 - 2L), "")
+  }
+  list(domain = domain_label, subdomain = subdomain)
 }
 
 #' Split hosts into subdomain, registrant label, and public suffix
@@ -316,49 +342,23 @@ suffix_extract <- function(
   unknown = c("default", "na"),
   invalid = c("na", "error")
 ) {
-  section <- match_opt(
+  opts <- resolve_common_opts(
     section,
-    c("all", "icann", "private"),
-    "section",
-    !missing(section)
+    unknown,
+    invalid,
+    !missing(section),
+    !missing(unknown),
+    !missing(invalid)
   )
   output <- match_opt(output, c("ascii", "unicode"), "output", !missing(output))
-  unknown <- match_opt(
-    unknown,
-    c("default", "na"),
-    "unknown",
-    !missing(unknown)
-  )
-  invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
-  cols <- psl_query_cols(domain, section, unknown, invalid)
-  n <- length(cols$input)
+  cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
   host <- cols$host_ascii
   suffix <- restore_root_dot(cols$public_suffix, cols$had_dot)
   registrable <- restore_root_dot(cols$registrable_domain, cols$had_dot)
-  domain_label <- rep(NA_character_, n)
-  subdomain <- rep(NA_character_, n)
-
-  # Slice the registrant label and subdomain straight out of the canonical core
-  # using the byte offsets from the matcher, replacing the old per-row
-  # `strsplit`. In a core `subdomain.domain.suffix`, `rd_start` points at the
-  # registrable domain (`domain.suffix`) and `ps_start` at the suffix, so the
-  # registrant label spans `[rd_start, ps_start - 2]` (dropping the dot at
-  # `ps_start - 1`) and the subdomain is `[1, rd_start - 2]`. A registrable
-  # domain that starts at position 1 has no subdomain (`""`), matching the old
-  # `cut > 1` rule.
-  has_rd <- !is.na(cols$registrable_domain)
-  if (any(has_rd)) {
-    core_rd <- cols$core[has_rd]
-    rd0 <- cols$rd_start[has_rd]
-    ps0 <- cols$ps_start[has_rd]
-    domain_label[has_rd] <- substr(core_rd, rd0, ps0 - 2L)
-    subdomain[has_rd] <- ifelse(
-      rd0 > 1L,
-      substr(core_rd, 1L, rd0 - 2L),
-      ""
-    )
-  }
+  parts <- psl_slice_registrant(cols)
+  domain_label <- parts$domain
+  subdomain <- parts$subdomain
 
   if (identical(output, "unicode")) {
     host <- decode_ascii(host)
@@ -404,21 +404,16 @@ public_suffix_rule <- function(
   unknown = c("default", "na"),
   invalid = c("na", "error")
 ) {
-  section <- match_opt(
+  opts <- resolve_common_opts(
     section,
-    c("all", "icann", "private"),
-    "section",
-    !missing(section)
-  )
-  unknown <- match_opt(
     unknown,
-    c("default", "na"),
-    "unknown",
-    !missing(unknown)
+    invalid,
+    !missing(section),
+    !missing(unknown),
+    !missing(invalid)
   )
-  invalid <- match_opt(invalid, c("na", "error"), "invalid", !missing(invalid))
 
-  cols <- psl_query_cols(domain, section, unknown, invalid)
+  cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
   data.frame(
     input = cols$input,
     host_ascii = cols$host_ascii,
