@@ -236,6 +236,11 @@ test_that("non-character / NA line input is rejected", {
   )
 })
 
+test_that("validating an empty line vector is a no-op", {
+  # parse_psl_lines() returns before validating, so exercise the guard directly.
+  expect_null(psl_validate_source_lines(character(0)))
+})
+
 # ---- file reader ------------------------------------------------------------
 
 test_that("read_psl_file reads UTF-8 and delegates to the line parser", {

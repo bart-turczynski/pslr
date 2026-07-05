@@ -153,3 +153,21 @@ test_that("repeated hosts are deduplicated yet expand to full length", {
     c("example.com", "example.com", "example.org")
   )
 })
+
+test_that("resolving zero cores returns empty, typed match columns", {
+  res <- psl_resolve_cores(character(0), "all")
+  expect_named(res, psl_cache_cols)
+  expect_true(all(vapply(res, length, integer(1)) == 0L))
+  expect_type(res$public_suffix, "character")
+  expect_type(res$ps_depth, "integer")
+})
+
+test_that("the bundled rules rebuild falls back when the source is missing", {
+  # When system.file() cannot resolve the shipped .dat (e.g. a stripped
+  # install), the rebuild path returns the pinned generated index unchanged.
+  testthat::local_mocked_bindings(
+    system.file = function(...) "",
+    .package = "base"
+  )
+  expect_identical(rebuild_bundled_rules(), pslr_bundled$rules)
+})

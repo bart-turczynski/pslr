@@ -91,7 +91,10 @@ SEXP psl_build_matcher(strings keys, strings kinds, integers sections) {
   R_RegisterCFinalizerEx(ptr, matcher_finalizer, TRUE);
   UNPROTECT(1);
   return ptr;
-}
+  // gcov attributes an unreachable epilogue basic block to the closing brace
+  // (the explicit `return` above always leaves first), so exclude that line
+  // from coverage rather than chase a line no test can reach.
+}  // # nocov
 
 [[cpp11::register]]
 list psl_match(SEXP matcher, strings hosts, int section_code) {

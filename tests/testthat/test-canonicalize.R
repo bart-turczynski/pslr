@@ -75,3 +75,35 @@ test_that("invalid = \"error\" reports the first invalid one-based index", {
     "position 3"
   )
 })
+
+test_that("the error-message helper renders NA and truncates long values", {
+  # An NA element collapses to the literal "NA" rather than propagating.
+  expect_identical(trunc_for_msg(NA_character_), "NA")
+  # A short value is echoed verbatim; a value over 60 chars is truncated.
+  expect_identical(trunc_for_msg("short.example"), "short.example")
+  long <- strrep("a", 70L)
+  expect_identical(trunc_for_msg(long), paste0(substr(long, 1L, 60L), "..."))
+})
+
+test_that("invalid = \"error\" truncates a pathological host in the message", {
+  # A >60-char invalid host must not dump an unbounded string into the abort.
+  long_bad <- paste0(strrep("_", 70L), ".example") # underscores are invalid
+  expect_error(
+    psl_canonicalize(long_bad, invalid = "error"),
+    "\\.\\.\\.$" # the truncation ellipsis closes the message
+  )
+})
+
+test_that("an all-missing vector skips the IPv4-literal scan", {
+  # is_ipv4_literal short-circuits when no element is present.
+  expect_identical(
+    is_ipv4_literal(c(NA_character_, NA_character_)),
+    c(FALSE, FALSE)
+  )
+  canon <- psl_canonicalize(c(NA_character_, NA_character_))
+  expect_identical(canon$status, c("na", "na"))
+})
+
+test_that("aborting on invalid hosts is a no-op when none are invalid", {
+  expect_null(psl_abort_invalid_host("ok.com", FALSE))
+})

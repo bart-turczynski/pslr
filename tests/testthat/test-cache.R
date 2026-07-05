@@ -92,3 +92,18 @@ test_that("psl_cache_clear empties the table", {
   psl_cache_clear()
   expect_identical(psl_cache_env$n, 0L)
 })
+
+test_that("psl_cache_ensure lazily initialises an uninitialised store", {
+  on.exit(psl_cache_clear())
+  # Simulate a never-initialised store (fresh session, before first use).
+  psl_cache_env$idx <- NULL
+  psl_cache_ensure()
+  expect_false(is.null(psl_cache_env$idx))
+  expect_identical(psl_cache_env$n, 0L)
+})
+
+test_that("storing an empty batch is a no-op", {
+  psl_cache_clear()
+  expect_null(psl_cache_store(character(0), list()))
+  expect_identical(psl_cache_env$n, 0L)
+})

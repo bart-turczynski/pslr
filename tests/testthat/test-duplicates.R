@@ -149,6 +149,11 @@ test_that("zero-row input is returned unchanged", {
   expect_identical(apply_duplicate_policy(empty, "lenient"), empty)
 })
 
+test_that("collapsing an empty vector yields the empty string", {
+  expect_identical(psl_collapse(character(0), ", "), "")
+  expect_identical(psl_collapse(integer(0), " vs "), "")
+})
+
 test_that("it integrates with the parser output", {
   lines <- c(
     "// ===BEGIN ICANN DOMAINS===",
