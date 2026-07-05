@@ -9,6 +9,7 @@ Codecov
 cpp
 cyclomatic
 deduplicated
+deduplicates
 deduplication
 dev
 DNS
@@ -32,12 +33,14 @@ JS
 libpsl
 Lifecycle
 matcher
+matcher's
 Matcher
 MiB
 MPL
 mtime
 normalizer
 npm
+OpenSSF
 ORCID
 php
 PRD

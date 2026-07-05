@@ -129,9 +129,9 @@ test_that("psl_outdated validates max_age", {
 
 test_that("psl_parse_list_date reads ISO, space, and plain-date forms", {
   ref <- as.POSIXct("2026-06-13 21:47:08", tz = "UTC")
-  expect_equal(psl_parse_list_date("2026-06-13T21:47:08Z"), ref)
-  expect_equal(psl_parse_list_date("2026-06-13 21:47:08"), ref)
-  expect_equal(
+  expect_identical(psl_parse_list_date("2026-06-13T21:47:08Z"), ref)
+  expect_identical(psl_parse_list_date("2026-06-13 21:47:08"), ref)
+  expect_identical(
     psl_parse_list_date("2026-06-13"),
     as.POSIXct("2026-06-13", tz = "UTC")
   )
