@@ -13,6 +13,8 @@
 
 ## Internal
 
+* Drove `psl_resolve_cores()`'s eight parallel match columns off the shared cache schema (`psl_cache_cols`) instead of spelling each column out four times, and factored the cache-index lookup into `psl_cache_lookup()`. Clears the `goodpractice` function-length finding; results are byte-identical (oracle and cache tests unchanged) (#64).
+
 * Raised the default session-cache bound from 50,000 to 200,000 entries. The
   columnar store (from the P2-P4 rewrite) costs about 80 bytes per entry
   (~16 MB for a full 200,000-entry table) and memory scales with live entries,

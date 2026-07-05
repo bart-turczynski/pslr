@@ -133,18 +133,20 @@ active_list_identity <- function() active_state()$identity
 active_meta <- function() active_state()$meta
 active_rules <- function() active_state()$rules
 
-psl_empty_match_result <- function() {
-  list(
-    public_suffix = character(0),
-    registrable_domain = character(0),
-    rule = character(0),
-    kind = character(0),
-    rule_section = character(0),
-    ps_depth = integer(0),
-    ps_start = integer(0),
-    rd_start = integer(0)
+# Allocate the eight parallel match columns, typed and named per the shared
+# cache schema (`psl_cache_char_cols` character, `psl_cache_int_cols` integer),
+# each of length `n`. Keeping this schema-driven means the resolver and the
+# columnar cache never drift apart.
+psl_match_alloc <- function(n) {
+  cols <- c(
+    lapply(psl_cache_char_cols, \(col) character(n)),
+    lapply(psl_cache_int_cols, \(col) integer(n))
   )
+  names(cols) <- psl_cache_cols
+  cols
 }
+
+psl_empty_match_result <- function() psl_match_alloc(0L)
 
 # Derive the ASCII public suffix / registrable domain / rule strings for the
 # WHOLE miss vector at once, using the 1-based byte offsets the C++ matcher
@@ -239,65 +241,32 @@ psl_resolve_cores <- function(cores, section) {
   uniq <- unique(cores)
   nu <- length(uniq)
   keys <- paste0(prefix, uniq)
-  cache_idx <- if (cache_on) {
-    unlist(
-      mget(keys, envir = psl_cache_env$idx, ifnotfound = list(NA_integer_)),
-      use.names = FALSE
-    )
-  } else {
-    rep(NA_integer_, nu)
-  }
+  cache_idx <- psl_cache_lookup(keys, cache_on)
   hit <- !is.na(cache_idx)
   miss <- !hit
 
-  public_suffix <- character(nu)
-  registrable_domain <- character(nu)
-  rule <- character(nu)
-  kind <- character(nu)
-  rule_section <- character(nu)
-  ps_depth <- integer(nu)
-  ps_start <- integer(nu)
-  rd_start <- integer(nu)
-
-  # Warm path: resolve every hit by vectorized subsetting of the cache columns.
+  # The eight parallel columns, driven by the shared cache schema so this stays
+  # in lockstep with clear/grow/store. Warm hits are copied out of the cache
+  # columns by vectorized subsetting; cold misses are derived once by
+  # `psl_match_records()`, placed, and appended to the cache (which may flush
+  # first per the capacity bound; hits are already copied out).
+  cols <- psl_match_alloc(nu)
   if (any(hit)) {
     hi <- cache_idx[hit]
-    public_suffix[hit] <- psl_cache_env$public_suffix[hi]
-    registrable_domain[hit] <- psl_cache_env$registrable_domain[hi]
-    rule[hit] <- psl_cache_env$rule[hi]
-    kind[hit] <- psl_cache_env$kind[hi]
-    rule_section[hit] <- psl_cache_env$rule_section[hi]
-    ps_depth[hit] <- psl_cache_env$ps_depth[hi]
-    ps_start[hit] <- psl_cache_env$ps_start[hi]
-    rd_start[hit] <- psl_cache_env$rd_start[hi]
+    for (col in psl_cache_cols) {
+      cols[[col]][hit] <- psl_cache_env[[col]][hi]
+    }
   }
-
-  # Cold path: derive the misses once, place them, and append to the cache
-  # (which may flush first per the capacity bound; hits are already copied out).
   if (any(miss)) {
     records <- psl_match_records(uniq[miss], section_code)
-    public_suffix[miss] <- records$public_suffix
-    registrable_domain[miss] <- records$registrable_domain
-    rule[miss] <- records$rule
-    kind[miss] <- records$kind
-    rule_section[miss] <- records$rule_section
-    ps_depth[miss] <- records$ps_depth
-    ps_start[miss] <- records$ps_start
-    rd_start[miss] <- records$rd_start
+    for (col in psl_cache_cols) {
+      cols[[col]][miss] <- records[[col]]
+    }
     if (cache_on) {
       psl_cache_store(keys[miss], records)
     }
   }
 
   idx <- match(cores, uniq)
-  list(
-    public_suffix = public_suffix[idx],
-    registrable_domain = registrable_domain[idx],
-    rule = rule[idx],
-    kind = kind[idx],
-    rule_section = rule_section[idx],
-    ps_depth = ps_depth[idx],
-    ps_start = ps_start[idx],
-    rd_start = rd_start[idx]
-  )
+  lapply(cols, `[`, idx)
 }

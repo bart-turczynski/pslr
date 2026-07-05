@@ -49,6 +49,11 @@ psl_cache_char_cols <- c(
 )
 psl_cache_int_cols <- c("ps_depth", "ps_start", "rd_start")
 
+# All eight parallel match columns in one place, so every loop that walks the
+# columnar store (clear/grow/store here, plus the resolver in matcher.R) stays
+# in lockstep with the schema. Character columns first, then the integer ones.
+psl_cache_cols <- c(psl_cache_char_cols, psl_cache_int_cols)
+
 # Session state: the key -> index env, the parallel column vectors, the current
 # entry count, the allocated column length, and the effective capacity bound.
 psl_cache_env <- new.env(parent = emptyenv())
@@ -98,7 +103,7 @@ psl_cache_grow <- function(need) {
   while (new_cap < need) {
     new_cap <- new_cap * 2L
   }
-  for (col in c(psl_cache_char_cols, psl_cache_int_cols)) {
+  for (col in psl_cache_cols) {
     length(psl_cache_env[[col]]) <- new_cap
   }
   psl_cache_env$cap_vec <- new_cap
@@ -108,6 +113,18 @@ psl_cache_grow <- function(need) {
 # Store records (a list of parallel column vectors) under already-composed keys,
 # honouring the capacity bound. Appends into the column vectors and records each
 # key -> slot mapping in the index env.
+# Look up the cache slot index for each key, or all-NA when the escape hatch
+# (`options(pslr.cache = FALSE)`) is set. A miss (key absent) is NA_integer_.
+psl_cache_lookup <- function(keys, cache_on) {
+  if (!cache_on) {
+    return(rep(NA_integer_, length(keys)))
+  }
+  unlist(
+    mget(keys, envir = psl_cache_env$idx, ifnotfound = list(NA_integer_)),
+    use.names = FALSE
+  )
+}
+
 psl_cache_store <- function(keys, records) {
   m <- length(keys)
   if (m == 0L) {
@@ -122,7 +139,7 @@ psl_cache_store <- function(keys, records) {
   }
   psl_cache_grow(psl_cache_env$n + m)
   slots <- psl_cache_env$n + seq_len(m)
-  for (col in c(psl_cache_char_cols, psl_cache_int_cols)) {
+  for (col in psl_cache_cols) {
     psl_cache_env[[col]][slots] <- records[[col]]
   }
   mapping <- as.list(slots)
