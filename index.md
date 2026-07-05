@@ -182,8 +182,9 @@ recorded reference results are in
 - `tests/testthat/` — testthat tests and cucumber feature specs.
 - `vignettes/` — long-form documentation.
 - `data-raw/` — the deterministic snapshot regeneration pipeline.
-- `docs/` — durable project context (`PRD.md`, `architecture.md`,
-  `benchmarks.md`).
+- `docs/` — durable project context: `PRD.md` (normative spec),
+  `architecture.md` (how the code is built), `decisions.md`
+  (design-decision log), `benchmarks.md`.
 
 ## Acknowledgments
 
