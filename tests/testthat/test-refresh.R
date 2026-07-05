@@ -284,13 +284,14 @@ test_that("atomic rename removes an existing destination and retries", {
   to <- file.path(dir, "to")
   writeLines("new", from)
   writeLines("old", to)
-  calls <- 0L
+  calls <- new.env(parent = emptyenv())
+  calls$n <- 0L
   testthat::local_mocked_bindings(
     # The first rename fails (as onto an existing dest on Windows); the retry
     # performs the move via copy+remove so it cannot recurse into the mock.
     file.rename = function(from, to) {
-      calls <<- calls + 1L
-      if (calls == 1L) {
+      calls$n <- calls$n + 1L
+      if (calls$n == 1L) {
         return(FALSE)
       }
       file.copy(from, to, overwrite = TRUE) && file.remove(from)
@@ -298,7 +299,7 @@ test_that("atomic rename removes an existing destination and retries", {
     .package = "base"
   )
   expect_identical(psl_atomic_rename(from, to), to)
-  expect_identical(calls, 2L)
+  expect_identical(calls$n, 2L)
   expect_identical(readLines(to), "new")
 })
 
