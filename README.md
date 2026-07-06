@@ -19,6 +19,8 @@
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr?ref=badge_shield&issueType=license)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr?ref=badge_shield&issueType=security)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13430/badge)](https://www.bestpractices.dev/projects/13430)
+[![Security audit](https://github.com/bart-turczynski/pslr/actions/workflows/security-audit.yml/badge.svg)](https://github.com/bart-turczynski/pslr/actions/workflows/security-audit.yml)
+[![OSV audit](https://github.com/bart-turczynski/pslr/actions/workflows/osv-audit.yml/badge.svg)](https://github.com/bart-turczynski/pslr/actions/workflows/osv-audit.yml)
 <!-- badges: end -->
 
 A focused, spec-complete implementation of the

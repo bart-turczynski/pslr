@@ -36,9 +36,13 @@ Suggests:
     curl,
     digest,
     knitr,
+    oysteR,
     rmarkdown,
+    rosv,
     testthat (>= 3.0.0),
     withr
+Remotes:
+    bart-turczynski/punycoder@v1.2.0
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.0.0
