@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* The `punycoder` dependency floor is raised to `>= 1.2.0`, the current release; `pslr`, `punycoder`, and `rurl` are co-maintained and each requires the current release of its sibling (#70).
+
 * New `psl_outdated()` reports whether the active list snapshot is older than a threshold (default 180 days), purely offline from `psl_version()`'s `list_date`, as a nudge toward `psl_refresh()`; the snapshot age in days is returned in the `"age_days"` attribute (#62).
 
 * New `options(pslr.cache = FALSE)` escape hatch disables the session result
