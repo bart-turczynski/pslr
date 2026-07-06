@@ -4,6 +4,19 @@ destination: site
 template:
   bootstrap: 5
 
+navbar:
+  structure:
+    left: [reference, articles, news, acknowledgments]
+    right: [search, github]
+  components:
+    acknowledgments:
+      text: Acknowledgments
+      href: https://github.com/bart-turczynski/pslr/blob/main/ACKNOWLEDGMENTS.md
+    github:
+      icon: fab fa-github fa-lg
+      href: https://github.com/bart-turczynski/pslr
+      aria-label: GitHub
+
 authors:
   "Bart Turczynski":
     href: https://turczynski.pl
