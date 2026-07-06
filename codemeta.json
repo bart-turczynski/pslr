@@ -1,20 +1,20 @@
 {
   "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
   "@type": "SoftwareSourceCode",
-  "identifier": ["pslr", "https://doi.org/10.5281/zenodo.20973660"],
+  "identifier": "pslr",
   "description": "A focused implementation of the Public Suffix List (PSL). Bundles a reproducible, pinned PSL snapshot and implements the official prevailing-rule algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and ASCII hostnames via 'punycoder' canonicalization, and supports an explicit, validated offline refresh path. The matcher is compiled with 'cpp11' and requires no external system library. Used as the PSL engine by the 'rurl' package.",
   "name": "pslr: Public Suffix List Engine",
   "relatedLink": ["https://bart-turczynski.github.io/pslr/", "https://CRAN.R-project.org/package=pslr", "https://bart-turczynski.r-universe.dev"],
   "codeRepository": "https://github.com/bart-turczynski/pslr",
   "issueTracker": "https://github.com/bart-turczynski/pslr/issues",
   "license": "https://spdx.org/licenses/MIT",
-  "version": "1.0.2",
+  "version": "1.0.2.9000",
   "programmingLanguage": {
     "@type": "ComputerLanguage",
     "name": "R",
     "url": "https://r-project.org"
   },
-  "runtimePlatform": "R version 4.6.0 (2026-04-24)",
+  "runtimePlatform": "R version 4.6.1 (2026-06-24)",
   "provider": {
     "@id": "https://cran.r-project.org",
     "@type": "Organization",
@@ -91,6 +91,18 @@
     },
     {
       "@type": "SoftwareApplication",
+      "identifier": "oysteR",
+      "name": "oysteR",
+      "provider": {
+        "@id": "https://cran.r-project.org",
+        "@type": "Organization",
+        "name": "Comprehensive R Archive Network (CRAN)",
+        "url": "https://cran.r-project.org"
+      },
+      "sameAs": "https://CRAN.R-project.org/package=oysteR"
+    },
+    {
+      "@type": "SoftwareApplication",
       "identifier": "rmarkdown",
       "name": "rmarkdown",
       "provider": {
@@ -100,6 +112,18 @@
         "url": "https://cran.r-project.org"
       },
       "sameAs": "https://CRAN.R-project.org/package=rmarkdown"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "identifier": "rosv",
+      "name": "rosv",
+      "provider": {
+        "@id": "https://cran.r-project.org",
+        "@type": "Organization",
+        "name": "Comprehensive R Archive Network (CRAN)",
+        "url": "https://cran.r-project.org"
+      },
+      "sameAs": "https://CRAN.R-project.org/package=rosv"
     },
     {
       "@type": "SoftwareApplication",
@@ -138,7 +162,7 @@
       "@type": "SoftwareApplication",
       "identifier": "punycoder",
       "name": "punycoder",
-      "version": ">= 1.1.0",
+      "version": ">= 1.2.0",
       "provider": {
         "@id": "https://cran.r-project.org",
         "@type": "Organization",
@@ -159,12 +183,11 @@
     },
     "SystemRequirements": null
   },
-  "keywords": ["publicsuffixlist", "PSL", "eTLD", "eTLD+1", "registrabledomain", "ICANN", "domainparsing", "domainextraction", "domainnames", "TLD", "cookiedomains", "IDNA", "publicsuffix", "psl", "public-suffix", "public-suffix-list", "r", "r-lang", "r-language", "r-library", "r-package", "rstats", "domain-extraction", "domain-names", "etld", "icann", "idna", "punycode", "etld-plus-one", "registrable-domain"],
-  "fileSize": "1526.911KB",
+  "keywords": ["publicsuffixlist", "PSL", "eTLD", "eTLD+1", "registrabledomain", "ICANN", "domainparsing", "domainextraction", "domainnames", "TLD", "cookiedomains", "IDNA", "publicsuffix", "psl", "public-suffix", "public-suffix-list", "r", "r-lang", "r-library", "rstats", "domain-extraction", "domain-names", "etld", "icann", "idna", "punycode", "etld-plus-one", "registrable-domain", "cookies", "domain", "domain-parsing", "tld", "unicode"],
+  "fileSize": "652.169KB",
   "citation": [
     {
       "@type": "SoftwareSourceCode",
-      "identifier": "https://doi.org/10.5281/zenodo.20973660",
       "datePublished": "2026",
       "author": [
         {
@@ -175,12 +198,15 @@
         }
       ],
       "name": "{pslr}: Public Suffix List Engine",
+      "identifier": "10.5281/zenodo.20973660",
       "url": "https://CRAN.R-project.org/package=pslr",
-      "description": "R package version 1.0.2"
+      "description": "R package version 1.0.2.9000",
+      "@id": "https://doi.org/10.5281/zenodo.20973660",
+      "sameAs": "https://doi.org/10.5281/zenodo.20973660"
     }
   ],
   "releaseNotes": "https://github.com/bart-turczynski/pslr/blob/main/NEWS.md",
   "readme": "https://github.com/bart-turczynski/pslr/blob/main/README.md",
-  "contIntegration": ["https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml", "https://app.codecov.io/gh/bart-turczynski/pslr"],
+  "contIntegration": ["https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml", "https://app.codecov.io/gh/bart-turczynski/pslr", "https://github.com/bart-turczynski/pslr/actions/workflows/security-audit.yml", "https://github.com/bart-turczynski/pslr/actions/workflows/osv-audit.yml"],
   "developmentStatus": "https://lifecycle.r-lib.org/articles/stages.html#stable"
 }
