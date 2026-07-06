@@ -36,7 +36,9 @@ Suggests:
     curl,
     digest,
     knitr,
+    oysteR,
     rmarkdown,
+    rosv,
     testthat (>= 3.0.0),
     withr
 Config/testthat/edition: 3
