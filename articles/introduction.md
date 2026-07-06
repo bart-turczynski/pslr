@@ -260,9 +260,9 @@ the `"age_days"` attribute.
 psl_outdated() # older than the 180-day default?
 #> [1] FALSE
 #> attr(,"age_days")
-#> [1] 22.08684
+#> [1] 22.51525
 attr(psl_outdated(), "age_days") # active snapshot age, in days
-#> [1] 22.08684
+#> [1] 22.51525
 ```
 
 ## Security and scope notes
@@ -296,3 +296,14 @@ attr(psl_outdated(), "age_days") # active snapshot age, in days
   parsing, normalization, cleaning, and joining toolkit that uses `pslr`
   as its PSL engine. Reach for it when you need to work with complete
   URLs rather than bare hostnames.
+
+## Acknowledgments
+
+`pslr` serves the [Public Suffix List](https://publicsuffix.org),
+maintained by Mozilla and the wider community under the Mozilla Public
+License 2.0, and delegates host normalization (UTS \#46 / IDNA) to the
+sibling `punycoder` package. Its matcher is built on `cpp11`.
+
+The full list of credits — prior art, dependencies, the standards this
+code implements, and the data sources it serves — is in
+[`ACKNOWLEDGMENTS.md`](https://github.com/bart-turczynski/pslr/blob/main/ACKNOWLEDGMENTS.md).
