@@ -2,6 +2,11 @@
 
 ## pslr (development version)
 
+- The `punycoder` dependency floor is raised to `>= 1.2.0`, the current
+  release; `pslr`, `punycoder`, and `rurl` are co-maintained and each
+  requires the current release of its sibling
+  ([\#70](https://github.com/bart-turczynski/pslr/issues/70)).
+
 - New
   [`psl_outdated()`](https://bart-turczynski.github.io/pslr/reference/psl_outdated.md)
   reports whether the active list snapshot is older than a threshold
@@ -114,7 +119,7 @@
 ### Internal
 
 - Dropped the redundant `strict = TRUE` argument from
-  [`punycoder::host_normalize()`](https://rdrr.io/pkg/punycoder/man/host_normalize.html)
+  [`punycoder::host_normalize()`](https://bart-turczynski.github.io/punycoder/reference/host_normalize.html)
   calls. `punycoder` removed the inert `strict` flag in favour of
   explicit UTS [\#46](https://github.com/bart-turczynski/pslr/issues/46)
   flags (all defaulting to the strict profile), so the bare call is

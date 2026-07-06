@@ -225,7 +225,7 @@ psl_version()
 #>                                                                  checksum
 #> 1 sha256:54fb5c65a1e21aad963acd74a204370b5f517071e8b8e140c48de40727f0171c
 #>   normalizer normalizer_version         normalization_profile unicode_version
-#> 1  punycoder              1.1.0 uts46-nontransitional-std3-v1          16.0.0
+#> 1  punycoder              1.2.0 uts46-nontransitional-std3-v1          16.0.0
 ```
 
 [`psl_rules()`](https://bart-turczynski.github.io/pslr/reference/psl_rules.md)
@@ -260,9 +260,9 @@ the `"age_days"` attribute.
 psl_outdated() # older than the 180-day default?
 #> [1] FALSE
 #> attr(,"age_days")
-#> [1] 22.51525
+#> [1] 22.89732
 attr(psl_outdated(), "age_days") # active snapshot age, in days
-#> [1] 22.51525
+#> [1] 22.89732
 ```
 
 ## Security and scope notes

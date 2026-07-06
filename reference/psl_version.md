@@ -89,5 +89,5 @@ psl_version()
 #>                                                                  checksum
 #> 1 sha256:54fb5c65a1e21aad963acd74a204370b5f517071e8b8e140c48de40727f0171c
 #>   normalizer normalizer_version         normalization_profile unicode_version
-#> 1  punycoder              1.1.0 uts46-nontransitional-std3-v1          16.0.0
+#> 1  punycoder              1.2.0 uts46-nontransitional-std3-v1          16.0.0
 ```
