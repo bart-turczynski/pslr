@@ -11,19 +11,33 @@ installable with the current and upcoming `punycoder` API.
 
 ## Changes in this version
 
-This is a small maintenance update (1.0.1 -> 1.0.2) with no user-visible change.
+This is a small maintenance update (1.0.1 -> 1.0.2).
 
 * `pslr` no longer passes the `strict` argument to `punycoder::host_normalize()`.
   `punycoder` removed that (inert) argument in favour of explicit UTS #46 flags
   that default to the same strict profile, so the bare call is behavior-
-  preserving. This keeps `pslr` installable against both the current `punycoder`
-  (1.1.0) and its next release.
+  preserving.
+* The `punycoder` floor is raised to `>= 1.2.0` (the current release), matching
+  the coordinated chain (see Dependencies). No user-visible behavior change in
+  `pslr` itself.
 
 ## Dependencies
 
-* `pslr` imports `punycoder` (>= 1.1.0) for its canonical-host normalization
-  (IDNA/Unicode) layer. The bare `host_normalize()` call works against
-  `punycoder` 1.1.0 (on CRAN) and later, so the dependency floor is unchanged.
+* `pslr` imports `punycoder` for its canonical-host normalization
+  (IDNA/Unicode) layer. The floor tracks the current `punycoder` release,
+  `punycoder (>= 1.2.0)`: the three packages are co-maintained and released
+  together, so each requires the current release of its sibling rather than the
+  oldest version at which a given call first worked.
+
+**Coordinated submission order.** `punycoder`, `pslr`, and `rurl` form a
+dependency chain and are submitted to CRAN **in this order** so each resolves
+cleanly against versions already on CRAN:
+
+1. **`punycoder` 1.2.0** — the base of the chain (no CRAN sibling dependency).
+2. **`pslr` 1.0.2** — this package; imports `punycoder (>= 1.2.0)`. Submitted
+   after `punycoder` 1.2.0 reaches CRAN so the floor resolves.
+3. **`rurl` 2.2.0** — imports both `punycoder (>= 1.2.0)` and `pslr (>= 1.0.2)`;
+   submitted last, once both are on CRAN.
 
 ## Test environments
 

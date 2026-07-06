@@ -26,7 +26,7 @@ Roxygen: list(markdown = TRUE)
 Depends:
     R (>= 4.0.0)
 Imports:
-    punycoder (>= 1.1.0),
+    punycoder (>= 1.2.0),
     tools,
     utils
 LinkingTo:
