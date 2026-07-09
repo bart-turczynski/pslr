@@ -48,7 +48,7 @@ jobs:
           use-public-rspm: true
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::oysteR, any::testthat, local::.
+          extra-packages: any::decor, any::oysteR, any::testthat, local::.
           needs: check
       - name: Run oysteR security audit
         run: testthat::test_local(filter = "security", stop_on_failure = TRUE)

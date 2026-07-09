@@ -42,7 +42,7 @@ jobs:
           use-public-rspm: true
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rosv, any::testthat, local::.
+          extra-packages: any::decor, any::rosv, any::testthat, local::.
           needs: check
       - name: Run OSV dependency audit
         run: testthat::test_local(filter = "osv", stop_on_failure = TRUE)
