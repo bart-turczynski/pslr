@@ -76,23 +76,26 @@ rules <- read_psl_file(dat_path)
 # Maintainer build pipeline rejects exact same-section duplicates (PRD s8.1).
 rules <- apply_duplicate_policy(rules, mode = "strict")
 
-profile <- punycoder::normalization_profile_info()
-
 dat_bytes <- file.size(dat_path)
 checksum <- paste0("sha256:", digest::digest(file = dat_path, algo = "sha256"))
 
-meta <- list(
-  source = "bundled",
-  url = dat_url,
-  commit = commit,
-  retrieved_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
-  list_date = list_date,
-  size = as.integer(dat_bytes),
-  checksum = checksum,
-  normalizer = "punycoder",
-  normalizer_version = as.character(utils::packageVersion("punycoder")),
-  normalization_profile = profile$profile,
-  unicode_version = profile$unicode_version
+# The bundled-snapshot record. Its source-identity fields are bundled-specific:
+# it carries `url` (the exact source URL) and, unlike the active `psl_meta()`
+# schema, omits `path`. The normalization identifiers are the same runtime
+# identifiers the package reports, so they are sourced from the shared
+# `runtime_normalizer_meta()` helper (R/matcher.R) rather than re-spelled here.
+# The url/no-path skew from `new_psl_meta()` is intentional (PSLR-bnrbjhur).
+meta <- c(
+  list(
+    source = "bundled",
+    url = dat_url,
+    commit = commit,
+    retrieved_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
+    list_date = list_date,
+    size = as.integer(dat_bytes),
+    checksum = checksum
+  ),
+  runtime_normalizer_meta()
 )
 
 # Single internal object: the validated rule table (the index that the P3

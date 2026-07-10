@@ -40,23 +40,83 @@ runtime_normalizer_meta <- function() {
   )
 }
 
-# Build a complete `psl_version()`-shaped metadata list. Source-identity fields
-# default to typed `NA`; normalization identifiers default to the runtime
-# normalizer (PRD s7.4). Callers override the known fields by name.
-psl_meta <- function(...) {
-  base <- c(
-    list(
-      source = NA_character_,
-      path = NA_character_,
-      retrieved_at = NA_character_,
-      list_date = NA_character_,
-      commit = NA_character_,
-      size = NA_integer_,
-      checksum = NA_character_
-    ),
+# The `psl_version()`-shaped snapshot-metadata schema, owned in one place:
+# field order and per-field storage type. This is the single source of truth
+# consumed by `new_psl_meta()` (construction + defaults), `validate_psl_meta()`
+# (checked boundary), and `as_psl_version_df()` (the one-row data.frame). The
+# source-identity fields carry a typed `NA` default; the normalization
+# identifiers default to the runtime normalizer (PRD s7.4).
+psl_meta_fields <- c(
+  source = "character",
+  path = "character",
+  retrieved_at = "character",
+  list_date = "character",
+  commit = "character",
+  size = "integer",
+  checksum = "character",
+  normalizer = "character",
+  normalizer_version = "character",
+  normalization_profile = "character",
+  unicode_version = "character"
+)
+
+# Typed `NA` for a schema storage type.
+psl_meta_na <- function(type) {
+  switch(type, character = NA_character_, integer = NA_integer_)
+}
+
+# Construct a complete snapshot-metadata list. Source-identity fields default to
+# typed `NA`; normalization identifiers default to the runtime normalizer.
+# Callers override the known fields by name. Owns field order, types, and
+# defaults for the whole package.
+new_psl_meta <- function(...) {
+  base <- utils::modifyList(
+    lapply(psl_meta_fields, psl_meta_na),
     runtime_normalizer_meta()
   )
   utils::modifyList(base, list(...))
+}
+
+# Validate a snapshot-metadata list against the schema: every field present,
+# each a length-1 vector of its declared storage type. Returns `x` invisibly on
+# success; errors otherwise. A checked boundary for callers that must trust a
+# meta object's shape.
+validate_psl_meta <- function(x) {
+  if (!is.list(x)) {
+    stop("`x` must be a metadata list.", call. = FALSE)
+  }
+  missing <- setdiff(names(psl_meta_fields), names(x))
+  if (length(missing)) {
+    stop(
+      "Metadata is missing required field(s): ",
+      paste(missing, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+  for (field in names(psl_meta_fields)) {
+    type <- psl_meta_fields[[field]]
+    value <- x[[field]]
+    ok <- length(value) == 1L &&
+      switch(
+        type,
+        character = is.character(value),
+        integer = is.integer(value)
+      )
+    if (!ok) {
+      stop(
+        sprintf("Metadata field `%s` must be a length-1 %s.", field, type),
+        call. = FALSE
+      )
+    }
+  }
+  invisible(x)
+}
+
+# Backwards-compatible alias for the constructor (PRD s7.4). Existing callers
+# (R/refresh.R) build metadata through this name.
+psl_meta <- function(...) {
+  new_psl_meta(...)
 }
 
 # Activate a validated rule table under `meta`. Everything that can fail (the

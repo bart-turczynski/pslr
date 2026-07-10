@@ -6,25 +6,26 @@
 # exposes the active rule table itself. Both read the immutable active state
 # built by R/matcher.R; neither accesses the network or the user cache.
 
-# Render a complete metadata list as the one-row `psl_version()` data.frame, in
-# the documented column order and types. Shared by psl_version() and the
-# psl_refresh() return value (PRD s7.4).
-psl_version_df <- function(meta) {
-  data.frame(
-    source = as.character(meta$source),
-    path = as.character(meta$path),
-    retrieved_at = as.character(meta$retrieved_at),
-    list_date = as.character(meta$list_date),
-    commit = as.character(meta$commit),
-    size = as.integer(meta$size),
-    checksum = as.character(meta$checksum),
-    normalizer = as.character(meta$normalizer),
-    normalizer_version = as.character(meta$normalizer_version),
-    normalization_profile = as.character(meta$normalization_profile),
-    unicode_version = as.character(meta$unicode_version),
-    stringsAsFactors = FALSE,
-    row.names = NULL
+# Derive the one-row `psl_version()` data.frame from a snapshot-metadata list,
+# in the documented column order and types. Column order and per-field type come
+# from the shared `psl_meta_fields` schema (R/matcher.R), so this never
+# re-spells the field list. Shared by psl_version() and the psl_refresh() return
+# value (PRD s7.4).
+as_psl_version_df <- function(meta) {
+  cols <- Map(
+    function(field, type) {
+      value <- meta[[field]]
+      switch(type, character = as.character(value), integer = as.integer(value))
+    },
+    names(psl_meta_fields),
+    psl_meta_fields
   )
+  data.frame(cols, stringsAsFactors = FALSE, row.names = NULL)
+}
+
+# Backwards-compatible alias used by psl_version() and R/refresh.R.
+psl_version_df <- function(meta) {
+  as_psl_version_df(meta)
 }
 
 #' Identity of the active Public Suffix List
