@@ -61,6 +61,14 @@
 
 ### Internal
 
+- The five public query functions and
+  [`psl_rules()`](https://bart-turczynski.github.io/pslr/reference/psl_rules.md)
+  now carry scalar formal defaults validated by an internal
+  `check_choice()`, dropping the
+  [`missing()`](https://rdrr.io/r/base/missing.html)-based supplied-flag
+  bookkeeping; argument handling and every result and error are
+  unchanged (PSLR-adsnjbjg).
+
 - Consolidated the snapshot-metadata field schema behind a single owner:
   `new_psl_meta()` (construction/defaults), `validate_psl_meta()`
   (checked boundary), and `as_psl_version_df()` (the one-row

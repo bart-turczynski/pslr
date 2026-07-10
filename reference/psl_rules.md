@@ -7,7 +7,7 @@ The implicit default `*` rule is not included.
 ## Usage
 
 ``` r
-psl_rules(section = c("all", "icann", "private"))
+psl_rules(section = "all")
 ```
 
 ## Arguments

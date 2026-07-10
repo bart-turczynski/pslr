@@ -7,9 +7,9 @@ Inspect the prevailing PSL rule for each host
 ``` r
 public_suffix_rule(
   domain,
-  section = c("all", "icann", "private"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  unknown = "default",
+  invalid = "na"
 )
 ```
 

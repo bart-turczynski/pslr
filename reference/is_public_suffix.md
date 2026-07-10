@@ -11,12 +11,7 @@ ask `unknown = "na"` to test explicit membership instead.
 ## Usage
 
 ``` r
-is_public_suffix(
-  domain,
-  section = c("all", "icann", "private"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
-)
+is_public_suffix(domain, section = "all", unknown = "default", invalid = "na")
 ```
 
 ## Arguments

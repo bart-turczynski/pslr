@@ -9,10 +9,10 @@ plus one host label to the left. It is `NA` when no such label exists
 ``` r
 registrable_domain(
   domain,
-  section = c("all", "icann", "private"),
-  output = c("ascii", "unicode"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  output = "ascii",
+  unknown = "default",
+  invalid = "na"
 )
 ```
 
