@@ -157,13 +157,8 @@ psl_outdated <- function(max_age = 180) {
 #' head(psl_rules("icann"))
 #' nrow(psl_rules("private"))
 #' @export
-psl_rules <- function(section = c("all", "icann", "private")) {
-  section <- match_opt(
-    section,
-    c("all", "icann", "private"),
-    "section",
-    !missing(section)
-  )
+psl_rules <- function(section = "all") {
+  section <- check_choice(section, c("all", "icann", "private"), "section")
   r <- active_rules()
   if (!identical(section, "all")) {
     r <- r[r$section == section, , drop = FALSE]

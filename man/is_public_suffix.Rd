@@ -4,12 +4,7 @@
 \alias{is_public_suffix}
 \title{Is a host itself a public suffix?}
 \usage{
-is_public_suffix(
-  domain,
-  section = c("all", "icann", "private"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
-)
+is_public_suffix(domain, section = "all", unknown = "default", invalid = "na")
 }
 \arguments{
 \item{domain}{Character vector of DNS hostnames (not URLs). Each element may

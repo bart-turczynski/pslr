@@ -7,24 +7,21 @@
 # below. `unknown` and `output` are applied here, after the cache, so they never
 # affect the cache key (PRD s8.2).
 
-# Match a scalar option argument against its choices. When the caller did not
-# supply the argument (`supplied = FALSE`, i.e. `missing()` at the call site),
-# the formal's full choice vector selects the first choice; any value the caller
-# does supply must be a single string drawn from the choices, so non-scalar or
-# unknown values abort -- `invalid` never suppresses these programming errors
-# (PRD s5.2). Detecting "supplied" via `missing()` rather than comparing against
-# the choice vector means an explicit non-scalar argument that happens to equal
-# the default (e.g. `invalid = c("na", "error")`) still aborts.
-match_opt <- function(value, choices, name, supplied) {
-  if (!supplied) {
-    return(choices[1L])
-  }
+# Validate a scalar option argument against its choices, returning it unchanged.
+# The value must be a single non-NA string drawn from `choices`; anything else
+# (non-scalar, non-character, NA, or an unknown value) aborts -- these are
+# programming errors that `invalid` never suppresses (PRD s5.2). Each option
+# carries a scalar formal default that is a member of `choices`, so an omitted
+# argument arrives as its default and passes unchanged; an explicit value equal
+# to the default takes the same path, while an explicit non-scalar (e.g.
+# `invalid = c("na", "error")`) still aborts on the length-1 check.
+check_choice <- function(value, choices, arg) {
   scalar_string <- length(value) == 1L && is.character(value) && !is.na(value)
   if (!scalar_string || !value %in% choices) {
     stop(
       sprintf(
         "`%s` must be one of: %s.",
-        name,
+        arg,
         paste0("\"", choices, "\"", collapse = ", ")
       ),
       call. = FALSE
@@ -34,32 +31,25 @@ match_opt <- function(value, choices, name, supplied) {
 }
 
 # Validate the three option arguments every query function shares (`section`,
-# `unknown`, `invalid`) and return them as a list. `missing()` only works on a
-# formal in its own frame, so each caller passes the supplied-flags it computed
-# with `!missing()`; `output` is validated by the callers that accept it.
-resolve_common_opts <- function(
-  section,
-  unknown,
-  invalid,
-  section_supplied,
-  unknown_supplied,
-  invalid_supplied
-) {
+# `unknown`, `invalid`) and return them as a list; `output` is validated by the
+# callers that accept it.
+resolve_common_opts <- function(section, unknown, invalid) {
   list(
-    section = match_opt(
-      section,
-      c("all", "icann", "private"),
-      "section",
-      section_supplied
-    ),
-    unknown = match_opt(
-      unknown,
-      c("default", "na"),
-      "unknown",
-      unknown_supplied
-    ),
-    invalid = match_opt(invalid, c("na", "error"), "invalid", invalid_supplied)
+    section = check_choice(section, c("all", "icann", "private"), "section"),
+    unknown = check_choice(unknown, c("default", "na"), "unknown"),
+    invalid = check_choice(invalid, c("na", "error"), "invalid")
   )
+}
+
+# Match a scalar option argument against its choices, selecting the first choice
+# when the caller omitted it (`supplied = FALSE`, i.e. `missing()` at the call
+# site). Retained for `psl_use()`, which still carries a choice-vector default;
+# the query functions use scalar defaults and `check_choice()` instead.
+match_opt <- function(value, choices, name, supplied) {
+  if (!supplied) {
+    return(choices[1L])
+  }
+  check_choice(value, choices, name)
 }
 
 # Append the terminal root dot where the input carried one and the value is not
@@ -187,20 +177,13 @@ psl_query_cols <- function(domain, section, unknown, invalid) {
 #' @export
 public_suffix <- function(
   domain,
-  section = c("all", "icann", "private"),
-  output = c("ascii", "unicode"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  output = "ascii",
+  unknown = "default",
+  invalid = "na"
 ) {
-  opts <- resolve_common_opts(
-    section,
-    unknown,
-    invalid,
-    !missing(section),
-    !missing(unknown),
-    !missing(invalid)
-  )
-  output <- match_opt(output, c("ascii", "unicode"), "output", !missing(output))
+  opts <- resolve_common_opts(section, unknown, invalid)
+  output <- check_choice(output, c("ascii", "unicode"), "output")
 
   cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
   out <- restore_root_dot(cols$public_suffix, cols$had_dot)
@@ -228,20 +211,13 @@ public_suffix <- function(
 #' @export
 registrable_domain <- function(
   domain,
-  section = c("all", "icann", "private"),
-  output = c("ascii", "unicode"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  output = "ascii",
+  unknown = "default",
+  invalid = "na"
 ) {
-  opts <- resolve_common_opts(
-    section,
-    unknown,
-    invalid,
-    !missing(section),
-    !missing(unknown),
-    !missing(invalid)
-  )
-  output <- match_opt(output, c("ascii", "unicode"), "output", !missing(output))
+  opts <- resolve_common_opts(section, unknown, invalid)
+  output <- check_choice(output, c("ascii", "unicode"), "output")
 
   cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
   out <- restore_root_dot(cols$registrable_domain, cols$had_dot)
@@ -273,18 +249,11 @@ registrable_domain <- function(
 #' @export
 is_public_suffix <- function(
   domain,
-  section = c("all", "icann", "private"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  unknown = "default",
+  invalid = "na"
 ) {
-  opts <- resolve_common_opts(
-    section,
-    unknown,
-    invalid,
-    !missing(section),
-    !missing(unknown),
-    !missing(invalid)
-  )
+  opts <- resolve_common_opts(section, unknown, invalid)
 
   cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
   out <- rep(NA, length(domain))
@@ -337,20 +306,13 @@ psl_slice_registrant <- function(cols) {
 #' @export
 suffix_extract <- function(
   domain,
-  section = c("all", "icann", "private"),
-  output = c("ascii", "unicode"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  output = "ascii",
+  unknown = "default",
+  invalid = "na"
 ) {
-  opts <- resolve_common_opts(
-    section,
-    unknown,
-    invalid,
-    !missing(section),
-    !missing(unknown),
-    !missing(invalid)
-  )
-  output <- match_opt(output, c("ascii", "unicode"), "output", !missing(output))
+  opts <- resolve_common_opts(section, unknown, invalid)
+  output <- check_choice(output, c("ascii", "unicode"), "output")
 
   cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
   host <- cols$host_ascii
@@ -400,18 +362,11 @@ suffix_extract <- function(
 #' @export
 public_suffix_rule <- function(
   domain,
-  section = c("all", "icann", "private"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  unknown = "default",
+  invalid = "na"
 ) {
-  opts <- resolve_common_opts(
-    section,
-    unknown,
-    invalid,
-    !missing(section),
-    !missing(unknown),
-    !missing(invalid)
-  )
+  opts <- resolve_common_opts(section, unknown, invalid)
 
   cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
   data.frame(
