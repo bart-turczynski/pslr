@@ -2,6 +2,14 @@
 
 ## pslr (development version)
 
+- Cache checksum verification now recomputes the algorithm named by the
+  recorded `sha256:`/`md5:` prefix instead of whichever hash `digest`
+  availability picks at call time, so a cache is no longer spuriously
+  reported as corrupt across machines that differ in the optional
+  `digest` package; a missing `digest` for an `sha256`-recorded cache
+  now raises an actionable install error rather than a corruption error
+  (PSLR-mxohlxiq).
+
 - The `punycoder` dependency floor is raised to `>= 1.2.0`, the current
   release; `pslr`, `punycoder`, and `rurl` are co-maintained and each
   requires the current release of its sibling
