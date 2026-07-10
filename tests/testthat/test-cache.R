@@ -16,13 +16,13 @@ test_that("cache hits never change results", {
 
 test_that("the cache key includes the section", {
   psl_cache_clear(active_cache())
-  res <- psl_resolve_cores("example.com", "all")
+  res <- psl_resolve_cores(psl_default_engine(), "example.com", "all")
   expect_identical(active_cache()$n, 1L)
   # A different section is a distinct key, not a stale hit.
-  psl_resolve_cores("example.com", "icann")
+  psl_resolve_cores(psl_default_engine(), "example.com", "icann")
   expect_identical(active_cache()$n, 2L)
   # Re-querying an existing (host, section) is a hit: no new entry.
-  psl_resolve_cores("example.com", "all")
+  psl_resolve_cores(psl_default_engine(), "example.com", "all")
   expect_identical(active_cache()$n, 2L)
 })
 
@@ -48,13 +48,17 @@ test_that("the cache is bounded and evicts by full flush on overflow", {
   # Shrink the bound so a small batch trips eviction deterministically.
   cache$capacity <- 3L
   hosts <- c("a.com", "b.com", "c.com")
-  psl_resolve_cores(hosts, "all")
+  psl_resolve_cores(psl_default_engine(), hosts, "all")
   expect_lte(cache$n, 3L)
   # A fourth distinct host overflows the bound and triggers the flush.
-  psl_resolve_cores("d.com", "all")
+  psl_resolve_cores(psl_default_engine(), "d.com", "all")
   expect_lte(cache$n, 3L)
   # A batch larger than the whole capacity is matched but not cached.
-  res <- psl_resolve_cores(c("e.com", "f.com", "g.com", "h.com"), "all")
+  res <- psl_resolve_cores(
+    psl_default_engine(),
+    c("e.com", "f.com", "g.com", "h.com"),
+    "all"
+  )
   expect_identical(res$public_suffix, rep("com", 4L))
   expect_identical(cache$n, 0L)
 })

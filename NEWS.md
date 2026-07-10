@@ -29,6 +29,8 @@
 
 ## Internal
 
+* The global query functions now resolve a single process-wide default engine via `psl_default_engine()` and thread it explicitly through the internal match/cache path (`psl_query_cols` -> `psl_resolve_cores` -> `psl_match_records`), replacing the implicit global-state fetch; `psl_use()` and the refresh activation paths replace that default engine. Public signatures and behaviour are byte-identical (PSLR-cchcomkk).
+
 * Moved result-cache ownership into the `psl_engine`: each engine mints its own `new_psl_cache()`, so activating a list swaps the whole engine (starting cold) instead of clearing a shared global, and the cache key drops the now-redundant list-identity prefix (keyed on section + canonical host); public behaviour is byte-identical, with new engine-cache isolation tests (PSLR-bcgedhmy).
 
 * Modelled the active-list state as internal `psl_snapshot` (rules + metadata + source identity) and process-local `psl_engine` (snapshot + compiled matcher) objects, and unified the two cache-activation paths onto a shared `psl_load_cached_snapshot()` loader behind a single `psl_activate_snapshot()` choke-point; internal only, public behaviour byte-identical (PSLR-fvotbdti).
