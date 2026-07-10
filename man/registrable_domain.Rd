@@ -6,10 +6,10 @@
 \usage{
 registrable_domain(
   domain,
-  section = c("all", "icann", "private"),
-  output = c("ascii", "unicode"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  output = "ascii",
+  unknown = "default",
+  invalid = "na"
 )
 }
 \arguments{

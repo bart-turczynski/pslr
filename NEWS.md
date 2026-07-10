@@ -25,6 +25,8 @@
 
 ## Internal
 
+* The five public query functions and `psl_rules()` now carry scalar formal defaults validated by an internal `check_choice()`, dropping the `missing()`-based supplied-flag bookkeeping; argument handling and every result and error are unchanged (PSLR-adsnjbjg).
+
 * Consolidated the snapshot-metadata field schema behind a single owner: `new_psl_meta()` (construction/defaults), `validate_psl_meta()` (checked boundary), and `as_psl_version_df()` (the one-row `psl_version()` frame) all read one `psl_meta_fields` schema, replacing the field lists that were re-spelled in `R/matcher.R`, `R/metadata.R`, and `data-raw/update_psl.R`; output is byte-identical (PSLR-bnrbjhur).
 
 * Consolidated the two overlapping benchmark scripts into a single authoritative harness under `bench/` (shared fixtures/timing in `bench/helpers.R`), removed the unreferenced `inst/bench/match-bench.R`, and fixed two integrity defects: the "unique" corpus is now deterministic and exactly-n distinct (via the internal, unit-tested `psl_bench_unique_hosts()`), and every scenario resets its intended cache state inside each timed rep so a cold measurement is no longer contaminated by the previous rep's warm cache (PSLR-cefytpjr).

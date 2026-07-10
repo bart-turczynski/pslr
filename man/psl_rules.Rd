@@ -4,7 +4,7 @@
 \alias{psl_rules}
 \title{Rules of the active Public Suffix List}
 \usage{
-psl_rules(section = c("all", "icann", "private"))
+psl_rules(section = "all")
 }
 \arguments{
 \item{section}{Which rule sections to return: \code{"all"} (default), \code{"icann"},
