@@ -56,6 +56,14 @@
 
 ### Internal
 
+- Consolidated the snapshot-metadata field schema behind a single owner:
+  `new_psl_meta()` (construction/defaults), `validate_psl_meta()`
+  (checked boundary), and `as_psl_version_df()` (the one-row
+  [`psl_version()`](https://bart-turczynski.github.io/pslr/reference/psl_version.md)
+  frame) all read one `psl_meta_fields` schema, replacing the field
+  lists that were re-spelled in `R/matcher.R`, `R/metadata.R`, and
+  `data-raw/update_psl.R`; output is byte-identical (PSLR-bnrbjhur).
+
 - Consolidated the two overlapping benchmark scripts into a single
   authoritative harness under `bench/` (shared fixtures/timing in
   `bench/helpers.R`), removed the unreferenced

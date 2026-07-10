@@ -53,15 +53,15 @@ recompute it.
 psl_outdated()
 #> [1] FALSE
 #> attr(,"age_days")
-#> [1] 26.93671
+#> [1] 26.94429
 
 # The age in days is available without recomputing it:
 attr(psl_outdated(), "age_days")
-#> [1] 26.93671
+#> [1] 26.94429
 
 # Use a stricter threshold:
 psl_outdated(max_age = 30)
 #> [1] FALSE
 #> attr(,"age_days")
-#> [1] 26.93671
+#> [1] 26.94429
 ```
