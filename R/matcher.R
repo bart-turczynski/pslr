@@ -304,40 +304,53 @@ psl_match_structural <- function(matcher, cores, section_code) {
 # suffix depth < 1, or no registrant label) yields NA. Returns a list of
 # parallel column vectors (one per field, all `length(cores)`), passing the raw
 # `ps_start` / `rd_start` offsets through so `suffix_extract` can carry them.
-psl_derive_strings <- function(cores, structural) {
+psl_derive_strings <- function(
+  cores,
+  structural,
+  fields = psl_result_char_cols
+) {
   end <- nchar(cores)
   ps_start <- structural$ps_start
   rd_start <- structural$rd_start
   kind_code <- structural$kind_code
+  # `kind` and `rule_section` are always derived: each is a single vector index,
+  # and the `unknown = "na"` drop in psl_query_cols() reads `kind`.
   kind <- psl_kind_labels[kind_code + 1L]
   sec <- c("icann", "private")[structural$section_code + 1L] # NA code -> NA
+  has_ps <- !is.na(ps_start)
 
-  public_suffix <- ifelse(
-    is.na(ps_start),
-    NA_character_,
-    substr(cores, ps_start, end)
-  )
-  registrable_domain <- ifelse(
-    is.na(rd_start),
-    NA_character_,
-    substr(cores, rd_start, end)
-  )
+  # `rule` needs the suffix string (normal branch) and registrable string
+  # (exception branch), so derive those two heavy columns when requested OR when
+  # `rule` is requested; unrequested columns stay NA vectors so the return shape
+  # is unchanged.
+  want_rule <- "rule" %in% fields
+  public_suffix <- if ("public_suffix" %in% fields || want_rule) {
+    ifelse(is.na(ps_start), NA_character_, substr(cores, ps_start, end))
+  } else {
+    rep(NA_character_, length(cores))
+  }
+  registrable_domain <- if ("registrable_domain" %in% fields || want_rule) {
+    ifelse(is.na(rd_start), NA_character_, substr(cores, rd_start, end))
+  } else {
+    rep(NA_character_, length(cores))
+  }
 
   rule <- rep(NA_character_, length(cores))
-  # Only a valid public-suffix depth (ps_start present) carries a rule string;
-  # this mirrors derive_one()'s `depth < 1` guard returning NA for every field.
-  has_ps <- !is.na(ps_start)
-  is_normal <- has_ps & kind_code == 0L
-  is_wild <- has_ps & kind_code == 1L
-  is_exc <- has_ps & kind_code == 2L
-  is_def <- has_ps & kind_code == 3L
-  rule[is_normal] <- public_suffix[is_normal]
-  rule[is_wild] <- paste0(
-    "*.",
-    substr(cores[is_wild], structural$ps1_start[is_wild], end[is_wild])
-  )
-  rule[is_exc] <- paste0("!", registrable_domain[is_exc])
-  rule[is_def] <- "*"
+  if (want_rule) {
+    # Only a valid public-suffix depth (ps_start present) carries a rule string;
+    # this mirrors derive_one()'s `depth < 1` guard returning NA per field.
+    is_normal <- has_ps & kind_code == 0L
+    is_wild <- has_ps & kind_code == 1L
+    is_exc <- has_ps & kind_code == 2L
+    is_def <- has_ps & kind_code == 3L
+    rule[is_normal] <- public_suffix[is_normal]
+    rule[is_wild] <- paste0(
+      "*.",
+      substr(cores[is_wild], structural$ps1_start[is_wild], end[is_wild])
+    )
+    rule[is_exc] <- paste0("!", registrable_domain[is_exc])
+    rule[is_def] <- "*"
+  }
 
   list(
     public_suffix = public_suffix,
@@ -376,11 +389,21 @@ psl_derive_strings <- function(cores, structural) {
 #'   matches and its `$cache` serves and stores them.
 #' @param cores Character vector of canonical hosts (no terminal dot, no `NA`).
 #' @param section One of `"all"`, `"icann"`, `"private"`.
+#' @param fields Character subset of `psl_result_char_cols` naming the heavy
+#'   string columns to derive; defaults to all. The projection-independent
+#'   structural assembly and caching are unaffected -- only
+#'   `psl_derive_strings()` is selective, and the return shape is always the
+#'   full column set.
 #' @return A list of parallel column vectors, each `length(cores)`:
 #'   `public_suffix`, `registrable_domain`, `rule`, `kind`, `rule_section`,
 #'   `ps_depth`, and the byte offsets `ps_start` / `rd_start`.
 #' @noRd
-psl_resolve_cores <- function(engine, cores, section) {
+psl_resolve_cores <- function(
+  engine,
+  cores,
+  section,
+  fields = psl_result_char_cols
+) {
   if (length(cores) == 0L) {
     return(psl_empty_match_result())
   }
@@ -432,7 +455,7 @@ psl_resolve_cores <- function(engine, cores, section) {
   # Derive the string columns on top of the assembled offsets, over every unique
   # core at once. A hit's core equals `uniq[i]` (the key carries the host), so
   # this reproduces the strings that were cached under the old scheme exactly.
-  cols <- psl_derive_strings(uniq, structural)
+  cols <- psl_derive_strings(uniq, structural, fields)
 
   idx <- match(cores, uniq)
   lapply(cols, `[`, idx)

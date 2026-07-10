@@ -119,16 +119,26 @@ name_like <- function(out, domain) {
 # derived fields; `output` and terminal-dot restoration are left to the callers.
 # The `engine` is threaded in explicitly by the callers (each resolves the
 # default engine once) rather than fetched from the global state here.
-psl_query_cols <- function(engine, domain, section, unknown, invalid) {
+psl_query_cols <- function(
+  engine,
+  domain,
+  section,
+  unknown,
+  invalid,
+  fields = psl_result_char_cols
+) {
   canon <- psl_canonicalize(domain, invalid)
   n <- length(canon$input)
   valid <- canon$status == "ok"
 
   # The eight match columns start NA (via the RESULT schema) so invalid inputs
-  # stay NA; valid cores are resolved once and copied in column by column.
+  # stay NA; valid cores are resolved once and copied in column by column. Only
+  # the string columns named in `fields` are derived (kind/rule_section and the
+  # offsets are always present); the copy loop and the `unknown = "na"` drop
+  # below are shape-preserving, so NA-ing an unrequested column is inert.
   m <- psl_match_alloc(n)
   if (any(valid)) {
-    res <- psl_resolve_cores(engine, canon$core[valid], section)
+    res <- psl_resolve_cores(engine, canon$core[valid], section, fields)
     for (col in psl_result_cols) {
       m[[col]][valid] <- res[[col]]
     }
@@ -160,6 +170,32 @@ psl_query_cols <- function(engine, domain, section, unknown, invalid) {
     kind = m$kind,
     rule_section = m$rule_section
   )
+}
+
+# Shared body of the length-preserving single-string accessors
+# `public_suffix()` and `registrable_domain()`: they differ only in which
+# result column they read (`field`) and, via the same name, which `fields`
+# projection they request. Validates the common opts and `output`, resolves the
+# default engine, derives just `field`, restores the terminal root dot, decodes
+# A-labels to Unicode on demand, and re-attaches the names of `domain`.
+psl_query_vector <- function(domain, field, section, output, unknown, invalid) {
+  opts <- resolve_common_opts(section, unknown, invalid)
+  output <- check_choice(output, c("ascii", "unicode"), "output")
+
+  engine <- psl_default_engine()
+  cols <- psl_query_cols(
+    engine,
+    domain,
+    opts$section,
+    opts$unknown,
+    opts$invalid,
+    fields = field
+  )
+  out <- restore_root_dot(cols[[field]], cols$had_dot)
+  if (identical(output, "unicode")) {
+    out <- decode_ascii(out)
+  }
+  name_like(out, domain)
 }
 
 #' Public suffix of a host
@@ -209,22 +245,14 @@ public_suffix <- function(
   unknown = "default",
   invalid = "na"
 ) {
-  opts <- resolve_common_opts(section, unknown, invalid)
-  output <- check_choice(output, c("ascii", "unicode"), "output")
-
-  engine <- psl_default_engine()
-  cols <- psl_query_cols(
-    engine,
+  psl_query_vector(
     domain,
-    opts$section,
-    opts$unknown,
-    opts$invalid
+    "public_suffix",
+    section,
+    output,
+    unknown,
+    invalid
   )
-  out <- restore_root_dot(cols$public_suffix, cols$had_dot)
-  if (identical(output, "unicode")) {
-    out <- decode_ascii(out)
-  }
-  name_like(out, domain)
 }
 
 #' Registrable domain of a host
@@ -250,22 +278,14 @@ registrable_domain <- function(
   unknown = "default",
   invalid = "na"
 ) {
-  opts <- resolve_common_opts(section, unknown, invalid)
-  output <- check_choice(output, c("ascii", "unicode"), "output")
-
-  engine <- psl_default_engine()
-  cols <- psl_query_cols(
-    engine,
+  psl_query_vector(
     domain,
-    opts$section,
-    opts$unknown,
-    opts$invalid
+    "registrable_domain",
+    section,
+    output,
+    unknown,
+    invalid
   )
-  out <- restore_root_dot(cols$registrable_domain, cols$had_dot)
-  if (identical(output, "unicode")) {
-    out <- decode_ascii(out)
-  }
-  name_like(out, domain)
 }
 
 #' Is a host itself a public suffix?
@@ -302,7 +322,8 @@ is_public_suffix <- function(
     domain,
     opts$section,
     opts$unknown,
-    opts$invalid
+    opts$invalid,
+    fields = "public_suffix"
   )
   out <- rep(NA, length(domain))
   resolved <- !is.na(cols$public_suffix)
@@ -368,7 +389,8 @@ suffix_extract <- function(
     domain,
     opts$section,
     opts$unknown,
-    opts$invalid
+    opts$invalid,
+    fields = c("public_suffix", "registrable_domain")
   )
   host <- cols$host_ascii
   suffix <- restore_root_dot(cols$public_suffix, cols$had_dot)
@@ -439,7 +461,8 @@ public_suffix_rule <- function(
     domain,
     opts$section,
     opts$unknown,
-    opts$invalid
+    opts$invalid,
+    fields = c("public_suffix", "registrable_domain", "rule")
   )
   data.frame(
     input = cols$input,
