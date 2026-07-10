@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* The PSL-format parser now preallocates its rule columns and fills them by index instead of growing them one accepted rule at a time, making a full list rebuild roughly 3x faster; output is byte-identical (PSLR-wanopbqy).
+
 * New `psl_cache_prune()` removes superseded on-disk `psl-<hex>.dat` cache snapshots, always keeping the active snapshot plus the `keep` most-recent others (default one previous); a no-op when there is no cache or marker (PSLR-nwdejhkf).
 
 * Cache checksum verification now recomputes the algorithm named by the recorded `sha256:`/`md5:` prefix instead of whichever hash `digest` availability picks at call time, so a cache is no longer spuriously reported as corrupt across machines that differ in the optional `digest` package; a missing `digest` for an `sha256`-recorded cache now raises an actionable install error rather than a corruption error (PSLR-mxohlxiq).

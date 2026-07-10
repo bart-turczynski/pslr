@@ -65,6 +65,36 @@ test_that("comments, blank lines, and indented lines produce no rules", {
   expect_identical(rules$canonical_rule, "com")
 })
 
+test_that("preallocated storage matches explicit construction", {
+  # Guards the schema single-source-of-truth refactor: the finalized frame must
+  # match a hand-written data.frame in column names, order, and types.
+  rules <- parse_psl_lines(psl_doc(
+    icann = c("com", "*.kawasaki.jp"),
+    private = "!city.kawasaki.jp"
+  ))
+  expected <- data.frame(
+    line = c(2L, 3L, 6L),
+    raw = c("com", "*.kawasaki.jp", "!city.kawasaki.jp"),
+    section = c("icann", "icann", "private"),
+    kind = c("normal", "wildcard", "exception"),
+    canonical_rule = c("com", "*.kawasaki.jp", "!city.kawasaki.jp"),
+    canonical_key = c("com", "kawasaki.jp", "city.kawasaki.jp"),
+    labels = c(1L, 3L, 3L),
+    stringsAsFactors = FALSE
+  )
+  expect_identical(rules, expected)
+})
+
+test_that("zero-rule input yields the empty typed frame", {
+  empty <- parse_psl_lines(character(0))
+  expect_identical(empty, parse_psl_lines(psl_doc()))
+  expect_named(empty, psl_cols)
+  expect_identical(nrow(empty), 0L)
+  expect_type(empty$line, "integer")
+  expect_type(empty$labels, "integer")
+  expect_type(empty$raw, "character")
+})
+
 test_that("source order and line numbers are preserved", {
   rules <- parse_psl_lines(psl_doc(icann = c("", "com", "", "net")))
   expect_identical(rules$canonical_rule, c("com", "net"))
