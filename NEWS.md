@@ -29,6 +29,8 @@
 
 ## Internal
 
+* The session result cache now stores only compact integer structural columns (public-suffix depth, the three byte offsets, and the `kind`/`section` enum codes) rather than the derived strings; the user-facing `public_suffix`/`registrable_domain`/`rule`/`kind`/`rule_section` columns are reconstructed on read by a new `psl_derive_strings()` after cache assembly, splitting the result schema (`psl_result_cols`) from the compact cache schema (`psl_cache_cols`). Results are byte-identical (differential oracle and cache-on/off identity unchanged) (PSLR-muyzxbpl).
+
 * The global query functions now resolve a single process-wide default engine via `psl_default_engine()` and thread it explicitly through the internal match/cache path (`psl_query_cols` -> `psl_resolve_cores` -> `psl_match_records`), replacing the implicit global-state fetch; `psl_use()` and the refresh activation paths replace that default engine. Public signatures and behaviour are byte-identical (PSLR-cchcomkk).
 
 * Moved result-cache ownership into the `psl_engine`: each engine mints its own `new_psl_cache()`, so activating a list swaps the whole engine (starting cold) instead of clearing a shared global, and the cache key drops the now-redundant list-identity prefix (keyed on section + canonical host); public behaviour is byte-identical, with new engine-cache isolation tests (PSLR-bcgedhmy).

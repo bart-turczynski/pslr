@@ -11,15 +11,19 @@
 # never change a result. Switching the active list mints a fresh engine with a
 # fresh (empty) cache, so activation needs no explicit clear.
 #
-# Storage is columnar (PSLR-ffdsymhk). Instead of one R list per host, the cache
-# keeps a key -> integer-index env (`$idx`) alongside parallel column vectors
-# (`$public_suffix`, `$registrable_domain`, `$rule`, `$kind`, `$rule_section`,
-# `$ps_depth`, and the byte offsets `$ps_start` / `$rd_start`). A hit resolves
-# to a vector of indices via a single `mget()`, then reads each field by vector
-# subsetting -- no per-host R closures on the warm path. The offsets are carried
-# so P4's `suffix_extract` can be plumbed straight from the cache. The column
-# vectors grow by doubling (`$cap_vec` is the allocated length; `$n` the number
-# of live entries), giving amortized O(1) appends.
+# Storage is columnar (PSLR-ffdsymhk) and compact (PSLR-muyzxbpl). Instead of
+# one R list per host, the cache keeps a key -> integer-index env (`$idx`)
+# alongside parallel column vectors of the STRUCTURAL match result: the
+# public-suffix depth `$ps_depth`, the byte offsets `$ps_start` / `$rd_start` /
+# `$ps1_start`, and the enum codes `$kind_code` / `$section_code`. Every column
+# is a plain integer vector, so a cached entry is a handful of ints; the
+# user-facing string columns are reconstructed from these offsets on read
+# (`psl_derive_strings()`), never stored. A hit resolves to a vector of indices
+# via a single `mget()`, then reads each field by vector subsetting -- no
+# per-host R closures on the warm path. The offsets are carried so
+# `suffix_extract` can be plumbed straight from the cache. The column vectors
+# grow by doubling (`$cap_vec` is the allocated length; `$n` the number of live
+# entries), giving amortized O(1) appends.
 #
 # Eviction is a documented full flush: the cache holds at most
 # `psl_cache_capacity()` entries; when a store would exceed that bound the whole
@@ -43,21 +47,19 @@
 psl_cache_default_capacity <- 200000L
 
 # The names of the parallel column vectors held in a cache env, in a single
-# place so clear/grow/store/read stay in lockstep. Character columns plus the
-# two integer columns (`ps_depth` and the byte offsets).
-psl_cache_char_cols <- c(
-  "public_suffix",
-  "registrable_domain",
-  "rule",
-  "kind",
-  "rule_section"
+# place so clear/grow/store/read stay in lockstep. The cache stores only compact
+# integer STRUCTURAL columns -- the public-suffix depth, the three byte offsets,
+# and the two enum codes returned by `psl_match()`. The user-facing string
+# columns are derived on read (`psl_derive_strings()` in matcher.R), after cache
+# assembly, so they never need storing. Every cache column is integer.
+psl_cache_cols <- c(
+  "ps_depth",
+  "ps_start",
+  "rd_start",
+  "ps1_start",
+  "kind_code",
+  "section_code"
 )
-psl_cache_int_cols <- c("ps_depth", "ps_start", "rd_start")
-
-# All eight parallel match columns in one place, so every loop that walks the
-# columnar store (clear/grow/store here, plus the resolver in matcher.R) stays
-# in lockstep with the schema. Character columns first, then the integer ones.
-psl_cache_cols <- c(psl_cache_char_cols, psl_cache_int_cols)
 
 # Mint a fresh per-engine cache: an env holding the key -> index env, the
 # parallel column vectors, the current entry count, the allocated column length,
@@ -94,10 +96,7 @@ psl_cache_clear <- function(cache) {
   cache$idx <- new.env(parent = emptyenv())
   cache$n <- 0L
   cache$cap_vec <- 0L
-  for (col in psl_cache_char_cols) {
-    cache[[col]] <- character(0)
-  }
-  for (col in psl_cache_int_cols) {
+  for (col in psl_cache_cols) {
     cache[[col]] <- integer(0)
   }
   invisible(NULL)
