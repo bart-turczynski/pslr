@@ -150,6 +150,22 @@ test_that("psl_use('cache') reports a corrupt marker with remediation", {
   expect_error(psl_use("cache"), "psl_refresh\\(force = TRUE\\)")
 })
 
+test_that("psl_use('cache') rejects a readable but malformed marker", {
+  dir <- local_pslr_clean()
+  marker <- file.path(dir, "current.rds")
+  # A readable RDS that deserializes fine but is structurally wrong: `meta`
+  # lacks the identity fields the reader consumes. Left unchecked this would
+  # yield silent NULL `$` reads downstream instead of a clean corruption error.
+  saveRDS(list(dat_file = "psl-x.dat", meta = list()), marker)
+
+  expect_error(psl_use("cache"), "cache is corrupt")
+  expect_error(psl_use("cache"), "psl_refresh\\(force = TRUE\\)")
+
+  # A marker missing `dat_file` entirely is likewise rejected.
+  saveRDS(list(meta = list(checksum = "sha256:x")), marker)
+  expect_error(psl_use("cache"), "cache is corrupt")
+})
+
 test_that("an oversized download is rejected before publication", {
   dir <- local_pslr_clean()
   withr::local_options(

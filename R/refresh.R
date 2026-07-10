@@ -25,6 +25,13 @@ psl_cache_dir <- function() {
 # Path of the single commit marker that names the active cache snapshot.
 psl_cache_marker <- function() file.path(psl_cache_dir(), "current.rds")
 
+# Schema version stamped into newly written commit markers. It gives future
+# releases a migration seam: a reader can branch on the recorded version.
+# Markers written by earlier pslr releases omit the field entirely; the manifest
+# validator treats an absent version as a compatible legacy marker, so upgrading
+# never rejects a real cache already on disk.
+psl_manifest_version <- 1L
+
 # Source checksum with an algorithm prefix (PRD s7.4). Prefers SHA-256 via
 # `digest` to match the bundled snapshot; falls back to base-R MD5 so the cache
 # path works on a clean install without optional packages. The prefix
@@ -194,7 +201,11 @@ psl_publish_download <- function(tmp, rules, cache_dir) {
   )
   tmp_marker <- tempfile("pslr-cur-", tmpdir = cache_dir, fileext = ".rds")
   saveRDS(
-    list(dat_file = basename(dat_final), meta = meta),
+    list(
+      manifest_version = psl_manifest_version,
+      dat_file = basename(dat_final),
+      meta = meta
+    ),
     tmp_marker
   )
   psl_atomic_rename(tmp_marker, psl_cache_marker())
@@ -228,30 +239,73 @@ psl_activate_published <- function(published, activate) {
   invisible(NULL)
 }
 
+# Handle a corrupt commit marker per `on_corrupt`: "error" raises the pslr
+# cache-corruption error (base `stop(call. = FALSE)`, with remediation) used by
+# activation paths; "null" treats the marker as no cache so a forced refresh can
+# overwrite it. `detail` names the specific fault.
+psl_cache_corrupt <- function(on_corrupt, detail) {
+  if (identical(on_corrupt, "error")) {
+    stop(
+      sprintf(
+        "PSL cache is corrupt: %s. Run psl_refresh(force = TRUE).",
+        detail
+      ),
+      call. = FALSE
+    )
+  }
+  NULL
+}
+
+# A well-formed commit marker deserializes to a list naming an existing source
+# file (`dat_file`) plus a `meta` list carrying the identity fields the cache
+# reader consumes unchecked (`checksum`, `retrieved_at`, `size`). A readable but
+# structurally wrong marker -- missing `dat_file`, a short/absent `meta`, wrong
+# types -- would otherwise pass silently and turn into NULL `$` reads
+# downstream; validating here turns those into a clean corruption error. The
+# `manifest_version` field is intentionally not required: markers written by
+# earlier pslr releases omit it and stay valid.
+valid_psl_manifest <- function(x) {
+  is_scalar_string <- function(s) {
+    is.character(s) && length(s) == 1L && !is.na(s) && nzchar(s)
+  }
+  is.list(x) &&
+    is_scalar_string(x$dat_file) &&
+    is.list(x$meta) &&
+    is_scalar_string(x$meta$checksum) &&
+    is.character(x$meta$retrieved_at) &&
+    length(x$meta$retrieved_at) == 1L &&
+    is.numeric(x$meta$size) &&
+    length(x$meta$size) == 1L
+}
+
 # Read the cache commit marker, or NULL when no cache has been published.
-# A marker that exists but cannot be deserialized (corrupt/truncated bytes) is
-# handled per `on_corrupt`: "null" treats it as no cache (so a forced refresh
-# overwrites it instead of leaking a raw readRDS error), while "error" raises a
-# pslr cache-corruption error with remediation for activation paths.
+# A marker that exists but cannot be deserialized (corrupt/truncated bytes) or
+# that deserializes to a structurally malformed manifest is handled per
+# `on_corrupt`: "null" treats it as no cache (so a forced refresh overwrites it
+# instead of leaking a raw readRDS error or a later NULL `$` read), while
+# "error" raises a pslr cache-corruption error with remediation for activation
+# paths. Both faults funnel through the one `on_corrupt` handler.
 psl_cache_current <- function(on_corrupt = c("null", "error")) {
   on_corrupt <- match.arg(on_corrupt)
   marker <- psl_cache_marker()
   if (!file.exists(marker)) {
     return(NULL)
   }
-  tryCatch(
+  read_ok <- TRUE
+  manifest <- tryCatch(
     readRDS(marker),
     error = function(e) {
-      if (identical(on_corrupt, "error")) {
-        stop(
-          "PSL cache is corrupt: marker metadata is unreadable. ",
-          "Run psl_refresh(force = TRUE).",
-          call. = FALSE
-        )
-      }
+      read_ok <<- FALSE
       NULL
     }
   )
+  if (!read_ok) {
+    return(psl_cache_corrupt(on_corrupt, "marker metadata is unreadable"))
+  }
+  if (!valid_psl_manifest(manifest)) {
+    return(psl_cache_corrupt(on_corrupt, "marker metadata is malformed"))
+  }
+  manifest
 }
 
 # Default network downloader (PRD s7.4). Requires `curl` so the package can
