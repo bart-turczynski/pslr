@@ -32,18 +32,43 @@ psl_parse_abort <- function(reason, line = NULL) {
   stop(errorCondition(message, line = line, class = "pslr_parse_error"))
 }
 
-# Empty, correctly typed result used for zero-rule input.
-psl_empty_rules <- function() {
-  data.frame(
+# Single source of truth for the rule-table schema: an ordered, named list of
+# zero-length prototype vectors. The names fix the column order; each
+# prototype's type fixes the column type. Everything that materializes a rule
+# table -- preallocated parser storage, the zero-row result, and the finalized
+# data.frame -- derives its shape from here, so the schema is spelled out once.
+psl_rule_prototypes <- function() {
+  list(
     line = integer(0),
     raw = character(0),
     section = character(0),
     kind = character(0),
     canonical_rule = character(0),
     canonical_key = character(0),
-    labels = integer(0),
-    stringsAsFactors = FALSE
+    labels = integer(0)
   )
+}
+
+# Allocate typed, `n`-row storage as a named list of columns. Indexing each
+# zero-length prototype by `seq_len(n)` yields an `n`-long vector of the right
+# type (NA-filled for n > 0, empty for n == 0), so no per-column type spelling
+# is repeated here.
+new_psl_rules <- function(n = 0L) {
+  lapply(psl_rule_prototypes(), \(proto) proto[seq_len(n)])
+}
+
+# Trim preallocated storage `x` to its first `n` filled rows and assemble the
+# final base data.frame. Splicing the named columns as named arguments
+# reproduces the historical `data.frame(line = ..., raw = ..., ...)` call
+# exactly (column names, order, types, and default row names).
+finalize_psl_rules <- function(x, n) {
+  cols <- lapply(x, \(col) col[seq_len(n)])
+  do.call(data.frame, c(cols, list(stringsAsFactors = FALSE)))
+}
+
+# Empty, correctly typed result used for zero-rule input.
+psl_empty_rules <- function() {
+  finalize_psl_rules(new_psl_rules(0L), 0L)
 }
 
 # Strip a leading `!` exception marker. Returns list(kind, literal); aborts if
@@ -205,42 +230,6 @@ psl_build_rule_record <- function(token, section, number) {
   )
 }
 
-psl_rule_accumulator <- function() {
-  list(
-    line = integer(0),
-    raw = character(0),
-    section = character(0),
-    kind = character(0),
-    canonical_rule = character(0),
-    canonical_key = character(0),
-    labels = integer(0)
-  )
-}
-
-psl_append_rule <- function(out, record) {
-  out$line <- c(out$line, record$line)
-  out$raw <- c(out$raw, record$raw)
-  out$section <- c(out$section, record$section)
-  out$kind <- c(out$kind, record$kind)
-  out$canonical_rule <- c(out$canonical_rule, record$canonical_rule)
-  out$canonical_key <- c(out$canonical_key, record$canonical_key)
-  out$labels <- c(out$labels, record$labels)
-  out
-}
-
-psl_accumulator_df <- function(out) {
-  data.frame(
-    line = out$line,
-    raw = out$raw,
-    section = out$section,
-    kind = out$kind,
-    canonical_rule = out$canonical_rule,
-    canonical_key = out$canonical_key,
-    labels = out$labels,
-    stringsAsFactors = FALSE
-  )
-}
-
 #' Parse Public Suffix List source lines into a validated rule table
 #'
 #' Internal. Consumes a character vector of source lines (one PSL `.dat` line
@@ -261,7 +250,12 @@ parse_psl_lines <- function(lines) {
   psl_validate_source_lines(lines)
 
   n <- length(lines)
-  out <- psl_rule_accumulator()
+  # Preallocate one slot per source line -- an upper bound on accepted rules --
+  # and fill by a running index, so the columns never grow with `c()`. Trimmed
+  # to the real count by `finalize_psl_rules()` after the scan.
+  out <- new_psl_rules(n)
+  columns <- names(out)
+  count <- 0L
 
   section <- NA_character_
   # The official format carries exactly one complete ICANN section and one
@@ -295,14 +289,18 @@ parse_psl_lines <- function(lines) {
       psl_parse_abort("rule appears outside any ICANN or PRIVATE section", i)
     }
 
-    out <- psl_append_rule(out, psl_build_rule_record(token, section, i))
+    record <- psl_build_rule_record(token, section, i)
+    count <- count + 1L
+    for (col in columns) {
+      out[[col]][count] <- record[[col]]
+    }
   }
 
   if (!is.na(section)) {
     psl_parse_abort(sprintf("section '%s' is never closed", section), n)
   }
 
-  psl_accumulator_df(out)
+  finalize_psl_rules(out, count)
 }
 
 #' Read and parse a Public Suffix List `.dat` file
