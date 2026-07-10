@@ -77,6 +77,20 @@
 
 ### Internal
 
+- Moved result-cache ownership into the `psl_engine`: each engine mints
+  its own `new_psl_cache()`, so activating a list swaps the whole engine
+  (starting cold) instead of clearing a shared global, and the cache key
+  drops the now-redundant list-identity prefix (keyed on section +
+  canonical host); public behaviour is byte-identical, with new
+  engine-cache isolation tests (PSLR-bcgedhmy).
+
+- Modelled the active-list state as internal `psl_snapshot` (rules +
+  metadata + source identity) and process-local `psl_engine` (snapshot +
+  compiled matcher) objects, and unified the two cache-activation paths
+  onto a shared `psl_load_cached_snapshot()` loader behind a single
+  `psl_activate_snapshot()` choke-point; internal only, public behaviour
+  byte-identical (PSLR-fvotbdti).
+
 - The five public query functions and
   [`psl_rules()`](https://bart-turczynski.github.io/pslr/reference/psl_rules.md)
   now carry scalar formal defaults validated by an internal
