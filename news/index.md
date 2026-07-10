@@ -2,6 +2,11 @@
 
 ## pslr (development version)
 
+- The PSL-format parser now preallocates its rule columns and fills them
+  by index instead of growing them one accepted rule at a time, making a
+  full list rebuild roughly 3x faster; output is byte-identical
+  (PSLR-wanopbqy).
+
 - New
   [`psl_cache_prune()`](https://bart-turczynski.github.io/pslr/reference/psl_cache_prune.md)
   removes superseded on-disk `psl-<hex>.dat` cache snapshots, always
