@@ -21,6 +21,8 @@
 
 ## Internal
 
+* Consolidated the two overlapping benchmark scripts into a single authoritative harness under `bench/` (shared fixtures/timing in `bench/helpers.R`), removed the unreferenced `inst/bench/match-bench.R`, and fixed two integrity defects: the "unique" corpus is now deterministic and exactly-n distinct (via the internal, unit-tested `psl_bench_unique_hosts()`), and every scenario resets its intended cache state inside each timed rep so a cold measurement is no longer contaminated by the previous rep's warm cache (PSLR-cefytpjr).
+
 * Raised test coverage from 96% to 100% by exercising the previously-uncovered error and fallback branches across `refresh.R`, `matcher.R`, `cache.R`, `canonicalize.R`, `duplicates.R`, and `parser.R` (mocked downloader/`digest`/`curl`/`system.file` seams, crafted inputs); the one unreachable C++ epilogue brace in `matcher.cpp` is excluded with a `# nocov` marker. No behaviour change; the differential oracle is unchanged (#66).
 
 * Collapsed the repeated `section`/`unknown`/`invalid` option-validation preamble across the five exported query functions into a shared `resolve_common_opts()` helper, factored `suffix_extract()`'s byte-offset slicing into `psl_slice_registrant()`, and drove `psl_query_cols()`'s eight match columns off the shared schema (reusing `psl_match_alloc()`, now `NA`-filled). Clears the remaining `goodpractice` function-length findings for `R/query.R`; results are byte-identical (oracle unchanged) (#65).
