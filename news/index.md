@@ -51,6 +51,16 @@
 
 ### Internal
 
+- Consolidated the two overlapping benchmark scripts into a single
+  authoritative harness under `bench/` (shared fixtures/timing in
+  `bench/helpers.R`), removed the unreferenced
+  `inst/bench/match-bench.R`, and fixed two integrity defects: the
+  “unique” corpus is now deterministic and exactly-n distinct (via the
+  internal, unit-tested `psl_bench_unique_hosts()`), and every scenario
+  resets its intended cache state inside each timed rep so a cold
+  measurement is no longer contaminated by the previous rep’s warm cache
+  (PSLR-cefytpjr).
+
 - Raised test coverage from 96% to 100% by exercising the
   previously-uncovered error and fallback branches across `refresh.R`,
   `matcher.R`, `cache.R`, `canonicalize.R`, `duplicates.R`, and
