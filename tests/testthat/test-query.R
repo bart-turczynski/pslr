@@ -158,6 +158,34 @@ test_that("zero-length input returns a zero-length typed vector", {
   expect_identical(is_public_suffix(character(0)), logical(0))
 })
 
+test_that("psl_query_cols derives only the requested string columns", {
+  engine <- psl_default_engine()
+  cols <- psl_query_cols(
+    engine,
+    c("www.example.co.uk", "com"),
+    "all",
+    "default",
+    "na",
+    fields = "public_suffix"
+  )
+  # The requested column is derived correctly...
+  expect_identical(cols$public_suffix, c("co.uk", "com"))
+  # ...while the unrequested heavy string columns come back NA (not derived),
+  # even though the offsets/enum columns are always present.
+  expect_identical(cols$registrable_domain, c(NA_character_, NA_character_))
+  expect_identical(cols$rule, c(NA_character_, NA_character_))
+  expect_identical(cols$kind, c("normal", "normal"))
+})
+
+test_that("thin single-string wrappers are unchanged by projection", {
+  x <- c("www.example.co.uk", "foo.github.io", "com")
+  expect_identical(public_suffix(x), c("co.uk", "github.io", "com"))
+  expect_identical(
+    registrable_domain(x),
+    c("example.co.uk", "foo.github.io", NA_character_)
+  )
+})
+
 test_that("zero-length non-character input is a type error, not empty output", {
   expect_error(public_suffix(numeric(0)), "must be a character vector")
   expect_error(registrable_domain(integer(0)), "must be a character vector")

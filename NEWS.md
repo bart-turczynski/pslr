@@ -29,6 +29,8 @@
 
 ## Internal
 
+* Query internals are now projection-aware: a query derives only the result string columns it consumes instead of all five on every call. `psl_query_cols()`/`psl_resolve_cores()`/`psl_derive_strings()` take a `fields` projection (the cheap `kind`/`rule_section` enum columns and the byte offsets stay always-derived; the substr-heavy `public_suffix`/`registrable_domain`/`rule` columns are gated), the compact structural cache is untouched, and `public_suffix()`/`registrable_domain()` now share one internal `psl_query_vector()`. Every result is byte-identical (differential oracle unchanged) (PSLR-sscuznba).
+
 * The session result cache now stores only compact integer structural columns (public-suffix depth, the three byte offsets, and the `kind`/`section` enum codes) rather than the derived strings; the user-facing `public_suffix`/`registrable_domain`/`rule`/`kind`/`rule_section` columns are reconstructed on read by a new `psl_derive_strings()` after cache assembly, splitting the result schema (`psl_result_cols`) from the compact cache schema (`psl_cache_cols`). Results are byte-identical (differential oracle and cache-on/off identity unchanged) (PSLR-muyzxbpl).
 
 * The global query functions now resolve a single process-wide default engine via `psl_default_engine()` and thread it explicitly through the internal match/cache path (`psl_query_cols` -> `psl_resolve_cores` -> `psl_match_records`), replacing the implicit global-state fetch; `psl_use()` and the refresh activation paths replace that default engine. Public signatures and behaviour are byte-identical (PSLR-cchcomkk).
