@@ -56,3 +56,4 @@ reference:
     contents:
       - psl_refresh
       - psl_use
+      - psl_cache_prune
