@@ -10,6 +10,13 @@
   now raises an actionable install error rather than a corruption error
   (PSLR-mxohlxiq).
 
+- The cache commit marker is now structurally validated when read, so a
+  readable-but-malformed `current.rds` (missing `dat_file`, a short
+  `meta`, or wrong field types) raises the actionable cache-corruption
+  error advising `psl_refresh(force = TRUE)` instead of degrading into
+  silent `NULL` reads; newly written markers carry a schema version and
+  markers from earlier releases stay valid (PSLR-nwdejhkf).
+
 - The `punycoder` dependency floor is raised to `>= 1.2.0`, the current
   release; `pslr`, `punycoder`, and `rurl` are co-maintained and each
   requires the current release of its sibling
