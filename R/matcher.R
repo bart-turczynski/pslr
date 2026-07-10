@@ -156,16 +156,21 @@ new_psl_engine <- function(snapshot) {
   )
 }
 
-# Activate a validated rule table under `meta`. Everything that can fail (the
-# matcher build inside `new_psl_engine()`) happens before the single atomic
-# state swap, so a failed or interrupted activation leaves the previous active
-# engine usable (PRD s9). Switching the active list clears the result cache
-# (PRD s7.4, s8.2).
-psl_set_active <- function(rules, meta, rebuilt = FALSE) {
-  engine <- new_psl_engine(new_psl_snapshot(rules, meta, rebuilt = rebuilt))
-  the_matcher$state <- engine
+# The single activation choke-point: swap the active engine to one built from
+# `snapshot`. Everything that can fail (the matcher build inside
+# `new_psl_engine()`) happens before the single atomic state swap, so a failed
+# or interrupted activation leaves the previous active engine usable (PRD s9).
+# Switching the active list clears the result cache (PRD s7.4, s8.2).
+psl_activate_snapshot <- function(snapshot) {
+  the_matcher$state <- new_psl_engine(snapshot)
   psl_cache_clear()
-  invisible(meta)
+  invisible(snapshot$meta)
+}
+
+# Activate a validated rule table under `meta`. A thin wrapper that builds the
+# snapshot descriptor and hands it to the activation choke-point.
+psl_set_active <- function(rules, meta, rebuilt = FALSE) {
+  psl_activate_snapshot(new_psl_snapshot(rules, meta, rebuilt = rebuilt))
 }
 
 # Re-parse the bundled `.dat` source under the runtime normalizer. Used when the
