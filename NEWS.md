@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* New `psl_cache_prune()` removes superseded on-disk `psl-<hex>.dat` cache snapshots, always keeping the active snapshot plus the `keep` most-recent others (default one previous); a no-op when there is no cache or marker (PSLR-nwdejhkf).
+
 * Cache checksum verification now recomputes the algorithm named by the recorded `sha256:`/`md5:` prefix instead of whichever hash `digest` availability picks at call time, so a cache is no longer spuriously reported as corrupt across machines that differ in the optional `digest` package; a missing `digest` for an `sha256`-recorded cache now raises an actionable install error rather than a corruption error (PSLR-mxohlxiq).
 
 * The cache commit marker is now structurally validated when read, so a readable-but-malformed `current.rds` (missing `dat_file`, a short `meta`, or wrong field types) raises the actionable cache-corruption error advising `psl_refresh(force = TRUE)` instead of degrading into silent `NULL` reads; newly written markers carry a schema version and markers from earlier releases stay valid (PSLR-nwdejhkf).

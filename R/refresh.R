@@ -524,3 +524,88 @@ psl_use <- function(source = c("bundled", "cache", "path"), path = NULL) {
   # The remaining source is "path".
   psl_activate_path(path)
 }
+
+# Validate the retention count for psl_cache_prune(): a single non-negative
+# whole number. Mirrors the scalar-guard idiom of psl_validate_refresh_args().
+psl_validate_keep <- function(keep) {
+  if (
+    !is.numeric(keep) ||
+      length(keep) != 1L ||
+      is.na(keep) ||
+      keep < 0 ||
+      keep != trunc(keep)
+  ) {
+    stop("`keep` must be a single non-negative whole number.", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' Prune stale on-disk PSL cache snapshots
+#'
+#' Removes superseded `psl-<hex>.dat` snapshot files from the user cache
+#' directory, always keeping the snapshot named by the active commit marker plus
+#' the `keep` most-recent other snapshots by modification time.
+#'
+#' @details
+#' Each [psl_refresh()] that finds changed upstream content writes a new
+#' content-addressed snapshot and repoints the commit marker at it, but never
+#' removes the snapshot it supersedes; across many refreshes these accumulate.
+#' `psl_cache_prune()` reclaims that space.
+#'
+#' This operates on the *on-disk* snapshot files and is distinct from
+#' `psl_cache_clear()`, which flushes the in-memory match-result cache for the
+#' current session: pruning deletes stale `.dat` files from disk to reclaim
+#' space, whereas clearing only discards computed query results. Pruning never
+#' changes which list is active and never removes the active snapshot, so the
+#' active matcher and a later `psl_use("cache")` keep working.
+#'
+#' When there is no cache directory or no commit marker (nothing has been
+#' published yet), there is no active snapshot to anchor retention on, so the
+#' call is a no-op that returns an empty vector rather than an error.
+#'
+#' @param keep Number of previous snapshots to retain *in addition to* the
+#'   active one, as a single non-negative whole number. The default `1` keeps
+#'   the current snapshot and one previous snapshot (two `.dat` files). `0`
+#'   keeps only the active snapshot; the active snapshot is never removed, even
+#'   then.
+#'
+#' @return Invisibly, a character vector of the removed snapshot file paths,
+#'   empty when nothing was pruned.
+#' @seealso [psl_refresh()], which writes the snapshots this prunes;
+#'   [psl_use()].
+#' @examples
+#' if (interactive()) {
+#'   psl_refresh(force = TRUE)
+#'   psl_cache_prune() # keep the current snapshot and one previous
+#'   psl_cache_prune(keep = 0) # keep only the active snapshot
+#' }
+#' @export
+psl_cache_prune <- function(keep = 1L) {
+  psl_validate_keep(keep)
+  keep <- as.integer(keep)
+
+  cache_dir <- psl_cache_dir()
+  if (!dir.exists(cache_dir)) {
+    return(invisible(character(0)))
+  }
+  current <- psl_cache_current()
+  if (is.null(current)) {
+    return(invisible(character(0)))
+  }
+
+  snapshots <- list.files(
+    cache_dir,
+    pattern = "^psl-.*\\.dat$",
+    full.names = TRUE
+  )
+  # Everything except the active snapshot is a pruning candidate.
+  others <- snapshots[basename(snapshots) != current$dat_file]
+  if (length(others) <= keep) {
+    return(invisible(character(0)))
+  }
+  # Keep the `keep` most-recent candidates by mtime; remove the rest.
+  others <- others[order(file.mtime(others), decreasing = TRUE)]
+  stale <- others[(keep + 1L):length(others)]
+  unlink(stale)
+  invisible(stale)
+}
