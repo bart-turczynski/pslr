@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* Every query no longer pays for a per-call `strsplit()` to count host labels; `is_public_suffix()` now reads the matcher's `ps_start` offset, which is equivalent, so results are unchanged (PSLR-rriiajin).
+
 * The session result cache now pre-sizes its key index to the incoming unique-batch size, so a large cold batch fills a right-sized hash table in one shot instead of rehashing repeatedly during insertion; results are unchanged (PSLR-gtvggjmd).
 
 * The PSL-format parser now preallocates its rule columns and fills them by index instead of growing them one accepted rule at a time, making a full list rebuild roughly 3x faster; output is byte-identical (PSLR-wanopbqy).

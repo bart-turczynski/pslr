@@ -80,7 +80,7 @@ name_like <- function(out, domain) {
 # Build the shared per-element result columns used by every public function.
 # Returns a plain LIST of parallel column vectors (not a data.frame): canonical
 # ASCII (no terminal dot) match fields plus the input status, canonical host,
-# label counts, the `had_dot` flag, and the byte offsets `ps_start` / `rd_start`
+# the `had_dot` flag, and the byte offsets `ps_start` / `rd_start`
 # (used by `suffix_extract()` to slice out the registrant label and subdomain
 # without a per-row `strsplit`). Returning a bare list avoids the ~0.1-0.2 ms
 # `data.frame()` construction on every call: the length-preserving accessors
@@ -97,13 +97,11 @@ psl_query_cols <- function(domain, section, unknown, invalid) {
   # The eight match columns start NA (via the shared schema) so invalid inputs
   # stay NA; valid cores are resolved once and copied in column by column.
   m <- psl_match_alloc(n)
-  n_labels <- rep(NA_integer_, n)
   if (any(valid)) {
     res <- psl_resolve_cores(canon$core[valid], section)
     for (col in psl_cache_cols) {
       m[[col]][valid] <- res[[col]]
     }
-    n_labels[valid] <- lengths(strsplit(canon$core[valid], ".", fixed = TRUE))
   }
 
   # `unknown = "na"` erases the implicit-default rule's derived fields.
@@ -123,7 +121,6 @@ psl_query_cols <- function(domain, section, unknown, invalid) {
     had_dot = canon$had_dot,
     host_ascii = canon$host,
     core = canon$core,
-    n_labels = n_labels,
     ps_depth = m$ps_depth,
     ps_start = m$ps_start,
     rd_start = m$rd_start,
@@ -258,7 +255,7 @@ is_public_suffix <- function(
   cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
   out <- rep(NA, length(domain))
   resolved <- !is.na(cols$public_suffix)
-  out[resolved] <- cols$n_labels[resolved] == cols$ps_depth[resolved]
+  out[resolved] <- cols$ps_start[resolved] == 1L
   name_like(out, domain)
 }
 
