@@ -6,9 +6,9 @@
 # API, the unknown/output/invalid policies, extraction, rule inspection, and
 # the bounded result cache are layered on top of this in P4.
 
-# Session state: the active list (immutable after construction). Holds the
-# whole state -- compiled matcher pointer, cache identity, rule table, and
-# metadata -- in a single `$state` slot so activation swaps it with one atomic
+# Session state: the active `psl_engine` (immutable after construction). It
+# pairs a `psl_snapshot` (rules + metadata + source identity) with the compiled
+# matcher, held in a single `$state` slot so activation swaps it with one atomic
 # assignment and an interrupt can never expose a partially constructed matcher
 # (PRD s9). Built lazily from the bundled index on first use; never touches the
 # network or user cache.
@@ -119,19 +119,51 @@ psl_meta <- function(...) {
   new_psl_meta(...)
 }
 
-# Activate a validated rule table under `meta`. Everything that can fail (the
-# matcher build) happens before the single atomic state swap, so a failed or
-# interrupted activation leaves the previous active list usable (PRD s9).
-# Switching the active list clears the result cache (PRD s7.4, s8.2).
-psl_set_active <- function(rules, meta, rebuilt = FALSE) {
-  ptr <- build_matcher(rules)
-  the_matcher$state <- list(
-    ptr = ptr,
-    identity = meta$checksum,
-    rules = rules,
-    meta = meta,
-    rebuilt = rebuilt
+# A `psl_snapshot` is the immutable descriptor of a rule set plus its
+# provenance: the rule table, the `psl_version()`-shaped metadata, and the
+# source identity (checksum) that keys the result cache. `rebuilt` records
+# whether the rules were re-parsed from source under the runtime normalizer
+# because the shipped index's normalization profile mismatched (PRD s8.3); it
+# lives with the rules it describes. Internal, unexported.
+# @noRd
+new_psl_snapshot <- function(rules, meta, rebuilt = FALSE) {
+  structure(
+    list(
+      rules = rules,
+      meta = meta,
+      identity = meta$checksum,
+      rebuilt = rebuilt
+    ),
+    class = "psl_snapshot"
   )
+}
+
+# A `psl_engine` pairs a `psl_snapshot` with the compiled C++ matcher built from
+# its rules. The engine is PROCESS-LOCAL: the matcher is an external pointer
+# that does not serialize across sessions or parallel workers. Only the snapshot
+# descriptor is serializable; a restore would rebuild the pointer from the
+# snapshot's rules. (No serialization code lives here yet.) A later unit will
+# also give the engine ownership of the result cache; today the cache stays
+# global (see `psl_cache_env`). Internal, unexported.
+# @noRd
+new_psl_engine <- function(snapshot) {
+  structure(
+    list(
+      snapshot = snapshot,
+      matcher = build_matcher(snapshot$rules)
+    ),
+    class = "psl_engine"
+  )
+}
+
+# Activate a validated rule table under `meta`. Everything that can fail (the
+# matcher build inside `new_psl_engine()`) happens before the single atomic
+# state swap, so a failed or interrupted activation leaves the previous active
+# engine usable (PRD s9). Switching the active list clears the result cache
+# (PRD s7.4, s8.2).
+psl_set_active <- function(rules, meta, rebuilt = FALSE) {
+  engine <- new_psl_engine(new_psl_snapshot(rules, meta, rebuilt = rebuilt))
+  the_matcher$state <- engine
   psl_cache_clear()
   invisible(meta)
 }
@@ -174,7 +206,7 @@ activate_bundled <- function() {
   psl_set_active(rules, meta, rebuilt = mismatch)
 }
 
-# The full active-list state, lazily initialised from the bundled index.
+# The active `psl_engine`, lazily initialised from the bundled index.
 active_state <- function() {
   if (is.null(the_matcher$state)) {
     activate_bundled()
@@ -182,16 +214,19 @@ active_state <- function() {
   the_matcher$state
 }
 
+# The active engine's snapshot descriptor (rules, metadata, source identity).
+active_snapshot <- function() active_state()$snapshot
+
 # The active matcher pointer (PRD s8.2).
-active_matcher <- function() active_state()$ptr
+active_matcher <- function() active_state()$matcher
 
 # Stable identity of the active list, used in the result-cache key. For the
 # bundled and cache lists it is the source-snapshot checksum.
-active_list_identity <- function() active_state()$identity
+active_list_identity <- function() active_snapshot()$identity
 
 # Metadata and rule table of the active list, for psl_version() / psl_rules().
-active_meta <- function() active_state()$meta
-active_rules <- function() active_state()$rules
+active_meta <- function() active_snapshot()$meta
+active_rules <- function() active_snapshot()$rules
 
 # Allocate the eight parallel match columns, typed and named per the shared
 # cache schema (`psl_cache_char_cols` character, `psl_cache_int_cols` integer),
