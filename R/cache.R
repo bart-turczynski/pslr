@@ -1,10 +1,15 @@
-# Bounded session cache for canonical match results (PRD s8.2).
+# Bounded per-engine cache for canonical match results (PRD s8.2).
 #
-# Keyed by canonical host + active-list identity + section, the cache stores
-# only canonical ASCII match results and rule metadata. The `unknown` policy,
-# `output = "unicode"` decoding, and terminal-dot restoration are all applied
-# *after* retrieval, so they are intentionally not part of the key and the cache
-# can never change a result. Switching the active list clears the cache.
+# The cache is a plain columnar env minted by `new_psl_cache()` and owned by the
+# `psl_engine` that holds the matcher it caches for; every function here takes
+# that env as its explicit first argument. Because a cache belongs to exactly
+# one engine (one rule set), it can never mix snapshots, so the key is just the
+# canonical host + section -- no list identity. The cache stores only canonical
+# ASCII match results and rule metadata. The `unknown` policy, `output =
+# "unicode"` decoding, and terminal-dot restoration are all applied *after*
+# retrieval, so they are intentionally not part of the key and the cache can
+# never change a result. Switching the active list mints a fresh engine with a
+# fresh (empty) cache, so activation needs no explicit clear.
 #
 # Storage is columnar (PSLR-ffdsymhk). Instead of one R list per host, the cache
 # keeps a key -> integer-index env (`$idx`) alongside parallel column vectors
@@ -23,9 +28,9 @@
 # discarding warm entries on overflow. A batch larger than the capacity is
 # matched but not cached.
 
-# Default maximum number of (host, list, section) records retained at once. The
-# effective bound lives in `psl_cache_env$capacity` so it stays mutable (package
-# bindings are locked); this constant only seeds it.
+# Default maximum number of (host, section) records retained at once. The
+# effective bound lives in the cache env's `$capacity` so it stays mutable
+# (package bindings are locked); this constant only seeds it.
 #
 # Raised 50000 -> 200000 (PSLR-ynbfnhkp) now that P2-P4 made each entry cheap:
 # the columnar store measures ~80 bytes/entry (15.9 MB for a full 200000-entry
@@ -37,7 +42,7 @@
 # full-flush semantics are unchanged.
 psl_cache_default_capacity <- 200000L
 
-# The names of the parallel column vectors held in `psl_cache_env`, in a single
+# The names of the parallel column vectors held in a cache env, in a single
 # place so clear/grow/store/read stay in lockstep. Character columns plus the
 # two integer columns (`ps_depth` and the byte offsets).
 psl_cache_char_cols <- c(
@@ -54,48 +59,62 @@ psl_cache_int_cols <- c("ps_depth", "ps_start", "rd_start")
 # in lockstep with the schema. Character columns first, then the integer ones.
 psl_cache_cols <- c(psl_cache_char_cols, psl_cache_int_cols)
 
-# Session state: the key -> index env, the parallel column vectors, the current
-# entry count, the allocated column length, and the effective capacity bound.
-psl_cache_env <- new.env(parent = emptyenv())
-
-# Current capacity bound, seeded from the default on first use.
-psl_cache_capacity <- function() {
-  if (is.null(psl_cache_env$capacity)) {
-    psl_cache_env$capacity <- psl_cache_default_capacity
-  }
-  psl_cache_env$capacity
+# Mint a fresh per-engine cache: an env holding the key -> index env, the
+# parallel column vectors, the current entry count, the allocated column length,
+# and the effective capacity bound. The store is initialised lazily (via
+# `psl_cache_ensure()` / `psl_cache_clear()`), so a freshly minted cache carries
+# only its capacity seed until first use. Each `psl_engine` owns one of these.
+new_psl_cache <- function() {
+  cache <- new.env(parent = emptyenv())
+  cache$capacity <- psl_cache_default_capacity
+  # A freshly minted cache is empty: `$n == 0` is observable immediately (a
+  # just-activated list reads as cold), while the columnar store (`$idx` and the
+  # column vectors) stays lazily initialised on first use via
+  # `psl_cache_ensure`.
+  cache$n <- 0L
+  cache
 }
 
-#' Drop every cached match result
+# Current capacity bound, seeded from the default on first use.
+psl_cache_capacity <- function(cache) {
+  if (is.null(cache$capacity)) {
+    cache$capacity <- psl_cache_default_capacity
+  }
+  cache$capacity
+}
+
+#' Drop every cached match result in `cache`
 #'
-#' Called on list activation (PRD s7.4, s8.2) and lazily before first use.
-#' Resets the key env and every column vector atomically (PRD s7.4).
+#' Resets an existing cache env in place: the key env and every column vector
+#' are cleared atomically. A fresh engine already carries an empty cache, so
+#' activation does not call this; it is kept to reset a live cache (capacity
+#' overflow, benchmark resets, tests).
 #' @noRd
-psl_cache_clear <- function() {
-  psl_cache_env$idx <- new.env(parent = emptyenv())
-  psl_cache_env$n <- 0L
-  psl_cache_env$cap_vec <- 0L
+psl_cache_clear <- function(cache) {
+  cache$idx <- new.env(parent = emptyenv())
+  cache$n <- 0L
+  cache$cap_vec <- 0L
   for (col in psl_cache_char_cols) {
-    psl_cache_env[[col]] <- character(0)
+    cache[[col]] <- character(0)
   }
   for (col in psl_cache_int_cols) {
-    psl_cache_env[[col]] <- integer(0)
+    cache[[col]] <- integer(0)
   }
   invisible(NULL)
 }
 
 # Ensure the columnar store exists before a get/put without forcing a load-time
 # init.
-psl_cache_ensure <- function() {
-  if (is.null(psl_cache_env$idx)) {
-    psl_cache_clear()
+psl_cache_ensure <- function(cache) {
+  if (is.null(cache$idx)) {
+    psl_cache_clear(cache)
   }
 }
 
 # Ensure the column vectors can hold at least `need` entries, doubling the
 # allocated length (`length<-` preserves existing values and NA-pads the tail).
-psl_cache_grow <- function(need) {
-  cur <- psl_cache_env$cap_vec
+psl_cache_grow <- function(cache, need) {
+  cur <- cache$cap_vec
   if (need <= cur) {
     return(invisible(NULL))
   }
@@ -104,35 +123,35 @@ psl_cache_grow <- function(need) {
     new_cap <- new_cap * 2L
   }
   for (col in psl_cache_cols) {
-    length(psl_cache_env[[col]]) <- new_cap
+    length(cache[[col]]) <- new_cap
   }
-  psl_cache_env$cap_vec <- new_cap
+  cache$cap_vec <- new_cap
   invisible(NULL)
+}
+
+# Look up the cache slot index for each key, or all-NA when the escape hatch
+# (`options(pslr.cache = FALSE)`) is set. A miss (key absent) is NA_integer_.
+psl_cache_lookup <- function(cache, keys, cache_on) {
+  if (!cache_on) {
+    return(rep(NA_integer_, length(keys)))
+  }
+  unlist(
+    mget(keys, envir = cache$idx, ifnotfound = list(NA_integer_)),
+    use.names = FALSE
+  )
 }
 
 # Store records (a list of parallel column vectors) under already-composed keys,
 # honouring the capacity bound. Appends into the column vectors and records each
 # key -> slot mapping in the index env.
-# Look up the cache slot index for each key, or all-NA when the escape hatch
-# (`options(pslr.cache = FALSE)`) is set. A miss (key absent) is NA_integer_.
-psl_cache_lookup <- function(keys, cache_on) {
-  if (!cache_on) {
-    return(rep(NA_integer_, length(keys)))
-  }
-  unlist(
-    mget(keys, envir = psl_cache_env$idx, ifnotfound = list(NA_integer_)),
-    use.names = FALSE
-  )
-}
-
-psl_cache_store <- function(keys, records) {
+psl_cache_store <- function(cache, keys, records) {
   m <- length(keys)
   if (m == 0L) {
     return(invisible(NULL))
   }
-  capacity <- psl_cache_capacity()
-  if (psl_cache_env$n + m > capacity) {
-    psl_cache_clear()
+  capacity <- psl_cache_capacity(cache)
+  if (cache$n + m > capacity) {
+    psl_cache_clear(cache)
     if (m > capacity) {
       return(invisible(NULL))
     }
@@ -142,20 +161,20 @@ psl_cache_store <- function(keys, records) {
   # hash env's bucket count is fixed at creation, so only (re)size a fresh
   # (empty) index -- never a populated one. The hint is bounded below by R's
   # default size (tiny scalar calls stay cheap) and above by capacity.
-  if (psl_cache_env$n == 0L) {
-    psl_cache_env$idx <- new.env(
+  if (cache$n == 0L) {
+    cache$idx <- new.env(
       parent = emptyenv(),
       size = min(max(m, 29L), capacity)
     )
   }
-  psl_cache_grow(psl_cache_env$n + m)
-  slots <- psl_cache_env$n + seq_len(m)
+  psl_cache_grow(cache, cache$n + m)
+  slots <- cache$n + seq_len(m)
   for (col in psl_cache_cols) {
-    psl_cache_env[[col]][slots] <- records[[col]]
+    cache[[col]][slots] <- records[[col]]
   }
   mapping <- as.list(slots)
   names(mapping) <- keys
-  list2env(mapping, envir = psl_cache_env$idx)
-  psl_cache_env$n <- psl_cache_env$n + m
+  list2env(mapping, envir = cache$idx)
+  cache$n <- cache$n + m
   invisible(NULL)
 }

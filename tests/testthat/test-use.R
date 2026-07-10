@@ -109,7 +109,7 @@ test_that("switching lists clears the match-result cache", {
   local_pslr_clean()
   psl_use("bundled")
   public_suffix("www.example.com") # populate the cache
-  expect_gt(psl_cache_env$n, 0L)
+  expect_gt(active_cache()$n, 0L)
   psl_use("path", path = bundled_dat_path())
-  expect_identical(psl_cache_env$n, 0L)
+  expect_identical(active_cache()$n, 0L)
 })

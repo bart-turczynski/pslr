@@ -42,8 +42,8 @@ psl_bench_dupheavy_hosts <- function(n, pool_size = 1000L) {
 
 # Cold-cache reset used by the harness before each timed cold rep, wrapped as a
 # named helper so a test can assert it actually empties the in-memory cache
-# (`psl_cache_env$n == 0`) rather than trusting the bench to reset state.
+# (`active_cache()$n == 0`) rather than trusting the bench to reset state.
 psl_bench_reset_cache <- function() {
-  psl_cache_clear()
+  psl_cache_clear(active_cache())
   invisible(NULL)
 }
