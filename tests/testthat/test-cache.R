@@ -107,3 +107,17 @@ test_that("storing an empty batch is a no-op", {
   expect_null(psl_cache_store(character(0), list()))
   expect_identical(psl_cache_env$n, 0L)
 })
+
+test_that("a large cold batch pre-sizes the index and stays retrievable", {
+  psl_cache_clear()
+  # A batch well past a default-sized (29-bucket) hash table, but under the
+  # capacity bound, so it is cached rather than flushed.
+  hosts <- paste0("host", seq_len(5000L), ".example.com")
+  cold <- public_suffix(hosts)
+  # Every distinct key is stored: the entry count equals the distinct count.
+  expect_identical(psl_cache_env$n, length(hosts))
+  # A warm re-query is served from the pre-sized index, byte-identical.
+  warm <- public_suffix(hosts)
+  expect_identical(warm, cold)
+  expect_identical(warm, rep("com", length(hosts)))
+})
