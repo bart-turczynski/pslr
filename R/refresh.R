@@ -155,10 +155,17 @@ psl_cache_meta <- function(dat, current) {
   )
 }
 
+# Build the snapshot descriptor for a validated cached source: read and validate
+# the cached `.dat`, pair it with the marker-derived metadata. The shared loader
+# behind both cache-activation paths.
+psl_load_cached_snapshot <- function(dat, current) {
+  new_psl_snapshot(psl_load_source(dat, "cache"), psl_cache_meta(dat, current))
+}
+
 psl_cache_version <- function(dat, current, activate = FALSE) {
   meta <- psl_cache_meta(dat, current)
   if (activate) {
-    psl_set_active(psl_load_source(dat, "cache"), meta)
+    psl_activate_snapshot(psl_load_cached_snapshot(dat, current))
   }
   psl_version_df(meta)
 }
@@ -441,8 +448,7 @@ psl_activate_cache <- function() {
       call. = FALSE
     )
   }
-  meta <- psl_cache_meta(dat, current)
-  psl_set_active(psl_load_source(dat, "cache"), meta)
+  psl_activate_snapshot(psl_load_cached_snapshot(dat, current))
   invisible(psl_version())
 }
 
