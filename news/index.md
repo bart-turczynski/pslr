@@ -2,6 +2,11 @@
 
 ## pslr (development version)
 
+- The session result cache now pre-sizes its key index to the incoming
+  unique-batch size, so a large cold batch fills a right-sized hash
+  table in one shot instead of rehashing repeatedly during insertion;
+  results are unchanged (PSLR-gtvggjmd).
+
 - The PSL-format parser now preallocates its rule columns and fills them
   by index instead of growing them one accepted rule at a time, making a
   full list rebuild roughly 3x faster; output is byte-identical
