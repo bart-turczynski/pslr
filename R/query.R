@@ -117,7 +117,9 @@ name_like <- function(out, domain) {
 # `public_suffix_rule()` pay for a `data.frame()` -- once, at the end. The
 # `unknown = "na"` policy is applied here by erasing the implicit-default rule's
 # derived fields; `output` and terminal-dot restoration are left to the callers.
-psl_query_cols <- function(domain, section, unknown, invalid) {
+# The `engine` is threaded in explicitly by the callers (each resolves the
+# default engine once) rather than fetched from the global state here.
+psl_query_cols <- function(engine, domain, section, unknown, invalid) {
   canon <- psl_canonicalize(domain, invalid)
   n <- length(canon$input)
   valid <- canon$status == "ok"
@@ -126,7 +128,7 @@ psl_query_cols <- function(domain, section, unknown, invalid) {
   # stay NA; valid cores are resolved once and copied in column by column.
   m <- psl_match_alloc(n)
   if (any(valid)) {
-    res <- psl_resolve_cores(canon$core[valid], section)
+    res <- psl_resolve_cores(engine, canon$core[valid], section)
     for (col in psl_cache_cols) {
       m[[col]][valid] <- res[[col]]
     }
@@ -210,7 +212,14 @@ public_suffix <- function(
   opts <- resolve_common_opts(section, unknown, invalid)
   output <- check_choice(output, c("ascii", "unicode"), "output")
 
-  cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
+  engine <- psl_default_engine()
+  cols <- psl_query_cols(
+    engine,
+    domain,
+    opts$section,
+    opts$unknown,
+    opts$invalid
+  )
   out <- restore_root_dot(cols$public_suffix, cols$had_dot)
   if (identical(output, "unicode")) {
     out <- decode_ascii(out)
@@ -244,7 +253,14 @@ registrable_domain <- function(
   opts <- resolve_common_opts(section, unknown, invalid)
   output <- check_choice(output, c("ascii", "unicode"), "output")
 
-  cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
+  engine <- psl_default_engine()
+  cols <- psl_query_cols(
+    engine,
+    domain,
+    opts$section,
+    opts$unknown,
+    opts$invalid
+  )
   out <- restore_root_dot(cols$registrable_domain, cols$had_dot)
   if (identical(output, "unicode")) {
     out <- decode_ascii(out)
@@ -280,7 +296,14 @@ is_public_suffix <- function(
 ) {
   opts <- resolve_common_opts(section, unknown, invalid)
 
-  cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
+  engine <- psl_default_engine()
+  cols <- psl_query_cols(
+    engine,
+    domain,
+    opts$section,
+    opts$unknown,
+    opts$invalid
+  )
   out <- rep(NA, length(domain))
   resolved <- !is.na(cols$public_suffix)
   out[resolved] <- cols$ps_start[resolved] == 1L
@@ -339,7 +362,14 @@ suffix_extract <- function(
   opts <- resolve_common_opts(section, unknown, invalid)
   output <- check_choice(output, c("ascii", "unicode"), "output")
 
-  cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
+  engine <- psl_default_engine()
+  cols <- psl_query_cols(
+    engine,
+    domain,
+    opts$section,
+    opts$unknown,
+    opts$invalid
+  )
   host <- cols$host_ascii
   suffix <- restore_root_dot(cols$public_suffix, cols$had_dot)
   registrable <- restore_root_dot(cols$registrable_domain, cols$had_dot)
@@ -403,7 +433,14 @@ public_suffix_rule <- function(
 ) {
   opts <- resolve_common_opts(section, unknown, invalid)
 
-  cols <- psl_query_cols(domain, opts$section, opts$unknown, opts$invalid)
+  engine <- psl_default_engine()
+  cols <- psl_query_cols(
+    engine,
+    domain,
+    opts$section,
+    opts$unknown,
+    opts$invalid
+  )
   data.frame(
     input = cols$input,
     host_ascii = cols$host_ascii,
