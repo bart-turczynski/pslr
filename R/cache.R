@@ -137,6 +137,17 @@ psl_cache_store <- function(keys, records) {
       return(invisible(NULL))
     }
   }
+  # Pre-size the key index to the incoming batch so a large cold batch fills a
+  # right-sized hash table in one shot instead of rehashing on every insert. A
+  # hash env's bucket count is fixed at creation, so only (re)size a fresh
+  # (empty) index -- never a populated one. The hint is bounded below by R's
+  # default size (tiny scalar calls stay cheap) and above by capacity.
+  if (psl_cache_env$n == 0L) {
+    psl_cache_env$idx <- new.env(
+      parent = emptyenv(),
+      size = min(max(m, 29L), capacity)
+    )
+  }
   psl_cache_grow(psl_cache_env$n + m)
   slots <- psl_cache_env$n + seq_len(m)
   for (col in psl_cache_cols) {
