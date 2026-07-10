@@ -37,6 +37,43 @@ psl_source_checksum <- function(path) {
   }
 }
 
+# Compute one specific checksum algorithm for algorithm-directed verification.
+# Unlike `psl_source_checksum()` -- which picks whatever hash is available when
+# RECORDING -- this reproduces the exact algorithm a checksum was recorded with,
+# so verification compares like with like. "sha256" needs the optional `digest`
+# package; verifying a sha256-recorded cache on a machine that lacks `digest` is
+# a missing dependency, not corruption, so raise an actionable install error
+# rather than a spurious mismatch.
+psl_checksum <- function(path, algorithm) {
+  if (identical(algorithm, "sha256")) {
+    if (!requireNamespace("digest", quietly = TRUE)) {
+      stop(
+        "This PSL cache recorded a sha256 checksum, which needs the 'digest' ",
+        "package to verify; install it with install.packages(\"digest\").",
+        call. = FALSE
+      )
+    }
+    paste0("sha256:", digest::digest(file = path, algo = "sha256"))
+  } else if (identical(algorithm, "md5")) {
+    paste0("md5:", unname(tools::md5sum(path)))
+  } else {
+    stop(
+      sprintf("unsupported checksum algorithm: %s", algorithm),
+      call. = FALSE
+    )
+  }
+}
+
+# Verify a file against a recorded, algorithm-prefixed checksum. Recomputes the
+# SAME algorithm named by the prefix and compares, so a match/mismatch reflects
+# genuine content -- never which optional package happens to be installed. When
+# the recorded algorithm's implementation is unavailable, `psl_checksum()`
+# raises the actionable dependency error rather than reporting a false mismatch.
+psl_verify_checksum <- function(path, expected) {
+  algorithm <- sub(":.*$", "", expected)
+  identical(psl_checksum(path, algorithm), expected)
+}
+
 # Atomic-as-possible rename within the cache directory. A same-filesystem rename
 # is atomic on POSIX; if the destination exists (Windows cannot rename onto an
 # existing file) it is removed first and the rename retried.
@@ -97,7 +134,7 @@ psl_reusable_cache_path <- function(current, cache_dir) {
   fresh <- difftime(Sys.time(), retrieved_at, units = "hours") < 24
   dat <- file.path(cache_dir, current$dat_file)
   valid <- file.exists(dat) &&
-    identical(psl_source_checksum(dat), current$meta$checksum)
+    psl_verify_checksum(dat, current$meta$checksum)
   if (fresh && valid) dat else NA_character_
 }
 
@@ -141,7 +178,7 @@ psl_publish_download <- function(tmp, rules, cache_dir) {
   dat_final <- file.path(cache_dir, paste0("psl-", hex, ".dat"))
   if (
     file.exists(dat_final) &&
-      identical(psl_source_checksum(dat_final), checksum)
+      psl_verify_checksum(dat_final, checksum)
   ) {
     unlink(tmp)
   } else {
@@ -343,7 +380,7 @@ psl_activate_cache <- function() {
       call. = FALSE
     )
   }
-  if (!identical(psl_source_checksum(dat), current$meta$checksum)) {
+  if (!psl_verify_checksum(dat, current$meta$checksum)) {
     stop(
       "PSL cache is corrupt: checksum mismatch. ",
       "Run psl_refresh(force = TRUE).",
