@@ -8,7 +8,7 @@
 test_that("a matching profile uses the shipped index without rebuilding", {
   local_pslr_clean()
   psl_use("bundled")
-  expect_false(the_matcher$state$rebuilt)
+  expect_false(the_matcher$state$snapshot$rebuilt)
 })
 
 test_that("a mismatched Unicode version rebuilds from source", {
@@ -24,7 +24,7 @@ test_that("a mismatched Unicode version rebuilds from source", {
     }
   )
   psl_use("bundled")
-  expect_true(the_matcher$state$rebuilt)
+  expect_true(the_matcher$state$snapshot$rebuilt)
   # The active matcher still resolves correctly after the in-memory rebuild.
   expect_identical(public_suffix("a.b.example.co.uk"), "co.uk")
   expect_identical(public_suffix("foo.github.io"), "github.io")
