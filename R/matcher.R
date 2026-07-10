@@ -245,61 +245,96 @@ active_list_identity <- function() active_snapshot()$identity
 active_meta <- function() active_snapshot()$meta
 active_rules <- function() active_snapshot()$rules
 
-# Allocate the eight parallel match columns, typed and named per the shared
-# cache schema (`psl_cache_char_cols` character, `psl_cache_int_cols` integer),
-# each `NA`-filled and of length `n`. Keeping this schema-driven means the
-# resolver and the columnar cache never drift apart. The `NA` fill is what the
-# query builder (`psl_query_cols()`) relies on for invalid inputs; the resolver
-# overwrites every slot (each core is either a hit or a miss), so the fill is
-# inert there.
+# The user-facing RESULT schema, kept separate from the compact cache schema
+# (`psl_cache_cols`, all integer, in R/cache.R). A resolved match is returned as
+# these eight parallel columns: five derived strings plus the three integer
+# fields the accessors read directly (`ps_depth` and the two byte offsets). The
+# resolver assembles the compact structural columns first, then derives the
+# strings on top, so these two schemas describe the two ends of one pipeline.
+psl_result_char_cols <- c(
+  "public_suffix",
+  "registrable_domain",
+  "rule",
+  "kind",
+  "rule_section"
+)
+psl_result_int_cols <- c("ps_depth", "ps_start", "rd_start")
+psl_result_cols <- c(psl_result_char_cols, psl_result_int_cols)
+
+# Allocate the eight parallel RESULT columns, typed and named per the RESULT
+# schema (character strings + integer offsets), each `NA`-filled and of length
+# `n`. Keeping this schema-driven means the resolver and the query builder never
+# drift apart. The `NA` fill is what the query builder (`psl_query_cols()`)
+# relies on for invalid inputs; the resolver overwrites every slot (each core is
+# either a hit or a miss), so the fill is inert there.
 psl_match_alloc <- function(n) {
   cols <- c(
-    lapply(psl_cache_char_cols, \(col) rep(NA_character_, n)),
-    lapply(psl_cache_int_cols, \(col) rep(NA_integer_, n))
+    lapply(psl_result_char_cols, \(col) rep(NA_character_, n)),
+    lapply(psl_result_int_cols, \(col) rep(NA_integer_, n))
   )
-  names(cols) <- psl_cache_cols
+  names(cols) <- psl_result_cols
   cols
 }
 
 psl_empty_match_result <- function() psl_match_alloc(0L)
 
-# Derive the ASCII public suffix / registrable domain / rule strings for the
-# WHOLE miss vector at once, using the 1-based byte offsets the C++ matcher
-# returns (`ps_start` / `rd_start` / `ps1_start`) with a single vectorized
-# `substr()` per column. Reproduces the old per-host `derive_one()` exactly: an
-# NA offset (public-suffix depth < 1, or no registrant label) yields NA. Returns
-# a list of parallel column vectors (one per field, all `length(cores)`),
-# including the raw `ps_start` / `rd_start` offsets so the columnar cache can
-# carry them for P4's `suffix_extract`.
-psl_match_records <- function(matcher, cores, section_code) {
+# Run the C++ matcher and return only the compact integer STRUCTURAL columns
+# that the cache stores (schema `psl_cache_cols`): the public-suffix depth, the
+# three byte offsets, and the two enum codes (`kind_code`, `section_code`, the
+# raw integers `psl_match()` returns). No strings are produced here -- those are
+# reconstructed on read by `psl_derive_strings()`. This is the producer whose
+# output is written into the cache.
+psl_match_structural <- function(matcher, cores, section_code) {
   res <- psl_match(matcher, cores, section_code)
+  list(
+    ps_depth = res$ps_depth,
+    ps_start = res$ps_start,
+    rd_start = res$rd_start,
+    ps1_start = res$ps1_start,
+    kind_code = res$kind,
+    section_code = res$section
+  )
+}
+
+# Derive the eight RESULT columns for the WHOLE core vector at once from the
+# compact `structural` columns (from the cache or `psl_match_structural()`),
+# using the 1-based byte offsets with a single vectorized `substr()` per string
+# column and branching off the integer enum codes rather than recomputing them.
+# Reproduces the old per-host `derive_one()` exactly: an NA offset (public
+# suffix depth < 1, or no registrant label) yields NA. Returns a list of
+# parallel column vectors (one per field, all `length(cores)`), passing the raw
+# `ps_start` / `rd_start` offsets through so `suffix_extract` can carry them.
+psl_derive_strings <- function(cores, structural) {
   end <- nchar(cores)
-  kind <- psl_kind_labels[res$kind + 1L]
-  sec <- c("icann", "private")[res$section + 1L] # NA section -> NA
+  ps_start <- structural$ps_start
+  rd_start <- structural$rd_start
+  kind_code <- structural$kind_code
+  kind <- psl_kind_labels[kind_code + 1L]
+  sec <- c("icann", "private")[structural$section_code + 1L] # NA code -> NA
 
   public_suffix <- ifelse(
-    is.na(res$ps_start),
+    is.na(ps_start),
     NA_character_,
-    substr(cores, res$ps_start, end)
+    substr(cores, ps_start, end)
   )
   registrable_domain <- ifelse(
-    is.na(res$rd_start),
+    is.na(rd_start),
     NA_character_,
-    substr(cores, res$rd_start, end)
+    substr(cores, rd_start, end)
   )
 
   rule <- rep(NA_character_, length(cores))
   # Only a valid public-suffix depth (ps_start present) carries a rule string;
   # this mirrors derive_one()'s `depth < 1` guard returning NA for every field.
-  has_ps <- !is.na(res$ps_start)
-  is_normal <- has_ps & kind == "normal"
-  is_wild <- has_ps & kind == "wildcard"
-  is_exc <- has_ps & kind == "exception"
-  is_def <- has_ps & kind == "default"
+  has_ps <- !is.na(ps_start)
+  is_normal <- has_ps & kind_code == 0L
+  is_wild <- has_ps & kind_code == 1L
+  is_exc <- has_ps & kind_code == 2L
+  is_def <- has_ps & kind_code == 3L
   rule[is_normal] <- public_suffix[is_normal]
   rule[is_wild] <- paste0(
     "*.",
-    substr(cores[is_wild], res$ps1_start[is_wild], end[is_wild])
+    substr(cores[is_wild], structural$ps1_start[is_wild], end[is_wild])
   )
   rule[is_exc] <- paste0("!", registrable_domain[is_exc])
   rule[is_def] <- "*"
@@ -310,9 +345,9 @@ psl_match_records <- function(matcher, cores, section_code) {
     rule = rule,
     kind = kind,
     rule_section = sec,
-    ps_depth = res$ps_depth,
-    ps_start = res$ps_start,
-    rd_start = res$rd_start
+    ps_depth = structural$ps_depth,
+    ps_start = ps_start,
+    rd_start = rd_start
   )
 }
 
@@ -327,10 +362,14 @@ psl_match_records <- function(matcher, cores, section_code) {
 #' dot: the `unknown`/`output` policies and dot restoration are applied by
 #' callers, so they are deliberately absent from the cache key (PRD s8.2).
 #'
-#' Hits are read from the columnar cache by a single `mget()` of indices
+#' The cache holds only compact integer STRUCTURAL columns (offsets + enum
+#' codes). Hits are read from the columnar cache by a single `mget()` of indices
 #' followed by vectorized column subsetting (no per-host closures); misses are
-#' derived by `psl_match_records()`, written into the unique-level columns, and
-#' appended to the cache. The final result is one entry per input via a
+#' produced by `psl_match_structural()` and appended to the cache. The user-
+#' facing string columns are then derived once, over every unique core, by
+#' `psl_derive_strings()` -- because the key is `section|host`, a hit's core
+#' equals its unique core, so deriving from the current cores reproduces the old
+#' cached strings byte-for-byte. The final result is one entry per input via a
 #' `match()` back onto the unique cores.
 #'
 #' @param engine The `psl_engine` to resolve against; its `$matcher` runs the
@@ -366,27 +405,34 @@ psl_resolve_cores <- function(engine, cores, section) {
   hit <- !is.na(cache_idx)
   miss <- !hit
 
-  # The eight parallel columns, driven by the shared cache schema so this stays
-  # in lockstep with clear/grow/store. Warm hits are copied out of the cache
-  # columns by vectorized subsetting; cold misses are derived once by
-  # `psl_match_records()`, placed, and appended to the cache (which may flush
-  # first per the capacity bound; hits are already copied out).
-  cols <- psl_match_alloc(nu)
+  # Assemble the compact integer STRUCTURAL columns at the unique level, driven
+  # by the cache schema so this stays in lockstep with clear/grow/store. Warm
+  # hits are copied out of the cache columns by vectorized subsetting; cold
+  # misses are produced once by `psl_match_structural()`, placed, and appended
+  # to the cache (which may flush first per the capacity bound; hits are already
+  # copied out).
+  structural <- lapply(psl_cache_cols, \(col) rep(NA_integer_, nu))
+  names(structural) <- psl_cache_cols
   if (any(hit)) {
     hi <- cache_idx[hit]
     for (col in psl_cache_cols) {
-      cols[[col]][hit] <- cache[[col]][hi]
+      structural[[col]][hit] <- cache[[col]][hi]
     }
   }
   if (any(miss)) {
-    records <- psl_match_records(engine$matcher, uniq[miss], section_code)
+    records <- psl_match_structural(engine$matcher, uniq[miss], section_code)
     for (col in psl_cache_cols) {
-      cols[[col]][miss] <- records[[col]]
+      structural[[col]][miss] <- records[[col]]
     }
     if (cache_on) {
       psl_cache_store(cache, keys[miss], records)
     }
   }
+
+  # Derive the string columns on top of the assembled offsets, over every unique
+  # core at once. A hit's core equals `uniq[i]` (the key carries the host), so
+  # this reproduces the strings that were cached under the old scheme exactly.
+  cols <- psl_derive_strings(uniq, structural)
 
   idx <- match(cores, uniq)
   lapply(cols, `[`, idx)

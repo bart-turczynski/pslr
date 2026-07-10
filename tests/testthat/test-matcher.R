@@ -156,7 +156,7 @@ test_that("repeated hosts are deduplicated yet expand to full length", {
 
 test_that("resolving zero cores returns empty, typed match columns", {
   res <- psl_resolve_cores(psl_default_engine(), character(0), "all")
-  expect_named(res, psl_cache_cols)
+  expect_named(res, psl_result_cols)
   expect_true(all(vapply(res, length, integer(1)) == 0L))
   expect_type(res$public_suffix, "character")
   expect_type(res$ps_depth, "integer")

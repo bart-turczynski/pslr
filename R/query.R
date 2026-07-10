@@ -124,12 +124,12 @@ psl_query_cols <- function(engine, domain, section, unknown, invalid) {
   n <- length(canon$input)
   valid <- canon$status == "ok"
 
-  # The eight match columns start NA (via the shared schema) so invalid inputs
+  # The eight match columns start NA (via the RESULT schema) so invalid inputs
   # stay NA; valid cores are resolved once and copied in column by column.
   m <- psl_match_alloc(n)
   if (any(valid)) {
     res <- psl_resolve_cores(engine, canon$core[valid], section)
-    for (col in psl_cache_cols) {
+    for (col in psl_result_cols) {
       m[[col]][valid] <- res[[col]]
     }
   }
@@ -137,7 +137,7 @@ psl_query_cols <- function(engine, domain, section, unknown, invalid) {
   # `unknown = "na"` erases the implicit-default rule's derived fields.
   if (identical(unknown, "na")) {
     drop <- !is.na(m$kind) & m$kind == "default"
-    for (col in psl_cache_char_cols) {
+    for (col in psl_result_char_cols) {
       m[[col]][drop] <- NA_character_
     }
     m$ps_depth[drop] <- NA_integer_
