@@ -35,3 +35,5 @@ default; these functions let you update it or point to a local file.
   : Refresh the cached Public Suffix List from upstream
 - [`psl_use()`](https://bart-turczynski.github.io/pslr/reference/psl_use.md)
   : Choose the active Public Suffix List for this session
+- [`psl_cache_prune()`](https://bart-turczynski.github.io/pslr/reference/psl_cache_prune.md)
+  : Prune stale on-disk PSL cache snapshots

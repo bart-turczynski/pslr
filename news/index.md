@@ -2,6 +2,13 @@
 
 ## pslr (development version)
 
+- New
+  [`psl_cache_prune()`](https://bart-turczynski.github.io/pslr/reference/psl_cache_prune.md)
+  removes superseded on-disk `psl-<hex>.dat` cache snapshots, always
+  keeping the active snapshot plus the `keep` most-recent others
+  (default one previous); a no-op when there is no cache or marker
+  (PSLR-nwdejhkf).
+
 - Cache checksum verification now recomputes the algorithm named by the
   recorded `sha256:`/`md5:` prefix instead of whichever hash `digest`
   availability picks at call time, so a cache is no longer spuriously
