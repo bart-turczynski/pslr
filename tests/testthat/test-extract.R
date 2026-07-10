@@ -59,6 +59,38 @@ test_that("suffix_extract unicode output decodes A-labels (IDN path)", {
   expect_identical(out$suffix, "com")
 })
 
+test_that("suffix_extract unicode dedup matches per-host single calls", {
+  # Repeated hosts and hosts sharing A-labels must decode identically whether
+  # pooled in one batch or extracted one at a time (dedup correctness).
+  hosts <- c(
+    "www.xn--bcher-kva.com",
+    "shop.xn--bcher-kva.com",
+    "www.xn--bcher-kva.com",
+    "xn--bcher-kva.com",
+    "a..b",
+    NA,
+    "co.uk"
+  )
+  batch <- suffix_extract(hosts, output = "unicode")
+  singles <- lapply(hosts, \(h) suffix_extract(h, output = "unicode"))
+  for (col in ps_extract_cols) {
+    expect_identical(
+      batch[[col]],
+      vapply(singles, \(s) s[[col]], character(1)),
+      info = col
+    )
+  }
+  # Explicit NA-in -> NA-out and ""-in -> ""-out coverage on the pooled path.
+  expect_identical(batch$host[6], NA_character_) # NA input stays NA
+  expect_identical(batch$subdomain[4], "") # empty subdomain stays "" not NA
+  expect_identical(batch$subdomain[7], NA_character_) # public suffix: NA
+  expect_identical(batch$domain[1], "bücher")
+  expect_identical(
+    batch$subdomain[1:3],
+    c("www", "shop", "www") # empty-subdomain guard unaffected by pooling
+  )
+})
+
 test_that("suffix_extract NAs derived columns when host is a public suffix", {
   out <- suffix_extract("co.uk")
   expect_identical(out$host, "co.uk")

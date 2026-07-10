@@ -60,15 +60,43 @@ restore_root_dot <- function(x, had_dot) {
   x
 }
 
-# Decode canonical ASCII A-labels to Unicode, leaving NA untouched (PRD s6.3).
-decode_ascii <- function(x) {
-  # Decode only real A-labels: skip NA and the empty string. puny_decode("")
-  # returns NA, which would turn a documented empty subdomain ("") into NA.
-  ok <- !is.na(x) & nzchar(x)
-  if (any(ok)) {
-    x[ok] <- punycoder::puny_decode(x[ok], strict = FALSE)
+# Decode canonical ASCII A-labels to Unicode across one or more parallel
+# columns, leaving NA untouched (PRD s6.3). The distinct decode-eligible values
+# are pooled across every column and crossed into punycoder::puny_decode()
+# exactly once, then mapped back to each position -- so N identical outputs (and
+# A-labels shared by overlapping columns like suffix/registrable/host) are
+# decoded only once. Equal input strings decode identically, so deduplication is
+# byte-identical to decoding each position independently. Per-element semantics
+# are preserved exactly: NA in -> NA out (never decoded); "" in -> "" out (the
+# nzchar guard is load-bearing -- puny_decode("") returns NA, which would turn a
+# documented empty subdomain into NA); any other value -> its
+# puny_decode(strict = FALSE) result. Returns the decoded columns as a list, in
+# the argument order.
+decode_ascii_pool <- function(...) {
+  cols <- list(...)
+  eligible <- lapply(cols, \(x) !is.na(x) & nzchar(x))
+  pool <- unique(unlist(
+    Map(\(x, ok) x[ok], cols, eligible),
+    use.names = FALSE
+  ))
+  if (length(pool)) {
+    decoded <- punycoder::puny_decode(pool, strict = FALSE)
+    cols <- Map(
+      function(x, ok) {
+        x[ok] <- decoded[match(x[ok], pool)]
+        x
+      },
+      cols,
+      eligible
+    )
   }
-  x
+  cols
+}
+
+# Single-column convenience wrapper over decode_ascii_pool() for the
+# length-preserving accessors (`public_suffix()` / `registrable_domain()`).
+decode_ascii <- function(x) {
+  decode_ascii_pool(x)[[1L]]
 }
 
 # Re-attach the names of `domain` to a length-preserving result (PRD s7.1).
@@ -320,11 +348,21 @@ suffix_extract <- function(
   subdomain <- parts$subdomain
 
   if (identical(output, "unicode")) {
-    host <- decode_ascii(host)
-    suffix <- decode_ascii(suffix)
-    registrable <- decode_ascii(registrable)
-    domain_label <- decode_ascii(domain_label)
-    subdomain <- decode_ascii(subdomain)
+    # One pooled puny_decode() crossing for all five columns: suffix,
+    # registrable, and host share A-labels heavily, so decode distinct values
+    # just once.
+    decoded <- decode_ascii_pool(
+      host,
+      suffix,
+      registrable,
+      domain_label,
+      subdomain
+    )
+    host <- decoded[[1L]]
+    suffix <- decoded[[2L]]
+    registrable <- decoded[[3L]]
+    domain_label <- decoded[[4L]]
+    subdomain <- decoded[[5L]]
   }
 
   data.frame(
