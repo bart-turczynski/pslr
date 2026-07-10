@@ -113,7 +113,7 @@ query_scenarios <- function(uniq, dup, scalar_hosts, reps) {
 cache_footprint_mb <- function(k) {
   pslr:::psl_bench_reset_cache()
   invisible(registrable_domain(pslr:::psl_bench_unique_hosts(k)))
-  env <- pslr:::psl_cache_env
+  env <- pslr:::active_cache()
   cols <- pslr:::psl_cache_cols
   bytes <- sum(vapply(
     cols,

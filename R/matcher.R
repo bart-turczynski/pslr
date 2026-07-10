@@ -121,7 +121,7 @@ psl_meta <- function(...) {
 
 # A `psl_snapshot` is the immutable descriptor of a rule set plus its
 # provenance: the rule table, the `psl_version()`-shaped metadata, and the
-# source identity (checksum) that keys the result cache. `rebuilt` records
+# source identity (checksum) reported by `psl_version()`. `rebuilt` records
 # whether the rules were re-parsed from source under the runtime normalizer
 # because the shipped index's normalization profile mismatched (PRD s8.3); it
 # lives with the rules it describes. Internal, unexported.
@@ -138,19 +138,21 @@ new_psl_snapshot <- function(rules, meta, rebuilt = FALSE) {
   )
 }
 
-# A `psl_engine` pairs a `psl_snapshot` with the compiled C++ matcher built from
-# its rules. The engine is PROCESS-LOCAL: the matcher is an external pointer
-# that does not serialize across sessions or parallel workers. Only the snapshot
-# descriptor is serializable; a restore would rebuild the pointer from the
-# snapshot's rules. (No serialization code lives here yet.) A later unit will
-# also give the engine ownership of the result cache; today the cache stays
-# global (see `psl_cache_env`). Internal, unexported.
+# A `psl_engine` bundles a `psl_snapshot`, the compiled C++ matcher built from
+# its rules, and the bounded result cache for that matcher. The engine is
+# PROCESS-LOCAL: the matcher is an external pointer that does not serialize
+# across sessions or parallel workers. Only the snapshot descriptor is
+# serializable; a restore would rebuild the pointer and mint a fresh cache from
+# the snapshot's rules. (No serialization code lives here yet.) The cache is
+# engine-local: it belongs to exactly one rule set, so it can never mix
+# snapshots and its keys need no list identity. Internal, unexported.
 # @noRd
 new_psl_engine <- function(snapshot) {
   structure(
     list(
       snapshot = snapshot,
-      matcher = build_matcher(snapshot$rules)
+      matcher = build_matcher(snapshot$rules),
+      cache = new_psl_cache()
     ),
     class = "psl_engine"
   )
@@ -160,10 +162,11 @@ new_psl_engine <- function(snapshot) {
 # `snapshot`. Everything that can fail (the matcher build inside
 # `new_psl_engine()`) happens before the single atomic state swap, so a failed
 # or interrupted activation leaves the previous active engine usable (PRD s9).
-# Switching the active list clears the result cache (PRD s7.4, s8.2).
+# The new engine carries its own empty result cache, so swapping it in
+# atomically replaces the cache too -- switching the active list starts cold
+# (PRD s7.4, s8.2) with no explicit clear.
 psl_activate_snapshot <- function(snapshot) {
   the_matcher$state <- new_psl_engine(snapshot)
-  psl_cache_clear()
   invisible(snapshot$meta)
 }
 
@@ -225,8 +228,13 @@ active_snapshot <- function() active_state()$snapshot
 # The active matcher pointer (PRD s8.2).
 active_matcher <- function() active_state()$matcher
 
-# Stable identity of the active list, used in the result-cache key. For the
-# bundled and cache lists it is the source-snapshot checksum.
+# The active engine's result cache (PRD s8.2). Engine-local, minted empty by
+# `new_psl_engine()` and lazily initialised on first store via the bundled init.
+active_cache <- function() active_state()$cache
+
+# Stable identity of the active list, reported by `psl_version()`. For the
+# bundled and cache lists it is the source-snapshot checksum. No longer part of
+# the result-cache key (the cache is engine-local).
 active_list_identity <- function() active_snapshot()$identity
 
 # Metadata and rule table of the active list, for psl_version() / psl_rules().
@@ -307,8 +315,8 @@ psl_match_records <- function(cores, section_code) {
 #' Resolve canonical hosts to ASCII match results, with session caching
 #'
 #' Takes canonical lowercase ASCII hosts (no terminal dot, no `NA`), serves any
-#' previously seen (host, active-list, section) triples from the bounded session
-#' cache, deduplicates the remaining misses before crossing into C++ once each,
+#' previously seen (host, section) pairs from the active engine's bounded cache,
+#' deduplicates the remaining misses before crossing into C++ once each,
 #' runs the prevailing-rule algorithm, caches the derived metadata, and returns
 #' one entry per input core. Results are canonical ASCII without the terminal
 #' dot: the `unknown`/`output` policies and dot restoration are applied by
@@ -337,14 +345,17 @@ psl_resolve_cores <- function(cores, section) {
   # output is byte-identical to the cached path (verified by test-cache.R).
   cache_on <- !isFALSE(getOption("pslr.cache", TRUE))
 
-  psl_cache_ensure()
+  cache <- active_cache()
+  psl_cache_ensure(cache)
   section_code <- psl_section_code(section)
-  prefix <- paste0(active_list_identity(), "|", section_code, "|")
+  # The cache is engine-local, so the key needs only the section (the list
+  # identity is implied by which engine owns the cache).
+  prefix <- paste0(section_code, "|")
 
   uniq <- unique(cores)
   nu <- length(uniq)
   keys <- paste0(prefix, uniq)
-  cache_idx <- psl_cache_lookup(keys, cache_on)
+  cache_idx <- psl_cache_lookup(cache, keys, cache_on)
   hit <- !is.na(cache_idx)
   miss <- !hit
 
@@ -357,7 +368,7 @@ psl_resolve_cores <- function(cores, section) {
   if (any(hit)) {
     hi <- cache_idx[hit]
     for (col in psl_cache_cols) {
-      cols[[col]][hit] <- psl_cache_env[[col]][hi]
+      cols[[col]][hit] <- cache[[col]][hi]
     }
   }
   if (any(miss)) {
@@ -366,7 +377,7 @@ psl_resolve_cores <- function(cores, section) {
       cols[[col]][miss] <- records[[col]]
     }
     if (cache_on) {
-      psl_cache_store(keys[miss], records)
+      psl_cache_store(cache, keys[miss], records)
     }
   }
 

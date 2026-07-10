@@ -28,8 +28,8 @@ test_that("psl_bench_dupheavy_hosts draws n hosts from a bounded pool", {
 test_that("psl_bench_reset_cache empties the in-memory cache", {
   # Prime the cache with a real query, then assert the reset clears it.
   registrable_domain(psl_bench_unique_hosts(50L))
-  expect_gt(psl_cache_env$n, 0L)
+  expect_gt(active_cache()$n, 0L)
 
   psl_bench_reset_cache()
-  expect_identical(psl_cache_env$n, 0L)
+  expect_identical(active_cache()$n, 0L)
 })

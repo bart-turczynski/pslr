@@ -29,6 +29,10 @@
 
 ## Internal
 
+* Moved result-cache ownership into the `psl_engine`: each engine mints its own `new_psl_cache()`, so activating a list swaps the whole engine (starting cold) instead of clearing a shared global, and the cache key drops the now-redundant list-identity prefix (keyed on section + canonical host); public behaviour is byte-identical, with new engine-cache isolation tests (PSLR-bcgedhmy).
+
+* Modelled the active-list state as internal `psl_snapshot` (rules + metadata + source identity) and process-local `psl_engine` (snapshot + compiled matcher) objects, and unified the two cache-activation paths onto a shared `psl_load_cached_snapshot()` loader behind a single `psl_activate_snapshot()` choke-point; internal only, public behaviour byte-identical (PSLR-fvotbdti).
+
 * The five public query functions and `psl_rules()` now carry scalar formal defaults validated by an internal `check_choice()`, dropping the `missing()`-based supplied-flag bookkeeping; argument handling and every result and error are unchanged (PSLR-adsnjbjg).
 
 * Consolidated the snapshot-metadata field schema behind a single owner: `new_psl_meta()` (construction/defaults), `validate_psl_meta()` (checked boundary), and `as_psl_version_df()` (the one-row `psl_version()` frame) all read one `psl_meta_fields` schema, replacing the field lists that were re-spelled in `R/matcher.R`, `R/metadata.R`, and `data-raw/update_psl.R`; output is byte-identical (PSLR-bnrbjhur).

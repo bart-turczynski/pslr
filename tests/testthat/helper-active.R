@@ -34,7 +34,8 @@ local_pslr_clean <- function(env = parent.frame()) {
 }
 
 reset_active_for_test <- function() {
+  # Nulling the state discards the engine and its cache; the next query lazily
+  # rebuilds a fresh engine carrying a fresh empty cache.
   the_matcher$state <- NULL
-  psl_cache_clear()
   invisible(NULL)
 }
