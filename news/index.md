@@ -2,15 +2,6 @@
 
 ## pslr (development version)
 
-- `output = "unicode"` now decodes each distinct A-label only once per
-  call –
-  [`suffix_extract()`](https://bart-turczynski.github.io/pslr/reference/suffix_extract.md)
-  pools its five columns into a single
-  [`punycoder::puny_decode()`](https://bart-turczynski.github.io/punycoder/reference/puny_decode.html)
-  crossing and every query deduplicates repeats – so unicode output on
-  batches with repeated or overlapping hosts is markedly faster; decoded
-  output is byte-identical (PSLR-cpzrjksw).
-
 - Every query no longer pays for a per-call
   [`strsplit()`](https://rdrr.io/r/base/strsplit.html) to count host
   labels;
