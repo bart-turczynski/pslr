@@ -263,6 +263,41 @@ test_that("the source checksum falls back to md5 when digest is absent", {
   expect_match(psl_source_checksum(bundled_dat_path()), "^md5:")
 })
 
+test_that("an md5-recorded checksum verifies against md5 with digest present", {
+  # The recorded algorithm drives verification, so a cache recorded as md5 on a
+  # digest-less machine still verifies TRUE where digest is now available --
+  # rather than being spuriously rejected because digest would prefer sha256.
+  path <- bundled_dat_path()
+  recorded <- paste0("md5:", unname(tools::md5sum(path)))
+  expect_true(requireNamespace("digest", quietly = TRUE))
+  expect_true(psl_verify_checksum(path, recorded))
+})
+
+test_that("verifying an sha256 record without digest is an actionable error", {
+  # A sha256-recorded cache verified where digest is unavailable is a missing
+  # dependency, not corruption: it must ask the user to install digest.
+  testthat::local_mocked_bindings(
+    requireNamespace = function(package, ...) FALSE,
+    .package = "base"
+  )
+  recorded <- paste0("sha256:", strrep("0", 64L))
+  expect_error(
+    psl_verify_checksum(bundled_dat_path(), recorded),
+    "needs the 'digest' package"
+  )
+})
+
+test_that("psl_use('cache') reports genuine content tampering as corruption", {
+  dir <- local_pslr_clean()
+  withr::local_options(pslr.downloader = fake_downloader())
+  psl_refresh(force = TRUE)
+  cur <- readRDS(file.path(dir, "current.rds"))
+  # Tamper with the source bytes so the recorded checksum no longer matches.
+  writeLines("changed", file.path(dir, cur$dat_file))
+
+  expect_error(psl_use("cache"), "cache is corrupt: checksum mismatch")
+})
+
 test_that("an unreadable source file is rejected before parsing", {
   expect_error(
     psl_load_source(tempfile(), "custom path list"),
