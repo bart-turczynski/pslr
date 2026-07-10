@@ -171,3 +171,59 @@ test_that("the bundled rules rebuild falls back when the source is missing", {
   )
   expect_identical(rebuild_bundled_rules(), pslr_bundled$rules)
 })
+
+# --- snapshot-metadata constructor / validator (PSLR-bnrbjhur) ---------------
+
+test_that("new_psl_meta carries the documented schema, order, and defaults", {
+  m <- new_psl_meta()
+  expect_named(m, names(psl_meta_fields))
+  # Source-identity fields default to typed NA; size is integer NA.
+  expect_identical(m$source, NA_character_)
+  expect_identical(m$checksum, NA_character_)
+  expect_identical(m$size, NA_integer_)
+  # Normalization identifiers default to the runtime normalizer.
+  expect_identical(m$normalizer, "punycoder")
+  expect_identical(
+    m$normalizer_version,
+    as.character(utils::packageVersion("punycoder"))
+  )
+  # psl_meta() is the same constructor under its historical name.
+  expect_identical(psl_meta(source = "path"), new_psl_meta(source = "path"))
+})
+
+test_that("validate_psl_meta accepts a well-formed meta and returns it", {
+  m <- new_psl_meta(source = "bundled", size = 10L)
+  expect_identical(validate_psl_meta(m), m)
+})
+
+test_that("validate_psl_meta rejects a missing or wrong-typed field", {
+  m <- new_psl_meta(source = "bundled", size = 10L)
+
+  missing <- m[setdiff(names(m), "checksum")]
+  expect_error(validate_psl_meta(missing), "missing required field")
+
+  wrong_type <- m
+  wrong_type$size <- "10" # should be integer
+  expect_error(validate_psl_meta(wrong_type), "`size` must be a length-1")
+
+  not_scalar <- m
+  not_scalar$source <- c("a", "b")
+  expect_error(validate_psl_meta(not_scalar), "`source` must be a length-1")
+})
+
+test_that("as_psl_version_df derives the documented one-row version frame", {
+  m <- new_psl_meta(
+    source = "bundled",
+    size = 42L,
+    checksum = "sha256:abc"
+  )
+  v <- as_psl_version_df(m)
+  expect_s3_class(v, "data.frame")
+  expect_identical(nrow(v), 1L)
+  expect_named(v, names(psl_meta_fields))
+  expect_type(v$size, "integer")
+  expect_identical(v$size, 42L)
+  expect_identical(v$checksum, "sha256:abc")
+  # Byte-identical to feeding the meta through the psl_version_df alias.
+  expect_identical(v, psl_version_df(m))
+})
