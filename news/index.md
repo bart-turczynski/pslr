@@ -101,6 +101,17 @@
 
 ### Internal
 
+- The core C++ matcher hardened its construction: `psl_build_matcher()`
+  now validates that its `keys`/`kinds`/`sections` columns share a
+  length and that each section (0/1) and kind
+  (`normal`/`wildcard`/`exception`) is in range – an unknown kind now
+  errors instead of being silently bucketed as an exception –
+  exact-reserves the six rule sets from a counting pass to avoid
+  rehashing, and builds via a `std::unique_ptr` released only after the
+  R external pointer is registered; `psl_match()` rejects a NULL
+  external pointer before dereferencing. Behaviour on valid input is
+  byte-identical (PSLR-sfppglqs).
+
 - [`psl_use()`](https://bart-turczynski.github.io/pslr/reference/psl_use.md)
   now uses a scalar formal default validated by `check_choice()`,
   matching the query functions, and the sole-purpose `match_opt()`
