@@ -95,17 +95,17 @@ caller that wants the magnitude as well as the verdict need not recompute it.</p
 <span class="r-in"><span><span class="fu">psl_outdated</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"age_days")</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 27.08962</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 27.47078</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># The age in days is available without recomputing it:</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="fu">psl_outdated</span><span class="op">(</span><span class="op">)</span>, <span class="st">"age_days"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 27.08962</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 27.47078</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Use a stricter threshold:</span></span></span>
 <span class="r-in"><span><span class="fu">psl_outdated</span><span class="op">(</span>max_age <span class="op">=</span> <span class="fl">30</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"age_days")</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 27.08962</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 27.47078</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

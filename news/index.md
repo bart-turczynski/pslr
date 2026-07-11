@@ -77,6 +77,11 @@
 
 ### Internal
 
+- Added `^\.claude$` to `.Rbuildignore` so a contributor using Claude
+  Code no longer sweeps the gitignored `.claude/` session directory into
+  the build tarball, silencing the spurious `R CMD check` hidden-files
+  NOTE; no package content changes (PSLR-juyrfjls).
+
 - Query internals are now projection-aware: a query derives only the
   result string columns it consumes instead of all five on every call.
   `psl_query_cols()`/`psl_resolve_cores()`/`psl_derive_strings()` take a
