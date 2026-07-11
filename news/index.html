@@ -42,7 +42,8 @@
 <ul><li>The result cache no longer evicts on an oversized one-shot query: a single call with more distinct hosts than the whole cache capacity is still matched-but-not-cached, but it now leaves any existing warm entries intact instead of flushing the table to make room it could never use (PSLR-wyvauroc).</li>
 </ul><div class="section level3">
 <h3 id="internal-1-1-0-9000">Internal<a class="anchor" aria-label="anchor" href="#internal-1-1-0-9000"></a></h3>
-<ul><li>Added a PSL-freshness harm corpus (McQuistin et al., IMC ’23, Table 2) that pins newly added multi-label eTLDs (e.g. <code>myshopify.com</code>, <code>netlify.app</code>, <code>*.digitaloceanspaces.com</code>) against the bundled snapshot, guarding against shipping a list stale enough to put the registrable-domain boundary above the tenant label (PSLR-cowbpwsy).</li>
+<ul><li><p>Addressed <code>goodpractice</code> style findings: brought <code>valid_psl_manifest()</code>, <code>parse_psl_lines()</code>, and <code>psl_validate_keep()</code> under the cyclomatic-complexity threshold, dropped a <code>&lt;&lt;-</code> out of the cache-marker reader, deduplicated the <code>path</code> argument docs via <code>@inheritParams</code>, tightened the freshness-corpus tests to <code>expect_identical()</code>, and extended <code>inst/WORDLIST</code>; no user-facing change (PSLR-cftnwsxa).</p></li>
+<li><p>Added a PSL-freshness harm corpus (McQuistin et al., IMC ’23, Table 2) that pins newly added multi-label eTLDs (e.g. <code>myshopify.com</code>, <code>netlify.app</code>, <code>*.digitaloceanspaces.com</code>) against the bundled snapshot, guarding against shipping a list stale enough to put the registrable-domain boundary above the tenant label (PSLR-cowbpwsy).</p></li>
 </ul></div>
 </div>
     <div class="section level2">

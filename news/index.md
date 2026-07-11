@@ -10,6 +10,14 @@
 
 ### Internal
 
+- Addressed `goodpractice` style findings: brought
+  `valid_psl_manifest()`, `parse_psl_lines()`, and `psl_validate_keep()`
+  under the cyclomatic-complexity threshold, dropped a `<<-` out of the
+  cache-marker reader, deduplicated the `path` argument docs via
+  `@inheritParams`, tightened the freshness-corpus tests to
+  `expect_identical()`, and extended `inst/WORDLIST`; no user-facing
+  change (PSLR-cftnwsxa).
+
 - Added a PSL-freshness harm corpus (McQuistin et al., IMC ’23, Table 2)
   that pins newly added multi-label eTLDs (e.g. `myshopify.com`,
   `netlify.app`, `*.digitaloceanspaces.com`) against the bundled
