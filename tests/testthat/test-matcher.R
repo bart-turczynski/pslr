@@ -87,6 +87,37 @@ test_that("section filtering happens before prevailing-rule selection", {
   expect_identical(icann$kind, 3L)
 })
 
+# ---- C++ boundary validation (PSLR-sfppglqs) -------------------------------
+
+test_that("psl_build_matcher validates its parallel-vector inputs", {
+  # Length mismatch between the three columns is a caller bug, not a silent
+  # out-of-range read.
+  expect_error(
+    psl_build_matcher(c("com", "org"), "normal", c(0L, 0L)),
+    "same length"
+  )
+  # A section code outside {0, 1} is rejected rather than indexing off the end
+  # of the 2-section set array.
+  expect_error(
+    psl_build_matcher("com", "normal", 2L),
+    "out of range"
+  )
+  expect_error(
+    psl_build_matcher("com", "normal", -1L),
+    "out of range"
+  )
+  # An unknown rule kind now aborts instead of being silently bucketed as an
+  # exception (the old ternary's fall-through), so a typo surfaces immediately.
+  expect_error(
+    psl_build_matcher("com", "bogus", 0L),
+    "unknown rule kind"
+  )
+})
+
+# The NULL-external-pointer guard in psl_match() is a C-boundary safety net for
+# a freed/never-built pointer; the normal R path always hands psl_match() a live
+# pointer from psl_build_matcher(), so that branch is not reachable from R here.
+
 # ---- engine layer: normalization, terminal dot, IDN, NA --------------------
 
 test_that("the engine resolves suffix and registrable domain (bundled)", {
