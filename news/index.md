@@ -2,6 +2,11 @@
 
 ## pslr (development version)
 
+- The core matcher is now a reverse-label trie: one right-to-left label
+  descent per host replaces the previous per-suffix hash-set probes,
+  roughly halving direct-match time on cache-cold, large-batch, and
+  cache-disabled workloads; results are byte-identical (PSLR-rqcslhfc).
+
 - The five query functions
   ([`public_suffix()`](https://bart-turczynski.github.io/pslr/reference/public_suffix.md),
   [`registrable_domain()`](https://bart-turczynski.github.io/pslr/reference/registrable_domain.md),
