@@ -8,7 +8,7 @@ successful switch invalidates the match-result cache.
 ## Usage
 
 ``` r
-psl_use(source = c("bundled", "cache", "path"), path = NULL)
+psl_use(source = "bundled", path = NULL)
 ```
 
 ## Arguments

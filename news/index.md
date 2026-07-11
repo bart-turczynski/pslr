@@ -90,6 +90,12 @@
 
 ### Internal
 
+- [`psl_use()`](https://bart-turczynski.github.io/pslr/reference/psl_use.md)
+  now uses a scalar formal default validated by `check_choice()`,
+  matching the query functions, and the sole-purpose `match_opt()`
+  helper is removed; argument handling and every result/error are
+  unchanged (PSLR-vmwsipkm).
+
 - Added `^\.claude$` to `.Rbuildignore` so a contributor using Claude
   Code no longer sweeps the gitignored `.claude/` session directory into
   the build tarball, silencing the spurious `R CMD check` hidden-files
