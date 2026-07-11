@@ -10,7 +10,8 @@ suffix_extract(
   section = "all",
   output = "ascii",
   unknown = "default",
-  invalid = "na"
+  invalid = "na",
+  engine = psl_default_engine()
 )
 ```
 
@@ -46,6 +47,15 @@ suffix_extract(
   `"na"` (default) returns `NA` for each invalid element without a
   warning; `"error"` aborts on the first invalid element, reporting its
   1-based index.
+
+- engine:
+
+  The `psl_engine` to query against; defaults to the session-global
+  engine selected by
+  [`psl_use()`](https://bart-turczynski.github.io/pslr/reference/psl_use.md),
+  so most callers never set it. Pass an engine from
+  [`psl_engine()`](https://bart-turczynski.github.io/pslr/reference/psl_engine.md)
+  to resolve hosts against a specific snapshot in isolation.
 
 ## Value
 

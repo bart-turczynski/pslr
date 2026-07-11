@@ -2,6 +2,17 @@
 
 ## pslr (development version)
 
+- The five query functions
+  ([`public_suffix()`](https://bart-turczynski.github.io/pslr/reference/public_suffix.md),
+  [`registrable_domain()`](https://bart-turczynski.github.io/pslr/reference/registrable_domain.md),
+  [`is_public_suffix()`](https://bart-turczynski.github.io/pslr/reference/is_public_suffix.md),
+  [`suffix_extract()`](https://bart-turczynski.github.io/pslr/reference/suffix_extract.md),
+  [`public_suffix_rule()`](https://bart-turczynski.github.io/pslr/reference/public_suffix_rule.md))
+  gain an optional `engine=` argument to query a specific
+  [`psl_engine()`](https://bart-turczynski.github.io/pslr/reference/psl_engine.md)
+  snapshot instead of the session-global list; omitting it is unchanged
+  (PSLR-hflrsfgp).
+
 - New
   [`psl_engine()`](https://bart-turczynski.github.io/pslr/reference/psl_engine.md)
   constructs a self-contained, process-local PSL engine
