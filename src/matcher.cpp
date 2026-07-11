@@ -11,6 +11,7 @@
 
 #include <cpp11.hpp>
 
+#include <memory>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -33,6 +34,19 @@ struct Matcher {
   // parent labels; for an exception it is the full (post-'!') labels.
   std::unordered_set<std::string> sets[2][3];
 };
+
+// Map a rule-kind string to its set index, rejecting anything outside the
+// three known kinds. The old build loop treated "anything not normal/wildcard"
+// as EXCEPTION, so a misspelled kind was silently bucketed as an exception;
+// validating here turns that into a clear boundary error instead.
+int kind_index(const std::string& kind) {
+  if (kind == "normal") return KIND_NORMAL;
+  if (kind == "wildcard") return KIND_WILDCARD;
+  if (kind == "exception") return KIND_EXCEPTION;
+  cpp11::stop(
+      "unknown rule kind '%s': expected 'normal', 'wildcard', or 'exception'",
+      kind.c_str());
+}
 
 std::vector<std::string> split_labels(const std::string& host) {
   std::vector<std::string> labels;
@@ -77,18 +91,55 @@ void matcher_finalizer(SEXP ptr) {
 // keeps the active matcher immutable after construction (PRD s8.2).
 [[cpp11::register]]
 SEXP psl_build_matcher(strings keys, strings kinds, integers sections) {
-  Matcher* m = new Matcher();
   R_xlen_t n = keys.size();
+  // Validate the parallel-vector contract at the boundary: the three columns
+  // must describe the same rows. A mismatch is a programming error in the R
+  // caller, not something to paper over with an out-of-range index.
+  if (kinds.size() != n || sections.size() != n) {
+    cpp11::stop(
+        "keys, kinds, and sections must have the same length "
+        "(got %td, %td, %td)",
+        static_cast<std::ptrdiff_t>(n),
+        static_cast<std::ptrdiff_t>(kinds.size()),
+        static_cast<std::ptrdiff_t>(sections.size()));
+  }
+
+  // Pass 1: validate every row and tally the exact per-(section, kind) count.
+  // Reserving each of the six sets to its true size (instead of a fraction of
+  // n, which would over-allocate all six) means the insert pass below never
+  // rehashes. Validation happens here so a bad row aborts before any build.
+  std::size_t counts[2][3] = {{0, 0, 0}, {0, 0, 0}};
   for (R_xlen_t i = 0; i < n; ++i) {
     int sec = sections[i];
-    std::string kind = kinds[i];
-    int k = kind == "normal"
-                ? KIND_NORMAL
-                : (kind == "wildcard" ? KIND_WILDCARD : KIND_EXCEPTION);
+    if (sec != SEC_ICANN && sec != SEC_PRIVATE) {
+      cpp11::stop("section code %d out of range: expected 0 (ICANN) or 1 "
+                  "(PRIVATE)",
+                  sec);
+    }
+    counts[sec][kind_index(std::string(kinds[i]))] += 1;
+  }
+
+  // Build into a unique_ptr so an exception anywhere below (e.g. a bad_alloc
+  // while inserting) frees the Matcher; ownership is only released to R once
+  // the external pointer and its finalizer are safely registered.
+  std::unique_ptr<Matcher> m = std::make_unique<Matcher>();
+  for (int s = 0; s < 2; ++s) {
+    for (int k = 0; k < 3; ++k) {
+      m->sets[s][k].reserve(counts[s][k]);
+    }
+  }
+
+  // Pass 2: insert. Every row was validated in pass 1, so the lookups here
+  // cannot fail.
+  for (R_xlen_t i = 0; i < n; ++i) {
+    int sec = sections[i];
+    int k = kind_index(std::string(kinds[i]));
     m->sets[sec][k].insert(std::string(keys[i]));
   }
-  SEXP ptr = PROTECT(R_MakeExternalPtr(m, R_NilValue, R_NilValue));
+
+  SEXP ptr = PROTECT(R_MakeExternalPtr(m.get(), R_NilValue, R_NilValue));
   R_RegisterCFinalizerEx(ptr, matcher_finalizer, TRUE);
+  m.release();  // R owns the Matcher now; the finalizer will delete it.
   UNPROTECT(1);
   return ptr;
   // gcov attributes an unreachable epilogue basic block to the closing brace
@@ -99,6 +150,12 @@ SEXP psl_build_matcher(strings keys, strings kinds, integers sections) {
 [[cpp11::register]]
 list psl_match(SEXP matcher, strings hosts, int section_code) {
   const Matcher* m = static_cast<const Matcher*>(R_ExternalPtrAddr(matcher));
+  // Guard the C boundary: a NULL address means the pointer was never built or
+  // its finalizer already ran (R_ClearExternalPtr). Dereferencing it below
+  // would be undefined behaviour, so stop with a clear message instead.
+  if (m == nullptr) {
+    cpp11::stop("matcher external pointer is NULL (not built or already freed)");
+  }
   R_xlen_t n = hosts.size();
   writable::integers ps_depth(n);
   writable::integers kind(n);
