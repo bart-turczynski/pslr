@@ -198,31 +198,45 @@ The only network access in the package, and only on an explicit `psl_refresh()`.
 
 ## The compiled matcher (`src/`)
 
-`src/matcher.cpp` holds partitioned, immutable rule indexes behind an external
-pointer and runs the official prevailing-rule algorithm right-to-left in time
-proportional to the host's label count, not the rule count. R owns
-normalization, dot handling, shaping, and user-facing errors; C++ sees only
-canonical lowercase ASCII hosts.
+`src/matcher.cpp` indexes the immutable rule set as a **reverse-label trie**
+behind an external pointer and runs the official prevailing-rule algorithm
+right-to-left in time proportional to the host's label count, not the rule
+count. R owns normalization, dot handling, shaping, and user-facing errors; C++
+sees only canonical lowercase ASCII hosts. (The trie replaced an equivalent
+hash-set matcher for ~2× faster direct matching with byte-identical output — see
+D18.)
 
-- `struct Matcher` (`src/matcher.cpp:31`): `unordered_set<string> sets[2][3]`,
-  indexed `[section][kind]` (ICANN/PRIVATE × normal/wildcard/exception). For a
-  wildcard the stored key is its **parent** labels; for an exception, the full
-  post-`!` labels.
+- `struct TrieNode` (`src/matcher.cpp:74`): `bool ends[2][3]` — indexed
+  `[section][kind]` (ICANN/PRIVATE × normal/wildcard/exception) — flags whether a
+  rule of that kind **ends** at this node's path, plus an
+  `unordered_map<string, unique_ptr<TrieNode>> children` keyed by label. Rules
+  are inserted by walking their canonical key's labels **right-to-left**, so the
+  path to a node is a right-anchored suffix. For a wildcard the stored key is its
+  **parent** labels; for an exception, the full post-`!` labels; for a normal
+  rule, the key as-is. `struct TrieMatcher` owns the root and cascade-frees the
+  tree in its finalizer.
 - Entry points (`[[cpp11::register]]`): `psl_build_matcher()`
-  (`src/matcher.cpp:78`) returns an opaque external pointer with a registered
-  finalizer; `psl_match()` (`src/matcher.cpp:99`) returns a named list of
-  `ps_depth, kind, section, ps_start, rd_start, ps1_start`.
-- Algorithm (`src/matcher.cpp:119`): split into labels, build right-anchored
-  suffixes, scan once. Exceptions take precedence over everything (longest wins;
-  a matched exception's suffix depth is `depth - 1`). Otherwise the longest
-  matching normal rule wins; a wildcard `*.s` matches only when a label exists to
-  its left and counts the `*` in its depth, with a normal rule of equal length
-  winning the tie. With no match, the implicit default `*` makes the rightmost
-  label its own suffix (`kind = default`, `section = NA`). Under `section =
-  "all"`, ICANN wins a cross-section tie. Results are returned as **byte
-  offsets** so R can slice every output string with a single vectorized
-  `substr()` — valid because canonical ASCII means byte offset == character
-  offset.
+  (`src/matcher.cpp:118`) validates its parallel-vector inputs (matching lengths,
+  in-range section, known kind), builds the trie via a `unique_ptr` released only
+  after the external pointer and finalizer are registered, and returns the opaque
+  pointer; `psl_match()` (`src/matcher.cpp:176`) guards against a NULL pointer,
+  then returns a named list of `ps_depth, kind, section, ps_start, rd_start,
+  ps1_start`.
+- Algorithm (`src/matcher.cpp:203`): one descent from the root consumes the
+  host's labels right-to-left; at depth `d` the current node is the depth-`d`
+  suffix, and a missing child ends the descent (no deeper rule can match).
+  Exceptions take precedence over everything (longest wins; a matched exception's
+  suffix depth is `depth - 1`). Otherwise the longest matching normal rule wins;
+  a wildcard `*.s` matches only when a label exists to its left and counts the
+  `*` in its depth, with a normal rule of equal length winning the tie. Because
+  the descent runs depth-**ascending** (where the old suffix scan ran
+  depth-descending), that "normal wins the tie" rule is made explicit rather than
+  falling out of visit order. With no match, the implicit default `*` makes the
+  rightmost label its own suffix (`kind = default`, `section = NA`). Under
+  `section = "all"`, ICANN wins a cross-section tie. Results are returned as
+  **byte offsets** (computed from cumulative label lengths) so R can slice every
+  output string with a single vectorized `substr()` — valid because canonical
+  ASCII means byte offset == character offset.
 
 `src/cpp11.cpp` and `R/cpp11.R` are **generated** registration glue — never
 edit them by hand; regenerate with `cpp11::cpp_register()` after changing a

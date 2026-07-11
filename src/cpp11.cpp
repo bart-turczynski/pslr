@@ -19,27 +19,11 @@ extern "C" SEXP _pslr_psl_match(SEXP matcher, SEXP hosts, SEXP section_code) {
     return cpp11::as_sexp(psl_match(cpp11::as_cpp<cpp11::decay_t<SEXP>>(matcher), cpp11::as_cpp<cpp11::decay_t<strings>>(hosts), cpp11::as_cpp<cpp11::decay_t<int>>(section_code)));
   END_CPP11
 }
-// matcher.cpp
-SEXP psl_build_matcher_trie(strings keys, strings kinds, integers sections);
-extern "C" SEXP _pslr_psl_build_matcher_trie(SEXP keys, SEXP kinds, SEXP sections) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(psl_build_matcher_trie(cpp11::as_cpp<cpp11::decay_t<strings>>(keys), cpp11::as_cpp<cpp11::decay_t<strings>>(kinds), cpp11::as_cpp<cpp11::decay_t<integers>>(sections)));
-  END_CPP11
-}
-// matcher.cpp
-list psl_match_trie(SEXP matcher, strings hosts, int section_code);
-extern "C" SEXP _pslr_psl_match_trie(SEXP matcher, SEXP hosts, SEXP section_code) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(psl_match_trie(cpp11::as_cpp<cpp11::decay_t<SEXP>>(matcher), cpp11::as_cpp<cpp11::decay_t<strings>>(hosts), cpp11::as_cpp<cpp11::decay_t<int>>(section_code)));
-  END_CPP11
-}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_pslr_psl_build_matcher",      (DL_FUNC) &_pslr_psl_build_matcher,      3},
-    {"_pslr_psl_build_matcher_trie", (DL_FUNC) &_pslr_psl_build_matcher_trie, 3},
-    {"_pslr_psl_match",              (DL_FUNC) &_pslr_psl_match,              3},
-    {"_pslr_psl_match_trie",         (DL_FUNC) &_pslr_psl_match_trie,         3},
+    {"_pslr_psl_build_matcher", (DL_FUNC) &_pslr_psl_build_matcher, 3},
+    {"_pslr_psl_match",         (DL_FUNC) &_pslr_psl_match,         3},
     {NULL, NULL, 0}
 };
 }
