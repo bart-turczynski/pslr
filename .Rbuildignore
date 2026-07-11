@@ -23,6 +23,7 @@
 ^\.gitignore$
 ^\.pre-commit-config\.yaml$
 ^\.fp$
+^\.claude$
 ^\.fossa$
 ^\.fossa\.yml$
 ^FP_CLAUDE\.md$
