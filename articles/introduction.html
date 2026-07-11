@@ -263,6 +263,36 @@ cache. <code><a href="../reference/psl_use.html">psl_use()</a></code> chooses wh
 failed refresh never replaces a working cache or active list.</p>
 </div>
 <div class="section level2">
+<h2 id="multiple-lists-with-engines">Multiple lists with engines<a class="anchor" aria-label="anchor" href="#multiple-lists-with-engines"></a>
+</h2>
+<p><code><a href="../reference/psl_use.html">psl_use()</a></code> switches the one session-global list every
+query sees by default. <code><a href="../reference/psl_engine.html">psl_engine()</a></code> instead builds a
+self-contained engine you can hold in a variable and query independently
+— so you can work with several lists at once, or give a component its
+own list, without mutating global session state. Every query function
+takes an <code>engine =</code> argument that threads a specific engine
+through that one call.</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">engine</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/psl_engine.html">psl_engine</a></span><span class="op">(</span><span class="st">"bundled"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/public_suffix.html">public_suffix</a></span><span class="op">(</span><span class="st">"example.co.uk"</span>, engine <span class="op">=</span> <span class="va">engine</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "co.uk"</span></span>
+<span><span class="fu"><a href="../reference/suffix_extract.html">suffix_extract</a></span><span class="op">(</span><span class="st">"www.example.co.uk"</span>, engine <span class="op">=</span> <span class="va">engine</span><span class="op">)</span></span>
+<span><span class="co">#&gt;               input              host subdomain  domain suffix</span></span>
+<span><span class="co">#&gt; 1 www.example.co.uk www.example.co.uk       www example  co.uk</span></span>
+<span><span class="co">#&gt;   registrable_domain</span></span>
+<span><span class="co">#&gt; 1      example.co.uk</span></span></code></pre></div>
+<p>An engine holds a compiled matcher backed by a C++ external pointer,
+which does not serialize across R sessions or parallel worker processes:
+saving and reloading an engine, or sending one to a worker, does not
+carry the matcher. This is why engines are described as process-local.
+To persist or ship an engine, record its snapshot descriptor with
+<code><a href="../reference/psl_version.html">psl_version()</a></code> and rebuild the engine in the target
+process:</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># In the target process, rebuild from a recorded snapshot file:</span></span>
+<span><span class="va">engine</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/psl_engine.html">psl_engine</a></span><span class="op">(</span><span class="st">"path"</span>, path <span class="op">=</span> <span class="st">"my_list.dat"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
 <h2 id="reproducibility">Reproducibility<a class="anchor" aria-label="anchor" href="#reproducibility"></a>
 </h2>
 <p>A public-suffix result depends on both <em>which list</em> answered
@@ -270,7 +300,7 @@ and <em>how hosts were normalized</em>. <code><a href="../reference/psl_version.
 reports both — the source-snapshot provenance and the runtime
 normalization identifiers — so a result can be reproduced later. Record
 this row alongside reproducibility-sensitive output.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/psl_version.html">psl_version</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    source</span></span>
 <span><span class="co">#&gt; 1 bundled</span></span>
@@ -285,7 +315,7 @@ this row alongside reproducibility-sensitive output.</p>
 <span><span class="co">#&gt;   normalizer normalizer_version         normalization_profile unicode_version</span></span>
 <span><span class="co">#&gt; 1  punycoder              1.2.0 uts46-nontransitional-std3-v1          16.0.0</span></span></code></pre></div>
 <p><code><a href="../reference/psl_rules.html">psl_rules()</a></code> exposes the active rule table itself:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="fu"><a href="../reference/psl_rules.html">psl_rules</a></span><span class="op">(</span><span class="st">"icann"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 6933</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="../reference/psl_rules.html">psl_rules</a></span><span class="op">(</span><span class="st">"private"</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
@@ -303,13 +333,13 @@ profile.</p>
 the active <code>list_date</code> — the cue to consider a
 <code><a href="../reference/psl_refresh.html">psl_refresh()</a></code>. It never touches the network; the snapshot
 age in days is returned in the <code>"age_days"</code> attribute.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/psl_outdated.html">psl_outdated</a></span><span class="op">(</span><span class="op">)</span> <span class="co"># older than the 180-day default?</span></span>
 <span><span class="co">#&gt; [1] FALSE</span></span>
 <span><span class="co">#&gt; attr(,"age_days")</span></span>
-<span><span class="co">#&gt; [1] 27.49602</span></span>
+<span><span class="co">#&gt; [1] 27.5006</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="fu"><a href="../reference/psl_outdated.html">psl_outdated</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"age_days"</span><span class="op">)</span> <span class="co"># active snapshot age, in days</span></span>
-<span><span class="co">#&gt; [1] 27.49602</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 27.5006</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="security-and-scope-notes">Security and scope notes<a class="anchor" aria-label="anchor" href="#security-and-scope-notes"></a>

@@ -206,6 +206,43 @@ psl_use("path", path = "my_list.dat") # a custom file
 Activation is session-only and validated before any state changes; a
 failed refresh never replaces a working cache or active list.
 
+## Multiple lists with engines
+
+[`psl_use()`](https://bart-turczynski.github.io/pslr/reference/psl_use.md)
+switches the one session-global list every query sees by default.
+[`psl_engine()`](https://bart-turczynski.github.io/pslr/reference/psl_engine.md)
+instead builds a self-contained engine you can hold in a variable and
+query independently — so you can work with several lists at once, or
+give a component its own list, without mutating global session state.
+Every query function takes an `engine =` argument that threads a
+specific engine through that one call.
+
+``` r
+
+engine <- psl_engine("bundled")
+public_suffix("example.co.uk", engine = engine)
+#> [1] "co.uk"
+suffix_extract("www.example.co.uk", engine = engine)
+#>               input              host subdomain  domain suffix
+#> 1 www.example.co.uk www.example.co.uk       www example  co.uk
+#>   registrable_domain
+#> 1      example.co.uk
+```
+
+An engine holds a compiled matcher backed by a C++ external pointer,
+which does not serialize across R sessions or parallel worker processes:
+saving and reloading an engine, or sending one to a worker, does not
+carry the matcher. This is why engines are described as process-local.
+To persist or ship an engine, record its snapshot descriptor with
+[`psl_version()`](https://bart-turczynski.github.io/pslr/reference/psl_version.md)
+and rebuild the engine in the target process:
+
+``` r
+
+# In the target process, rebuild from a recorded snapshot file:
+engine <- psl_engine("path", path = "my_list.dat")
+```
+
 ## Reproducibility
 
 A public-suffix result depends on both *which list* answered and *how
@@ -264,9 +301,9 @@ the `"age_days"` attribute.
 psl_outdated() # older than the 180-day default?
 #> [1] FALSE
 #> attr(,"age_days")
-#> [1] 27.49602
+#> [1] 27.5006
 attr(psl_outdated(), "age_days") # active snapshot age, in days
-#> [1] 27.49602
+#> [1] 27.5006
 ```
 
 ## Security and scope notes
