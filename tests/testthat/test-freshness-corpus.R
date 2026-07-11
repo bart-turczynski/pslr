@@ -43,7 +43,7 @@ freshness_wildcard <- c(
 )
 
 test_that("plain Table-2 eTLDs are recognized public suffixes", {
-  expect_equal(
+  expect_identical(
     is_public_suffix(freshness_plain),
     rep(TRUE, length(freshness_plain))
   )
@@ -53,35 +53,35 @@ test_that("plain Table-2 eTLDs put the boundary below the tenant label", {
   tenant <- paste0("tenant.", freshness_plain)
 
   # Suffix is the eTLD itself -- not the parent TLD a stale list would report.
-  expect_equal(public_suffix(tenant), freshness_plain)
+  expect_identical(public_suffix(tenant), freshness_plain)
 
   # Registrable domain keeps the tenant label, so distinct tenants stay
   # distinct instead of collapsing onto the shared eTLD (the paper's harm).
-  expect_equal(registrable_domain(tenant), tenant)
+  expect_identical(registrable_domain(tenant), tenant)
 })
 
 test_that("distinct tenants of a plain Table-2 eTLD stay distinct", {
   # The concrete privacy harm: on a stale list both collapse to `myshopify.com`.
   got <- registrable_domain(c("foo.myshopify.com", "bar.myshopify.com"))
-  expect_equal(got, c("foo.myshopify.com", "bar.myshopify.com"))
+  expect_identical(got, c("foo.myshopify.com", "bar.myshopify.com"))
   expect_false(got[[1]] == got[[2]])
 })
 
 test_that("wildcard Table-2 entries put the boundary below the entry", {
   # The bare parent is not itself a public suffix under a `*.<entry>` rule ...
-  expect_equal(
+  expect_identical(
     is_public_suffix(freshness_wildcard),
     rep(FALSE, length(freshness_wildcard))
   )
 
   # ... but any single label below it is (the wildcard expansion).
   labelled <- paste0("reg.", freshness_wildcard)
-  expect_equal(
+  expect_identical(
     is_public_suffix(labelled),
     rep(TRUE, length(freshness_wildcard))
   )
 
   tenant <- paste0("tenant.", labelled)
-  expect_equal(public_suffix(tenant), labelled)
-  expect_equal(registrable_domain(tenant), tenant)
+  expect_identical(public_suffix(tenant), labelled)
+  expect_identical(registrable_domain(tenant), tenant)
 })

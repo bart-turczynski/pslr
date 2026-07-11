@@ -230,6 +230,15 @@ psl_build_rule_record <- function(token, section, number) {
   )
 }
 
+# Write a parsed rule `record` into row `i` of the preallocated `out` columns,
+# returning the updated table. Factored out of the parse loop to keep it flat.
+psl_store_rule_record <- function(out, i, record, columns) {
+  for (col in columns) {
+    out[[col]][i] <- record[[col]]
+  }
+  out
+}
+
 #' Parse Public Suffix List source lines into a validated rule table
 #'
 #' Internal. Consumes a character vector of source lines (one PSL `.dat` line
@@ -291,9 +300,7 @@ parse_psl_lines <- function(lines) {
 
     record <- psl_build_rule_record(token, section, i)
     count <- count + 1L
-    for (col in columns) {
-      out[[col]][count] <- record[[col]]
-    }
+    out <- psl_store_rule_record(out, count, record, columns)
   }
 
   if (!is.na(section)) {
