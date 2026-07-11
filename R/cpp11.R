@@ -7,3 +7,11 @@ psl_build_matcher <- function(keys, kinds, sections) {
 psl_match <- function(matcher, hosts, section_code) {
   .Call(`_pslr_psl_match`, matcher, hosts, section_code)
 }
+
+psl_build_matcher_trie <- function(keys, kinds, sections) {
+  .Call(`_pslr_psl_build_matcher_trie`, keys, kinds, sections)
+}
+
+psl_match_trie <- function(matcher, hosts, section_code) {
+  .Call(`_pslr_psl_match_trie`, matcher, hosts, section_code)
+}

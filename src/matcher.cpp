@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -259,6 +260,245 @@ list psl_match(SEXP matcher, strings hosts, int section_code) {
     auto start_for_depth = [&](int d) -> int {
       if (d < 1 || d > nlab) return NA_INTEGER;
       return static_cast<int>(host_len - suf[nlab - d].size()) + 1;
+    };
+    ps_start[i] = start_for_depth(pd);
+    rd_start[i] = start_for_depth(pd + 1);
+    ps1_start[i] = start_for_depth(pd - 1);
+  }
+
+  using namespace cpp11::literals;
+  return writable::list({
+      "ps_depth"_nm = ps_depth,
+      "kind"_nm = kind,
+      "section"_nm = section,
+      "ps_start"_nm = ps_start,
+      "rd_start"_nm = rd_start,
+      "ps1_start"_nm = ps1_start,
+  });
+}
+
+// ===========================================================================
+// EXPERIMENT (PSLR-rtvcjhdz): a reverse-label trie matcher, built ALONGSIDE
+// the hash-set Matcher above so a later benchmark unit can race the two on
+// identical inputs. It is a parallel, dormant implementation: nothing in the R
+// query pipeline reaches it. The hash-set path above is untouched.
+//
+// Idea: instead of materializing every right-anchored suffix string per host
+// and re-hashing overlapping tails, index the rules in a trie keyed on labels
+// RIGHT-TO-LEFT. A single descent from the host's rightmost label then visits
+// exactly the suffixes that could match a rule, reading each node's per-section
+// end-of-rule flags to drive the same prevailing-rule selection.
+// ===========================================================================
+
+namespace {
+
+// One node = one right-anchored label path (the empty path is the root). A node
+// carries, per section, whether a rule of each kind ENDS at this exact path:
+// ends[section][kind]. For a wildcard the stored path is its PARENT labels
+// (post-'*.'); for an exception the full post-'!' labels; for a normal rule the
+// key as-is -- identical to the keys the hash-set Matcher stores, so the trie
+// indexes the very same strings, just decomposed into labels.
+struct TrieNode {
+  bool ends[2][3] = {{false, false, false}, {false, false, false}};
+  std::unordered_map<std::string, std::unique_ptr<TrieNode>> children;
+};
+
+// The trie matcher owns its root; the root's unique_ptr children cascade-free
+// the whole tree when the TrieMatcher is deleted by its finalizer.
+struct TrieMatcher {
+  TrieNode root;
+};
+
+// Which section a rule of `kind` ending at `node` belongs to, under the request
+// filter -- mirroring find_section() exactly: for a single section only that
+// one counts; for SECTION_ALL (section_code 2) ICANN wins a cross-section tie.
+int node_section(const TrieNode* node, int kind, int section_code) {
+  if (section_code == SEC_ICANN) {
+    return node->ends[SEC_ICANN][kind] ? SEC_ICANN : -1;
+  }
+  if (section_code == SEC_PRIVATE) {
+    return node->ends[SEC_PRIVATE][kind] ? SEC_PRIVATE : -1;
+  }
+  if (node->ends[SEC_ICANN][kind]) return SEC_ICANN;
+  if (node->ends[SEC_PRIVATE][kind]) return SEC_PRIVATE;
+  return -1;
+}
+
+void trie_matcher_finalizer(SEXP ptr) {
+  TrieMatcher* m = static_cast<TrieMatcher*>(R_ExternalPtrAddr(ptr));
+  if (m == nullptr) return;
+  delete m;
+  R_ClearExternalPtr(ptr);
+}
+
+}  // namespace
+
+// Build the reverse-label trie. Boundary validation is identical to
+// psl_build_matcher (parallel-vector lengths, section in {0,1}, kind via
+// kind_index); a first validating pass aborts a bad row before any node is
+// created, matching the hash-set builder's abort-before-build discipline.
+[[cpp11::register]]
+SEXP psl_build_matcher_trie(strings keys, strings kinds, integers sections) {
+  R_xlen_t n = keys.size();
+  if (kinds.size() != n || sections.size() != n) {
+    cpp11::stop(
+        "keys, kinds, and sections must have the same length "
+        "(got %td, %td, %td)",
+        static_cast<std::ptrdiff_t>(n),
+        static_cast<std::ptrdiff_t>(kinds.size()),
+        static_cast<std::ptrdiff_t>(sections.size()));
+  }
+
+  // Pass 1: validate every row (section range + known kind) so a bad row stops
+  // the build before any allocation, exactly as psl_build_matcher does.
+  for (R_xlen_t i = 0; i < n; ++i) {
+    int sec = sections[i];
+    if (sec != SEC_ICANN && sec != SEC_PRIVATE) {
+      cpp11::stop("section code %d out of range: expected 0 (ICANN) or 1 "
+                  "(PRIVATE)",
+                  sec);
+    }
+    kind_index(std::string(kinds[i]));
+  }
+
+  // Build into a unique_ptr so any exception below frees the whole trie;
+  // ownership is released to R only once pointer + finalizer are registered.
+  std::unique_ptr<TrieMatcher> m = std::make_unique<TrieMatcher>();
+  for (R_xlen_t i = 0; i < n; ++i) {
+    int sec = sections[i];
+    int k = kind_index(std::string(kinds[i]));
+    std::vector<std::string> labels = split_labels(std::string(keys[i]));
+    // Walk the key's labels RIGHT-TO-LEFT (rightmost first), creating child
+    // nodes as needed, then flag end-of-rule at the terminal node.
+    TrieNode* node = &m->root;
+    for (int j = static_cast<int>(labels.size()) - 1; j >= 0; --j) {
+      std::unique_ptr<TrieNode>& child = node->children[labels[j]];
+      if (!child) child = std::make_unique<TrieNode>();
+      node = child.get();
+    }
+    node->ends[sec][k] = true;
+  }
+
+  SEXP ptr = PROTECT(R_MakeExternalPtr(m.get(), R_NilValue, R_NilValue));
+  R_RegisterCFinalizerEx(ptr, trie_matcher_finalizer, TRUE);
+  m.release();  // R owns the TrieMatcher now; the finalizer will delete it.
+  UNPROTECT(1);
+  return ptr;
+}  // # nocov
+
+// Match hosts against the trie. Returns the IDENTICAL 6-column list shape and
+// values as psl_match, computed by ONE right-to-left label descent per host
+// instead of building and re-hashing every suffix.
+[[cpp11::register]]
+list psl_match_trie(SEXP matcher, strings hosts, int section_code) {
+  const TrieMatcher* m =
+      static_cast<const TrieMatcher*>(R_ExternalPtrAddr(matcher));
+  if (m == nullptr) {
+    cpp11::stop("matcher external pointer is NULL (not built or already freed)");
+  }
+  R_xlen_t n = hosts.size();
+  writable::integers ps_depth(n);
+  writable::integers kind(n);
+  writable::integers section(n);
+  writable::integers ps_start(n);
+  writable::integers rd_start(n);
+  writable::integers ps1_start(n);
+
+  for (R_xlen_t i = 0; i < n; ++i) {
+    std::string host = hosts[i];
+    std::vector<std::string> labels = split_labels(host);
+    int nlab = static_cast<int>(labels.size());
+
+    // Cumulative suffix byte-lengths for depths 1..nlab, derived from the host
+    // ALONE (independent of the trie, exactly like psl_match's suf[] array): the
+    // depth-d suffix is label[nlab-d] + "." + suffix(d-1). This lets us compute
+    // start_for_depth for any depth even where the trie descent stopped short.
+    std::vector<std::size_t> suffix_len(nlab + 1, 0);
+    for (int d = 1; d <= nlab; ++d) {
+      suffix_len[d] =
+          labels[nlab - d].size() + (d > 1 ? 1 + suffix_len[d - 1] : 0);
+    }
+
+    bool has_exc = false;
+    int exc_ps = -1;
+    int exc_sec = -1;
+    int best_ps = 0;
+    int best_kind = -1;
+    int best_sec = -1;
+
+    // One descent: from the root, consume labels right-to-left. At depth d the
+    // node represents the depth-d suffix; read its flags to update the same
+    // exception / normal / wildcard selection the hash-set path runs. If a
+    // label has no child, no rule shares these rightmost d labels at ANY depth
+    // >= d, so we can stop -- matching psl_match's "no rule found" outcome.
+    const TrieNode* node = &m->root;
+    for (int d = 1; d <= nlab; ++d) {
+      auto it = node->children.find(labels[nlab - d]);
+      if (it == node->children.end()) break;
+      node = it->second.get();
+
+      // Exception '!s': prevailing suffix strips its leftmost label -> ps
+      // depth - 1. Exceptions beat everything; among them the longest wins.
+      int es = node_section(node, KIND_EXCEPTION, section_code);
+      if (es >= 0) {
+        int ps = d - 1;
+        if (!has_exc || ps > exc_ps) {
+          has_exc = true;
+          exc_ps = ps;
+          exc_sec = es;
+        }
+      }
+
+      // Normal 's': public-suffix depth == d.
+      int ns = node_section(node, KIND_NORMAL, section_code);
+      if (ns >= 0) {
+        // Take on strictly greater depth, or on an equal-ps tie against a
+        // wildcard already chosen (a normal rule of equal length wins the tie).
+        // psl_match gets this "normal wins" tie from its depth-descending scan
+        // order; this descent runs depth-ascending, so the tie is made explicit
+        // here instead of relying on visit order.
+        if (d > best_ps || (d == best_ps && best_kind == KIND_WILDCARD)) {
+          best_ps = d;
+          best_kind = KIND_NORMAL;
+          best_sec = ns;
+        }
+      }
+
+      // Wildcard '*.s': matches only with a label to its left (d < nlab); the
+      // '*' label joins the public suffix, so depth + 1. Strict '>' means it
+      // can never displace a normal rule of equal resulting ps.
+      if (d < nlab) {
+        int ws = node_section(node, KIND_WILDCARD, section_code);
+        if (ws >= 0 && d + 1 > best_ps) {
+          best_ps = d + 1;
+          best_kind = KIND_WILDCARD;
+          best_sec = ws;
+        }
+      }
+    }
+
+    int pd;
+    if (has_exc) {
+      pd = exc_ps;
+      ps_depth[i] = exc_ps;
+      kind[i] = KIND_EXCEPTION;
+      section[i] = exc_sec;
+    } else if (best_kind >= 0) {
+      pd = best_ps;
+      ps_depth[i] = best_ps;
+      kind[i] = best_kind;
+      section[i] = best_sec;
+    } else {
+      pd = 1;
+      ps_depth[i] = 1;
+      kind[i] = 3;  // default
+      section[i] = NA_INTEGER;
+    }
+
+    std::size_t host_len = host.size();
+    auto start_for_depth = [&](int d) -> int {
+      if (d < 1 || d > nlab) return NA_INTEGER;
+      return static_cast<int>(host_len - suffix_len[d]) + 1;
     };
     ps_start[i] = start_for_depth(pd);
     rd_start[i] = start_for_depth(pd + 1);

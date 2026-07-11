@@ -87,6 +87,88 @@ test_that("section filtering happens before prevailing-rule selection", {
   expect_identical(icann$kind, 3L)
 })
 
+# ---- reverse-label trie prototype: byte-identical to the hash set -----------
+# (PSLR-rtvcjhdz) The trie is a dormant parallel matcher for a later benchmark.
+# Its only contract is that it reproduces the hash-set matcher exactly, so these
+# tests race both implementations, built from the SAME rules, across every
+# section code and assert all six output columns agree column-for-column.
+
+# Build a trie from the same (keys, kinds, sections) as synthetic_matcher().
+synthetic_matcher_trie <- function() {
+  keys <- c(
+    "com",
+    "a.com",
+    "co.uk",
+    "jp",
+    "ck",
+    "www.ck", # *.ck + !www.ck
+    "kobe.jp",
+    "city.kobe.jp", # *.kobe.jp + !city.kobe.jp
+    "example.priv" # PRIVATE-only
+  )
+  kinds <- c(
+    "normal",
+    "normal",
+    "normal",
+    "normal",
+    "wildcard",
+    "exception",
+    "wildcard",
+    "exception",
+    "normal"
+  )
+  sections <- c(0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 1L)
+  psl_build_matcher_trie(keys, kinds, sections)
+}
+
+# Assert the trie and the hash-set matcher return byte-identical 6-column lists
+# for the given hosts under one section code.
+expect_trie_matches_hash <- function(hash_m, trie_m, hosts, code) {
+  hash_res <- psl_match(hash_m, hosts, code)
+  trie_res <- psl_match_trie(trie_m, hosts, code)
+  expect_identical(trie_res, hash_res)
+}
+
+test_that("trie reproduces the hash-set matcher on the synthetic rule set", {
+  hash_m <- synthetic_matcher()
+  trie_m <- synthetic_matcher_trie()
+  # Hosts spanning normal (longest-wins), wildcard, exception, default, both
+  # sections, single-label, and deep multi-level wildcard/exception shapes.
+  hosts <- c(
+    "com",
+    "foo.com",
+    "x.a.com", # 'a.com' (depth 2) beats 'com'
+    "co.uk",
+    "a.co.uk",
+    "madeuptld", # default
+    "foo.madeuptld", # default
+    "test.ck", # *.ck -> depth 2
+    "b.test.ck",
+    "ck", # bare wildcard base -> default
+    "www.ck", # !www.ck -> depth 1
+    "city.kobe.jp", # !city.kobe.jp -> depth 2
+    "a.city.kobe.jp",
+    "foo.kobe.jp", # *.kobe.jp -> depth 3
+    "x.example.priv", # PRIVATE-only rule
+    "example.priv"
+  )
+  for (code in c(0L, 1L, 2L)) {
+    expect_trie_matches_hash(hash_m, trie_m, hosts, code)
+  }
+})
+
+test_that("trie matches the hash set on the bundled rules over 2000 hosts", {
+  rules <- psl_default_engine()$snapshot$rules
+  section_int <- as.integer(rules$section == "private")
+  hash_m <- psl_build_matcher(rules$canonical_key, rules$kind, section_int)
+  trie_m <- psl_build_matcher_trie(rules$canonical_key, rules$kind, section_int)
+
+  hosts <- pslr:::psl_bench_unique_hosts(2000L)
+  for (code in c(0L, 1L, 2L)) {
+    expect_trie_matches_hash(hash_m, trie_m, hosts, code)
+  }
+})
+
 # ---- C++ boundary validation (PSLR-sfppglqs) -------------------------------
 
 test_that("psl_build_matcher validates its parallel-vector inputs", {
