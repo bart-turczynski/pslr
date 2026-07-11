@@ -57,3 +57,10 @@ reference:
       - psl_refresh
       - psl_use
       - psl_cache_prune
+
+  - title: Engines
+    desc: >
+      Build a self-contained PSL engine to query a specific snapshot without
+      switching the session-global list.
+    contents:
+      - psl_engine
