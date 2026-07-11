@@ -26,6 +26,11 @@ The columns, in order, are:
 
   `"bundled"`, `"cache"`, or `"path"`.
 
+- `url`:
+
+  Source URL of the active snapshot: the upstream download URL for the
+  bundled list; `NA` for a `"cache"` or `"path"` source.
+
 - `path`:
 
   File path of a `"cache"` or `"path"` source; `NA` otherwise.
@@ -82,8 +87,12 @@ them without altering the shipped source identity or checksum.
 
 ``` r
 psl_version()
-#>    source path            retrieved_at            list_date
-#> 1 bundled <NA> 2026-06-15 16:18:34 UTC 2026-06-13T21:47:08Z
+#>    source
+#> 1 bundled
+#>                                                                                                                   url
+#> 1 https://raw.githubusercontent.com/publicsuffix/list/9186eeeda85cef35b1551d00731464939c765cab/public_suffix_list.dat
+#>   path            retrieved_at            list_date
+#> 1 <NA> 2026-06-15 16:18:34 UTC 2026-06-13T21:47:08Z
 #>                                     commit   size
 #> 1 9186eeeda85cef35b1551d00731464939c765cab 332703
 #>                                                                  checksum

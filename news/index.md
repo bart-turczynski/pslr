@@ -2,6 +2,11 @@
 
 ## pslr (development version)
 
+- [`psl_version()`](https://bart-turczynski.github.io/pslr/reference/psl_version.md)
+  now reports the active snapshot’s source `url` as a new column – the
+  upstream download URL for the bundled list; `NA` for cache or
+  custom-path sources (PSLR-qcvrfoun).
+
 - `output = "unicode"` now decodes each distinct A-label only once per
   call –
   [`suffix_extract()`](https://bart-turczynski.github.io/pslr/reference/suffix_extract.md)

@@ -69,6 +69,10 @@ requires both the active-list identity and these normalization identifiers
 <dl><dt><code>source</code></dt>
 <dd><p><code>"bundled"</code>, <code>"cache"</code>, or <code>"path"</code>.</p></dd>
 
+<dt><code>url</code></dt>
+<dd><p>Source URL of the active snapshot: the upstream download URL
+for the bundled list; <code>NA</code> for a <code>"cache"</code> or <code>"path"</code> source.</p></dd>
+
 <dt><code>path</code></dt>
 <dd><p>File path of a <code>"cache"</code> or <code>"path"</code> source; <code>NA</code> otherwise.</p></dd>
 
@@ -117,8 +121,12 @@ altering the shipped source identity or checksum.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">psl_version</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    source path            retrieved_at            list_date</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 bundled &lt;NA&gt; 2026-06-15 16:18:34 UTC 2026-06-13T21:47:08Z</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    source</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 bundled</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                                                                                                   url</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 https://raw.githubusercontent.com/publicsuffix/list/9186eeeda85cef35b1551d00731464939c765cab/public_suffix_list.dat</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   path            retrieved_at            list_date</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 &lt;NA&gt; 2026-06-15 16:18:34 UTC 2026-06-13T21:47:08Z</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                                     commit   size</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1 9186eeeda85cef35b1551d00731464939c765cab 332703</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                                                                  checksum</span>

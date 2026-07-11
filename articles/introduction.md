@@ -218,8 +218,12 @@ this row alongside reproducibility-sensitive output.
 ``` r
 
 psl_version()
-#>    source path            retrieved_at            list_date
-#> 1 bundled <NA> 2026-06-15 16:18:34 UTC 2026-06-13T21:47:08Z
+#>    source
+#> 1 bundled
+#>                                                                                                                   url
+#> 1 https://raw.githubusercontent.com/publicsuffix/list/9186eeeda85cef35b1551d00731464939c765cab/public_suffix_list.dat
+#>   path            retrieved_at            list_date
+#> 1 <NA> 2026-06-15 16:18:34 UTC 2026-06-13T21:47:08Z
 #>                                     commit   size
 #> 1 9186eeeda85cef35b1551d00731464939c765cab 332703
 #>                                                                  checksum
@@ -260,9 +264,9 @@ the `"age_days"` attribute.
 psl_outdated() # older than the 180-day default?
 #> [1] FALSE
 #> attr(,"age_days")
-#> [1] 27.47083
+#> [1] 27.47631
 attr(psl_outdated(), "age_days") # active snapshot age, in days
-#> [1] 27.47083
+#> [1] 27.47631
 ```
 
 ## Security and scope notes

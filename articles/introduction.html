@@ -272,8 +272,12 @@ normalization identifiers — so a result can be reproduced later. Record
 this row alongside reproducibility-sensitive output.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/psl_version.html">psl_version</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    source path            retrieved_at            list_date</span></span>
-<span><span class="co">#&gt; 1 bundled &lt;NA&gt; 2026-06-15 16:18:34 UTC 2026-06-13T21:47:08Z</span></span>
+<span><span class="co">#&gt;    source</span></span>
+<span><span class="co">#&gt; 1 bundled</span></span>
+<span><span class="co">#&gt;                                                                                                                   url</span></span>
+<span><span class="co">#&gt; 1 https://raw.githubusercontent.com/publicsuffix/list/9186eeeda85cef35b1551d00731464939c765cab/public_suffix_list.dat</span></span>
+<span><span class="co">#&gt;   path            retrieved_at            list_date</span></span>
+<span><span class="co">#&gt; 1 &lt;NA&gt; 2026-06-15 16:18:34 UTC 2026-06-13T21:47:08Z</span></span>
 <span><span class="co">#&gt;                                     commit   size</span></span>
 <span><span class="co">#&gt; 1 9186eeeda85cef35b1551d00731464939c765cab 332703</span></span>
 <span><span class="co">#&gt;                                                                  checksum</span></span>
@@ -303,9 +307,9 @@ age in days is returned in the <code>"age_days"</code> attribute.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/psl_outdated.html">psl_outdated</a></span><span class="op">(</span><span class="op">)</span> <span class="co"># older than the 180-day default?</span></span>
 <span><span class="co">#&gt; [1] FALSE</span></span>
 <span><span class="co">#&gt; attr(,"age_days")</span></span>
-<span><span class="co">#&gt; [1] 27.47083</span></span>
+<span><span class="co">#&gt; [1] 27.47631</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="fu"><a href="../reference/psl_outdated.html">psl_outdated</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"age_days"</span><span class="op">)</span> <span class="co"># active snapshot age, in days</span></span>
-<span><span class="co">#&gt; [1] 27.47083</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 27.47631</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="security-and-scope-notes">Security and scope notes<a class="anchor" aria-label="anchor" href="#security-and-scope-notes"></a>
