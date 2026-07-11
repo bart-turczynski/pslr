@@ -4,7 +4,13 @@
 \alias{is_public_suffix}
 \title{Is a host itself a public suffix?}
 \usage{
-is_public_suffix(domain, section = "all", unknown = "default", invalid = "na")
+is_public_suffix(
+  domain,
+  section = "all",
+  unknown = "default",
+  invalid = "na",
+  engine = psl_default_engine()
+)
 }
 \arguments{
 \item{domain}{Character vector of DNS hostnames (not URLs). Each element may
@@ -24,6 +30,11 @@ no explicit rule in the selected section matches.}
 \item{invalid}{\code{"na"} (default) returns \code{NA} for each invalid element without
 a warning; \code{"error"} aborts on the first invalid element, reporting its
 1-based index.}
+
+\item{engine}{The \code{psl_engine} to query against; defaults to the
+session-global engine selected by \code{psl_use()}, so most callers never set
+it. Pass an engine from \code{psl_engine()} to resolve hosts against a specific
+snapshot in isolation.}
 }
 \value{
 A logical vector with \code{length(domain)}, preserving the names of

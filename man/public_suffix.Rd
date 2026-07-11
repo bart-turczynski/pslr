@@ -9,7 +9,8 @@ public_suffix(
   section = "all",
   output = "ascii",
   unknown = "default",
-  invalid = "na"
+  invalid = "na",
+  engine = psl_default_engine()
 )
 }
 \arguments{
@@ -33,6 +34,11 @@ no explicit rule in the selected section matches.}
 \item{invalid}{\code{"na"} (default) returns \code{NA} for each invalid element without
 a warning; \code{"error"} aborts on the first invalid element, reporting its
 1-based index.}
+
+\item{engine}{The \code{psl_engine} to query against; defaults to the
+session-global engine selected by \code{psl_use()}, so most callers never set
+it. Pass an engine from \code{psl_engine()} to resolve hosts against a specific
+snapshot in isolation.}
 }
 \value{
 A character vector with \code{length(domain)}, preserving the names of
