@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* The five query functions (`public_suffix()`, `registrable_domain()`, `is_public_suffix()`, `suffix_extract()`, `public_suffix_rule()`) gain an optional `engine=` argument to query a specific `psl_engine()` snapshot instead of the session-global list; omitting it is unchanged (PSLR-hflrsfgp).
+
 * New `psl_engine()` constructs a self-contained, process-local PSL engine (`source = "bundled"` or `"path"`) for querying a specific snapshot without `psl_use()` (PSLR-ntqoiglh).
 
 * `psl_version()` now reports the active snapshot's source `url` as a new column -- the upstream download URL for the bundled list; `NA` for cache or custom-path sources (PSLR-qcvrfoun).

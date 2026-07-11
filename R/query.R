@@ -116,6 +116,12 @@ psl_query_cols <- function(
   invalid,
   fields = psl_result_char_cols
 ) {
+  if (!inherits(engine, "psl_engine")) {
+    stop(
+      "`engine` must be a `psl_engine` object, e.g. from `psl_engine()`.",
+      call. = FALSE
+    )
+  }
   canon <- psl_canonicalize(domain, invalid)
   n <- length(canon$input)
   valid <- canon$status == "ok"
@@ -164,14 +170,21 @@ psl_query_cols <- function(
 # Shared body of the length-preserving single-string accessors
 # `public_suffix()` and `registrable_domain()`: they differ only in which
 # result column they read (`field`) and, via the same name, which `fields`
-# projection they request. Validates the common opts and `output`, resolves the
-# default engine, derives just `field`, restores the terminal root dot, decodes
+# projection they request. Validates the common opts and `output`, queries the
+# given `engine`, derives just `field`, restores the terminal root dot, decodes
 # A-labels to Unicode on demand, and re-attaches the names of `domain`.
-psl_query_vector <- function(domain, field, section, output, unknown, invalid) {
+psl_query_vector <- function(
+  domain,
+  field,
+  section,
+  output,
+  unknown,
+  invalid,
+  engine
+) {
   opts <- resolve_common_opts(section, unknown, invalid)
   output <- check_choice(output, c("ascii", "unicode"), "output")
 
-  engine <- psl_default_engine()
   cols <- psl_query_cols(
     engine,
     domain,
@@ -209,6 +222,10 @@ psl_query_vector <- function(domain, field, section, output, unknown, invalid) {
 #' @param invalid `"na"` (default) returns `NA` for each invalid element without
 #'   a warning; `"error"` aborts on the first invalid element, reporting its
 #'   1-based index.
+#' @param engine The `psl_engine` to query against; defaults to the
+#'   session-global engine selected by `psl_use()`, so most callers never set
+#'   it. Pass an engine from `psl_engine()` to resolve hosts against a specific
+#'   snapshot in isolation.
 #'
 #' @section Input contract:
 #' `NA` is treated as missing (returns `NA`), not invalid. Invalid elements
@@ -232,7 +249,8 @@ public_suffix <- function(
   section = "all",
   output = "ascii",
   unknown = "default",
-  invalid = "na"
+  invalid = "na",
+  engine = psl_default_engine()
 ) {
   psl_query_vector(
     domain,
@@ -240,7 +258,8 @@ public_suffix <- function(
     section,
     output,
     unknown,
-    invalid
+    invalid,
+    engine
   )
 }
 
@@ -265,7 +284,8 @@ registrable_domain <- function(
   section = "all",
   output = "ascii",
   unknown = "default",
-  invalid = "na"
+  invalid = "na",
+  engine = psl_default_engine()
 ) {
   psl_query_vector(
     domain,
@@ -273,7 +293,8 @@ registrable_domain <- function(
     section,
     output,
     unknown,
-    invalid
+    invalid,
+    engine
   )
 }
 
@@ -301,11 +322,11 @@ is_public_suffix <- function(
   domain,
   section = "all",
   unknown = "default",
-  invalid = "na"
+  invalid = "na",
+  engine = psl_default_engine()
 ) {
   opts <- resolve_common_opts(section, unknown, invalid)
 
-  engine <- psl_default_engine()
   cols <- psl_query_cols(
     engine,
     domain,
@@ -367,12 +388,12 @@ suffix_extract <- function(
   section = "all",
   output = "ascii",
   unknown = "default",
-  invalid = "na"
+  invalid = "na",
+  engine = psl_default_engine()
 ) {
   opts <- resolve_common_opts(section, unknown, invalid)
   output <- check_choice(output, c("ascii", "unicode"), "output")
 
-  engine <- psl_default_engine()
   cols <- psl_query_cols(
     engine,
     domain,
@@ -440,11 +461,11 @@ public_suffix_rule <- function(
   domain,
   section = "all",
   unknown = "default",
-  invalid = "na"
+  invalid = "na",
+  engine = psl_default_engine()
 ) {
   opts <- resolve_common_opts(section, unknown, invalid)
 
-  engine <- psl_default_engine()
   cols <- psl_query_cols(
     engine,
     domain,

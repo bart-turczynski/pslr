@@ -57,6 +57,58 @@ test_that("psl_engine does not disturb the session-global default engine", {
   expect_identical(psl_default_engine(), before)
 })
 
+# The `engine =` argument on the public query functions routes a query at a
+# specific snapshot instead of the session-global list (PSLR-hflrsfgp). A custom
+# path engine carrying a rule absent from the bundled list is the observable
+# oracle: its novel suffix resolves through the custom engine but not the
+# default.
+
+test_that("engine = queries the intended snapshot, distinct from the default", {
+  dat <- withr::local_tempfile(fileext = ".dat")
+  writeLines(
+    c(
+      "// ===BEGIN ICANN DOMAINS===",
+      "zzzcustomtld",
+      "// ===END ICANN DOMAINS===",
+      "// ===BEGIN PRIVATE DOMAINS===",
+      "example.zzzcustomtld",
+      "// ===END PRIVATE DOMAINS==="
+    ),
+    dat
+  )
+  custom <- psl_engine("path", path = dat)
+
+  # The novel suffix resolves through the custom engine but is unknown to the
+  # default; `unknown = "na"` makes the difference observable.
+  expect_true(is_public_suffix("zzzcustomtld", engine = custom, unknown = "na"))
+  expect_identical(is_public_suffix("zzzcustomtld", unknown = "na"), NA)
+  expect_identical(
+    public_suffix("foo.zzzcustomtld", engine = custom, unknown = "na"),
+    "zzzcustomtld"
+  )
+  expect_identical(
+    public_suffix("foo.zzzcustomtld", unknown = "na"),
+    NA_character_
+  )
+})
+
+test_that("engine = psl_default_engine() matches an omitted engine", {
+  expect_identical(
+    public_suffix("www.example.com", engine = psl_default_engine()),
+    public_suffix("www.example.com")
+  )
+  expect_identical(
+    registrable_domain("www.example.co.uk", engine = psl_default_engine()),
+    registrable_domain("www.example.co.uk")
+  )
+})
+
+test_that("a non-engine `engine` argument errors", {
+  the_snapshot <- psl_engine("bundled")$snapshot
+  expect_error(public_suffix("x", engine = "not an engine"), "psl_engine")
+  expect_error(public_suffix("x", engine = the_snapshot), "psl_engine")
+})
+
 test_that("print methods summarise without dumping internals", {
   e <- psl_engine("bundled")
   expect_output(print(e), "<psl_engine>")
