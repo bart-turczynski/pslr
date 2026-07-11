@@ -23,3 +23,46 @@ test_that("each engine owns an isolated result cache", {
   expect_identical(engine_a$cache$n, 1L)
   expect_identical(engine_b$cache$n, 0L)
 })
+
+# The public constructor `psl_engine()` builds a fully-formed engine bound to a
+# specific snapshot (PSLR-ntqoiglh), never touching the session-global default.
+
+test_that("psl_engine('bundled') builds a bundled engine", {
+  e <- psl_engine("bundled")
+  expect_s3_class(e, "psl_engine")
+  expect_named(e, c("snapshot", "matcher", "cache"))
+  expect_s3_class(e$snapshot, "psl_snapshot")
+  expect_identical(e$snapshot$meta$source, "bundled")
+  expect_false(is.na(e$snapshot$meta$url))
+})
+
+test_that("psl_engine('path') builds a path engine from a source file", {
+  e <- psl_engine("path", path = bundled_dat_path())
+  expect_s3_class(e, "psl_engine")
+  expect_identical(e$snapshot$meta$source, "path")
+})
+
+test_that("psl_engine validates source and path", {
+  expect_error(psl_engine("path"), "single file path")
+  expect_error(psl_engine("path", path = tempfile()), "not found")
+  expect_error(psl_engine("bundled", path = "x"), "only used when")
+  expect_error(psl_engine("nope"), "must be one of")
+})
+
+test_that("psl_engine does not disturb the session-global default engine", {
+  local_pslr_clean()
+  before <- psl_default_engine()
+  psl_engine("bundled")
+  psl_engine("path", path = bundled_dat_path())
+  expect_identical(psl_default_engine(), before)
+})
+
+test_that("print methods summarise without dumping internals", {
+  e <- psl_engine("bundled")
+  expect_output(print(e), "<psl_engine>")
+  expect_output(print(e), "process-local compiled matcher")
+  expect_output(print(e), "bundled")
+  expect_output(print(e$snapshot), "<psl_snapshot>")
+  capture.output(res <- withVisible(print(e)))
+  expect_false(res$visible)
+})

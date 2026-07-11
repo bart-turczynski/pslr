@@ -189,13 +189,15 @@ rebuild_bundled_rules <- function() {
   apply_duplicate_policy(read_psl_file(path), mode = "lenient")
 }
 
-# Activate the bundled snapshot. Compares the shipped index's normalization
-# profile and Unicode version against the runtime normalizer; on any mismatch it
-# rebuilds the index in memory from the bundled source before activation so an
+# Build the bundled snapshot descriptor. Compares the shipped index's
+# normalization profile and Unicode version against the runtime normalizer; on
+# any mismatch it rebuilds the index in memory from the bundled source so an
 # index canonicalized under one profile is never combined with hosts
 # canonicalized under another (PRD s8.3). The shipped source identity (checksum,
 # commit, size) is preserved; only the normalizer identifiers reflect runtime.
-activate_bundled <- function() {
+# Pure: builds and returns the snapshot without touching session state.
+# @noRd
+bundled_snapshot <- function() {
   rt <- runtime_normalizer_meta()
   bm <- pslr_bundled$meta
   profile_match <- identical(
@@ -214,7 +216,105 @@ activate_bundled <- function() {
     size = bm$size,
     checksum = bm$checksum
   )
-  psl_set_active(rules, meta, rebuilt = mismatch)
+  new_psl_snapshot(rules, meta, rebuilt = mismatch)
+}
+
+# Activate the bundled snapshot via the single activation choke-point.
+activate_bundled <- function() {
+  psl_activate_snapshot(bundled_snapshot())
+}
+
+#' Construct a self-contained PSL engine
+#'
+#' Builds a process-local Public Suffix List engine bound to a specific
+#' snapshot, without switching the session-global active list that [psl_use()]
+#' controls.
+#'
+#' @param source Where to load the list from: `"bundled"` (the pinned package
+#'   snapshot) or `"path"` (a custom file).
+#' @param path For `source = "path"`, a single readable PSL-format UTF-8 file
+#'   containing one complete ICANN section and one complete PRIVATE section,
+#'   using official markers. Must be `NULL` for any other source.
+#'
+#' @details
+#' The engine is **process-local**: its compiled matcher is a C++ external
+#' pointer that does not serialize across R sessions or parallel workers.
+#' Saving and reloading an engine, or sending one to a worker, does not carry
+#' the matcher. To persist an engine, serialize its snapshot descriptor and
+#' rebuild the engine from it in the target process.
+#'
+#' @return An engine object that the query functions can be pointed at (via
+#'   their `engine=` argument) to resolve hosts against the chosen snapshot in
+#'   isolation from the session-global list.
+#' @seealso [psl_use()], [psl_version()]
+#' @examples
+#' engine <- psl_engine("bundled")
+#' engine
+#'
+#' # A custom list from a file, entirely offline.
+#' dat <- tempfile(fileext = ".dat")
+#' writeLines(
+#'   c(
+#'     "// ===BEGIN ICANN DOMAINS===",
+#'     "com",
+#'     "// ===END ICANN DOMAINS===",
+#'     "// ===BEGIN PRIVATE DOMAINS===",
+#'     "example.com",
+#'     "// ===END PRIVATE DOMAINS==="
+#'   ),
+#'   dat
+#' )
+#' psl_engine("path", path = dat)
+#' @export
+psl_engine <- function(source = "bundled", path = NULL) {
+  check_choice(source, c("bundled", "path"), "source")
+  if (source != "path" && !is.null(path)) {
+    stop("`path` is only used when `source = \"path\"`.", call. = FALSE)
+  }
+  snapshot <- switch(
+    source,
+    bundled = bundled_snapshot(),
+    path = path_snapshot(path)
+  )
+  new_psl_engine(snapshot)
+}
+
+# One-line source-identity summary shared by both print methods: source name
+# plus whichever of commit / checksum is available, and the rule count.
+psl_snapshot_summary <- function(snapshot) {
+  meta <- snapshot$meta
+  ident <- if (!is.na(meta$commit)) {
+    paste0("commit ", meta$commit)
+  } else if (!is.na(meta$checksum)) {
+    meta$checksum
+  } else {
+    "unknown identity"
+  }
+  sprintf(
+    "%s (%s), %d rules",
+    meta$source,
+    ident,
+    nrow(snapshot$rules)
+  )
+}
+
+#' @rdname psl_engine
+#' @keywords internal
+#' @export
+print.psl_snapshot <- function(x, ...) {
+  cat("<psl_snapshot>\n")
+  cat(" ", psl_snapshot_summary(x), "\n", sep = "")
+  invisible(x)
+}
+
+#' @rdname psl_engine
+#' @keywords internal
+#' @export
+print.psl_engine <- function(x, ...) {
+  cat("<psl_engine>\n")
+  cat(" ", psl_snapshot_summary(x$snapshot), "\n", sep = "")
+  cat("  <process-local compiled matcher>\n")
+  invisible(x)
 }
 
 # The process-wide default `psl_engine`: the single active engine that the

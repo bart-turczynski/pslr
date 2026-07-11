@@ -452,7 +452,13 @@ psl_activate_cache <- function() {
   invisible(psl_version())
 }
 
-psl_activate_path <- function(path) {
+# Build the snapshot descriptor for a custom PSL source file. Validates the
+# path, loads and validates the source under the runtime normalizer, and pairs
+# it with the path-source metadata. Pure: builds and returns the snapshot
+# without touching session state; errors on a missing/NULL path exactly as
+# `psl_use("path")` does today.
+# @noRd
+path_snapshot <- function(path) {
   bad_path <- is.null(path) ||
     !is.character(path) ||
     length(path) != 1L ||
@@ -473,7 +479,11 @@ psl_activate_path <- function(path) {
     size = as.integer(file.size(path)),
     checksum = psl_source_checksum(path)
   )
-  psl_set_active(rules, meta)
+  new_psl_snapshot(rules, meta)
+}
+
+psl_activate_path <- function(path) {
+  psl_activate_snapshot(path_snapshot(path))
   invisible(psl_version())
 }
 
