@@ -351,3 +351,60 @@ second matcher is gone. Ref: the measurement table above is the durable
 evidence; the retired prototype (both matchers side by side, and the deleted
 `bench/trie-vs-hashset.R`) lives in the git history of branch
 `feature/matcher-trie-prototype`. Status: **accepted.**
+
+---
+
+## D19 — Cache policy: keep the flat bound + full-flush; decline auto-bypass and generational eviction
+
+**Decision.** The bounded columnar cache (D11) keeps its flat capacity and
+whole-table eviction. Two behaviour-changing ideas floated in the refactoring
+audit (§2.5) were evaluated against the benchmark harness and **not adopted**: a
+`pslr.cache = "auto"` mode that would bypass the *store* on large mostly-unique
+calls, and a two-generation eviction policy replacing the full flush. One
+narrow, strictly-beneficial refinement in the same code path **was** adopted: an
+oversized batch (unique misses exceeding the whole capacity) no longer evicts
+the warm set — it returns before flushing, since it could never be cached
+anyway.
+
+**Context.** Both declined ideas are measurement-gated ("adopt only if measured
+workloads justify"). The authoritative harness (`bench/benchmark.R`), 200,000
+exactly-unique hosts through `registrable_domain()`, median of 5 reps, R 4.6.0
+on aarch64-apple-darwin23:
+
+| scenario        | seconds |
+|:----------------|--------:|
+| cold (cache-on) | 1.103   |
+| warm (cache-on) | 0.836   |
+| cache-off       | 0.878   |
+
+- **`auto`-bypass.** The store cost on a one-shot 200k-unique batch is
+  `cold − cache-off = 0.225 s` (~20 %). But the shipped
+  `options(pslr.cache = FALSE)` escape hatch already lets a caller who *knows* a
+  batch is one-shot take the cache-off path; an `"auto"` mode would instead have
+  to *guess* reuse from batch size, and it guesses wrong for the re-query
+  pattern — where warm saves `cold − warm = 0.267 s`. A third public cache mode
+  plus a magic size threshold is not justified by a 20 % shave on a sub-second,
+  never-reused operation that already has an explicit opt-out.
+- **Two-generation eviction.** No measured workload crosses the 200,000-entry
+  bound with re-query; the bound was raised 50k→200k (PSLR-ynbfnhkp) precisely to
+  keep realistic working sets warm. At the honest ~600 bytes/entry retained-heap
+  figure ([benchmarks.md](./benchmarks.md)) a full table is ~113 MB, so raising
+  the flat bound — not generational machinery — is the cheap lever if a real
+  workload ever needs it. Real LRU/generational structure (a second index,
+  promotion/demotion, compaction of the append-only columnar store) is
+  unjustified complexity absent that evidence.
+
+The evaluation did surface a genuine wart: `psl_cache_store()` flushed the warm
+table even when the incoming batch was itself larger than capacity (`m >
+capacity`) — evicting the warm set to store *nothing*. That is pure loss under
+any workload, so the store now returns before evicting in that case.
+
+**Consequences.** The cache stays simple: one flat bound, one eviction rule,
+one explicit on/off option — no size heuristics, no generations. The manual
+`options(pslr.cache = FALSE)` hatch remains the supported lever for one-shot
+mostly-unique batches. A warm working set now survives an oversized one-shot
+query instead of being flushed for nothing (user-visible; tested in
+`test-cache.R`, noted in `NEWS.md`). Both declined ideas can be reopened, but
+only against a *measured* real workload that the numbers above do not already
+answer. Status: **accepted** (declined the two headline ideas; adopted the
+oversized-no-evict refinement).

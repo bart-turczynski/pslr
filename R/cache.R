@@ -29,8 +29,9 @@
 # `psl_cache_capacity()` entries; when a store would exceed that bound the whole
 # table is dropped and rebuilt. A flat bound with whole-table eviction keeps the
 # implementation simple and its memory footprint predictable, at the cost of
-# discarding warm entries on overflow. A batch larger than the capacity is
-# matched but not cached.
+# discarding warm entries on overflow. A batch larger than the whole capacity is
+# matched but not cached -- and, because it could never fit, does *not* evict at
+# all: the warm set survives an oversized one-shot query (PSLR-wyvauroc).
 
 # Default maximum number of (host, section) records retained at once. The
 # effective bound lives in the cache env's `$capacity` so it stays mutable
@@ -149,11 +150,17 @@ psl_cache_store <- function(cache, keys, records) {
     return(invisible(NULL))
   }
   capacity <- psl_cache_capacity(cache)
+  # An oversized batch -- its own unique misses exceed the whole capacity -- is
+  # matched but never cached. Return *before* evicting: flushing the warm set to
+  # make room for a batch this large will never use is pure loss, so the
+  # existing entries survive an oversized one-shot query (PSLR-wyvauroc).
+  if (m > capacity) {
+    return(invisible(NULL))
+  }
+  # A batch that fits the capacity but would overflow the live set evicts by
+  # full flush, then stores -- favouring the most-recent working set (D11).
   if (cache$n + m > capacity) {
     psl_cache_clear(cache)
-    if (m > capacity) {
-      return(invisible(NULL))
-    }
   }
   # Pre-size the key index to the incoming batch so a large cold batch fills a
   # right-sized hash table in one shot instead of rehashing on every insert. A

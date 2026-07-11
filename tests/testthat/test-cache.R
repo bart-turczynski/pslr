@@ -53,14 +53,20 @@ test_that("the cache is bounded and evicts by full flush on overflow", {
   # A fourth distinct host overflows the bound and triggers the flush.
   psl_resolve_cores(psl_default_engine(), "d.com", "all")
   expect_lte(cache$n, 3L)
-  # A batch larger than the whole capacity is matched but not cached.
+  # Re-seed a known warm entry, then send an oversized batch (more unique misses
+  # than the whole capacity). It is matched but not cached -- and, crucially, it
+  # does not evict: the warm entry survives, because flushing to make room a
+  # batch this large will never use is pure loss (PSLR-wyvauroc).
+  psl_cache_clear(cache)
+  psl_resolve_cores(psl_default_engine(), "d.com", "all")
+  warm_n <- cache$n
   res <- psl_resolve_cores(
     psl_default_engine(),
     c("e.com", "f.com", "g.com", "h.com"),
     "all"
   )
   expect_identical(res$public_suffix, rep("com", 4L))
-  expect_identical(cache$n, 0L)
+  expect_identical(cache$n, warm_n)
 })
 
 test_that("options(pslr.cache = FALSE) skips storage, keeps results", {
