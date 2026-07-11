@@ -1,3 +1,9 @@
+# pslr 1.1.0.9000
+
+## Internal
+
+* Added a PSL-freshness harm corpus (McQuistin et al., IMC '23, Table 2) that pins newly added multi-label eTLDs (e.g. `myshopify.com`, `netlify.app`, `*.digitaloceanspaces.com`) against the bundled snapshot, guarding against shipping a list stale enough to put the registrable-domain boundary above the tenant label (PSLR-cowbpwsy).
+
 # pslr 1.1.0
 
 * The core matcher is now a reverse-label trie: one right-to-left label descent per host replaces the previous per-suffix hash-set probes, roughly halving direct-match time on cache-cold, large-batch, and cache-disabled workloads; results are byte-identical (PSLR-rqcslhfc).
