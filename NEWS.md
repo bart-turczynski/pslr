@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* `psl_version()` now reports the active snapshot's source `url` as a new column -- the upstream download URL for the bundled list; `NA` for cache or custom-path sources (PSLR-qcvrfoun).
+
 * `output = "unicode"` now decodes each distinct A-label only once per call -- `suffix_extract()` pools its five columns into a single `punycoder::puny_decode()` crossing and every query deduplicates repeats -- so unicode output on batches with repeated or overlapping hosts is markedly faster; decoded output is byte-identical (PSLR-cpzrjksw).
 
 * Every query no longer pays for a per-call `strsplit()` to count host labels; `is_public_suffix()` now reads the matcher's `ps_start` offset, which is equivalent, so results are unchanged (PSLR-rriiajin).

@@ -41,6 +41,8 @@ psl_version_df <- function(meta) {
 #'
 #' \describe{
 #'   \item{`source`}{`"bundled"`, `"cache"`, or `"path"`.}
+#'   \item{`url`}{Source URL of the active snapshot: the upstream download URL
+#'     for the bundled list; `NA` for a `"cache"` or `"path"` source.}
 #'   \item{`path`}{File path of a `"cache"` or `"path"` source; `NA` otherwise.}
 #'   \item{`retrieved_at`}{Network retrieval timestamp, or `NA`.}
 #'   \item{`list_date`}{Upstream list date, or `NA` when unknown.}

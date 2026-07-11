@@ -49,6 +49,7 @@ runtime_normalizer_meta <- function() {
 # identifiers default to the runtime normalizer (PRD s7.4).
 psl_meta_fields <- c(
   source = "character",
+  url = "character",
   path = "character",
   retrieved_at = "character",
   list_date = "character",
@@ -206,6 +207,7 @@ activate_bundled <- function() {
   rules <- if (mismatch) rebuild_bundled_rules() else pslr_bundled$rules
   meta <- psl_meta(
     source = "bundled",
+    url = bm$url,
     retrieved_at = bm$retrieved_at,
     list_date = bm$list_date,
     commit = bm$commit,
