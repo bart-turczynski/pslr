@@ -517,13 +517,8 @@ psl_activate_path <- function(path) {
 #'   psl_use("path", path = "my_list.dat")
 #' }
 #' @export
-psl_use <- function(source = c("bundled", "cache", "path"), path = NULL) {
-  source <- match_opt(
-    source,
-    c("bundled", "cache", "path"),
-    "source",
-    !missing(source)
-  )
+psl_use <- function(source = "bundled", path = NULL) {
+  source <- check_choice(source, c("bundled", "cache", "path"), "source")
   if (!identical(source, "path") && !is.null(path)) {
     stop("`path` is only used when `source = \"path\"`.", call. = FALSE)
   }

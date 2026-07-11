@@ -33,6 +33,8 @@
 
 ## Internal
 
+* `psl_use()` now uses a scalar formal default validated by `check_choice()`, matching the query functions, and the sole-purpose `match_opt()` helper is removed; argument handling and every result/error are unchanged (PSLR-vmwsipkm).
+
 * Added `^\.claude$` to `.Rbuildignore` so a contributor using Claude Code no longer sweeps the gitignored `.claude/` session directory into the build tarball, silencing the spurious `R CMD check` hidden-files NOTE; no package content changes (PSLR-juyrfjls).
 
 * Query internals are now projection-aware: a query derives only the result string columns it consumes instead of all five on every call. `psl_query_cols()`/`psl_resolve_cores()`/`psl_derive_strings()` take a `fields` projection (the cheap `kind`/`rule_section` enum columns and the byte offsets stay always-derived; the substr-heavy `public_suffix`/`registrable_domain`/`rule` columns are gated), the compact structural cache is untouched, and `public_suffix()`/`registrable_domain()` now share one internal `psl_query_vector()`. Every result is byte-identical (differential oracle unchanged) (PSLR-sscuznba).

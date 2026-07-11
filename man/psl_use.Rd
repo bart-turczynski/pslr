@@ -4,7 +4,7 @@
 \alias{psl_use}
 \title{Choose the active Public Suffix List for this session}
 \usage{
-psl_use(source = c("bundled", "cache", "path"), path = NULL)
+psl_use(source = "bundled", path = NULL)
 }
 \arguments{
 \item{source}{Where to load the list from: \code{"bundled"} (the pinned package

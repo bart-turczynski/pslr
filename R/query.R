@@ -41,17 +41,6 @@ resolve_common_opts <- function(section, unknown, invalid) {
   )
 }
 
-# Match a scalar option argument against its choices, selecting the first choice
-# when the caller omitted it (`supplied = FALSE`, i.e. `missing()` at the call
-# site). Retained for `psl_use()`, which still carries a choice-vector default;
-# the query functions use scalar defaults and `check_choice()` instead.
-match_opt <- function(value, choices, name, supplied) {
-  if (!supplied) {
-    return(choices[1L])
-  }
-  check_choice(value, choices, name)
-}
-
 # Append the terminal root dot where the input carried one and the value is not
 # NA. Used for hostname-shaped outputs only (PRD s5.3, s6.3).
 restore_root_dot <- function(x, had_dot) {
