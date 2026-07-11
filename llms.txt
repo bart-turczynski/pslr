@@ -265,6 +265,16 @@ default; these functions let you update it or point to a local file.
 - [`psl_cache_prune()`](https://bart-turczynski.github.io/pslr/reference/psl_cache_prune.md)
   : Prune stale on-disk PSL cache snapshots
 
+## Engines
+
+Build a self-contained PSL engine to query a specific snapshot without
+switching the session-global list.
+
+- [`psl_engine()`](https://bart-turczynski.github.io/pslr/reference/psl_engine.md)
+  [`print(`*`<psl_snapshot>`*`)`](https://bart-turczynski.github.io/pslr/reference/psl_engine.md)
+  [`print(`*`<psl_engine>`*`)`](https://bart-turczynski.github.io/pslr/reference/psl_engine.md)
+  : Construct a self-contained PSL engine
+
 # Articles
 
 ### All vignettes

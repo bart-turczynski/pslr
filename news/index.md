@@ -2,6 +2,14 @@
 
 ## pslr (development version)
 
+- New
+  [`psl_engine()`](https://bart-turczynski.github.io/pslr/reference/psl_engine.md)
+  constructs a self-contained, process-local PSL engine
+  (`source = "bundled"` or `"path"`) for querying a specific snapshot
+  without
+  [`psl_use()`](https://bart-turczynski.github.io/pslr/reference/psl_use.md)
+  (PSLR-ntqoiglh).
+
 - [`psl_version()`](https://bart-turczynski.github.io/pslr/reference/psl_version.md)
   now reports the active snapshot’s source `url` as a new column – the
   upstream download URL for the bundled list; `NA` for cache or
