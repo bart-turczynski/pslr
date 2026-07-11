@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* The core matcher is now a reverse-label trie: one right-to-left label descent per host replaces the previous per-suffix hash-set probes, roughly halving direct-match time on cache-cold, large-batch, and cache-disabled workloads; results are byte-identical (PSLR-rqcslhfc).
+
 * The five query functions (`public_suffix()`, `registrable_domain()`, `is_public_suffix()`, `suffix_extract()`, `public_suffix_rule()`) gain an optional `engine=` argument to query a specific `psl_engine()` snapshot instead of the session-global list; omitting it is unchanged (PSLR-hflrsfgp).
 
 * New `psl_engine()` constructs a self-contained, process-local PSL engine (`source = "bundled"` or `"path"`) for querying a specific snapshot without `psl_use()` (PSLR-ntqoiglh).

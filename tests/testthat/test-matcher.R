@@ -87,6 +87,37 @@ test_that("section filtering happens before prevailing-rule selection", {
   expect_identical(icann$kind, 3L)
 })
 
+# ---- targeted prevailing-rule oracle (value-checked) ------------------------
+# The trie is the sole matcher, so there is no second implementation to
+# cross-check; the differential oracle (test-oracle.R, D16) and Cucumber are the
+# correctness net. This block pins the tricky selection cases by VALUE so it is
+# a real oracle, not a tautology: longest-normal-wins (x.a.com beats com), a
+# wildcard exception (!www.ck), a bare wildcard base falling through to default
+# (ck), and a deep wildcard vs its exception (*.kobe.jp / !city.kobe.jp). The
+# expected vectors are literals read off a known-good run (section_code 2,
+# "all").
+
+test_that("synthetic matcher selects the prevailing rule by value", {
+  m <- synthetic_matcher()
+  hosts <- c(
+    "x.a.com", # 'a.com' (depth 2) beats 'com'
+    "com", # normal, depth 1
+    "www.ck", # !www.ck exception -> 'ck' (depth 1)
+    "test.ck", # *.ck wildcard -> depth 2
+    "ck", # bare wildcard base -> default
+    "city.kobe.jp", # !city.kobe.jp exception -> 'kobe.jp' (depth 2)
+    "foo.kobe.jp", # *.kobe.jp wildcard -> depth 3
+    "a.city.kobe.jp" # !city.kobe.jp still prevails -> depth 2
+  )
+  out <- core_match(m, hosts)
+  expect_identical(out$ps_depth, c(2L, 1L, 1L, 2L, 1L, 2L, 3L, 2L))
+  expect_identical(out$kind, c(0L, 0L, 2L, 1L, 3L, 2L, 1L, 2L))
+  expect_identical(
+    out$section,
+    c(0L, 0L, 0L, 0L, NA_integer_, 0L, 0L, 0L)
+  )
+})
+
 # ---- C++ boundary validation (PSLR-sfppglqs) -------------------------------
 
 test_that("psl_build_matcher validates its parallel-vector inputs", {

@@ -295,3 +295,59 @@ no API or algorithm.
 regenerates all derived artifacts deterministically from a pinned commit and
 prints the exact source and checksum; the maintainer reviews the upstream diff
 before committing. Ref: `data-raw/update_psl.R`.
+
+---
+
+## D18 — Reverse-label trie matcher: adopted by replacement (sole matcher)
+
+**Decision.** The reverse-label trie **replaces** the hash-set matcher as the
+single core matcher. Its bodies now stand behind the canonical registered names
+`psl_build_matcher` / `psl_match` (`src/matcher.cpp`); the hash-set
+implementation — its `Matcher` struct, `find_section()`, and hash-set bodies —
+is deleted, and the prototype's `_trie` registered names are gone. This is
+adoption by REPLACEMENT, not a second matcher kept alongside: there is exactly
+ONE matcher, so the earlier maintenance objection (two code paths to keep in
+lockstep) does not arise. The call was made once, on the evidence below, and is
+settled.
+
+**Context.** `bench/trie-vs-hashset.R` builds both matchers from the *same*
+bundled rules (10,212 rules) and matches the *same* exactly-unique canonical
+corpus (`psl_bench_unique_hosts`), asserting identical `ps_depth` **and** `kind`
+across section codes 0/1/2 before trusting any timing — so a broken trie cannot
+masquerade as a win. This isolates precisely what a trie changes (direct-match
+cost) and mirrors the audit's methodology, which timed the hash-set matcher at
+~0.45 s for 100,000 canonical hosts against the 2 s release gate and concluded
+"current performance is already adequate." Timings below are relative, not
+absolute — a laptop noisier than the maintainer's reference machine — so the
+load-bearing figure is the trie/hash **ratio** (same machine, same run), stable
+across three repeats.
+
+Median elapsed seconds, section `"all"` (`section_code` 2, the realistic
+default), R 4.6.0 on aarch64-apple-darwin23:
+
+| implementation | build_s | match_s (n=100k) | match_s (n=10k) |
+|:---------------|--------:|-----------------:|----------------:|
+| hash-set | 0.013 | 0.357–0.376 | 0.036–0.038 |
+| trie | 0.019 | 0.158–0.166 | 0.016–0.017 |
+
+Headline **trie/hash match-time ratio** (< 1 = trie faster), median of three
+runs: **0.44** for `"all"` (~2.25× faster) and **0.56** for `"icann"`
+(~1.8× faster). Trie build is ~0.006 s slower — negligible, one-time. The trie
+clears the ticket's speed threshold (~1.3–1.5×) decisively.
+
+**Consequences.** The speedup is real, stable, and correctness-verified: the
+trie gives ~2.25× faster direct matching under section `"all"` with
+byte-identical output, gated by the differential oracle (D16). Adopting it by
+replacement — rather than keeping it as a parallel second matcher — is what
+answers the earlier maintenance objection: there is one implementation to test
+and reason about, not two kept in lockstep, so the complexity cost the raw ratio
+had to be weighed against simply does not exist. The direct-match cost remains a
+second-order factor in the default cache-served path (D11), so the win is most
+visible on cache-cold, large-batch, and cache-disabled workloads; the hash-set
+baseline it replaced was already comfortably under the 2 s release gate, so this
+is a headroom improvement, not a fix for a hot spot. The differential oracle
+(D16) and Cucumber remain the correctness net now that the cross-check against a
+second matcher is gone. Ref: the measurement table above is the durable
+evidence; the retired prototype (both matchers side by side, and the deleted
+`bench/trie-vs-hashset.R`) lives in the git history of branch
+`feature/matcher-trie-prototype`. Status: **accepted.**
