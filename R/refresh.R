@@ -275,14 +275,18 @@ valid_psl_manifest <- function(x) {
   is_scalar_string <- function(s) {
     is.character(s) && length(s) == 1L && !is.na(s) && nzchar(s)
   }
-  is.list(x) &&
-    is_scalar_string(x$dat_file) &&
-    is.list(x$meta) &&
-    is_scalar_string(x$meta$checksum) &&
-    is.character(x$meta$retrieved_at) &&
-    length(x$meta$retrieved_at) == 1L &&
-    is.numeric(x$meta$size) &&
-    length(x$meta$size) == 1L
+  is_scalar_of <- function(v, pred) pred(v) && length(v) == 1L
+  if (!is.list(x) || !is.list(x$meta)) {
+    return(FALSE)
+  }
+  # Each field must be present with the right scalar shape; `all()` keeps the
+  # per-field checks flat rather than one long `&&` chain.
+  all(
+    is_scalar_string(x$dat_file),
+    is_scalar_string(x$meta$checksum),
+    is_scalar_of(x$meta$retrieved_at, is.character),
+    is_scalar_of(x$meta$size, is.numeric)
+  )
 }
 
 # Read the cache commit marker, or NULL when no cache has been published.
@@ -298,15 +302,12 @@ psl_cache_current <- function(on_corrupt = c("null", "error")) {
   if (!file.exists(marker)) {
     return(NULL)
   }
-  read_ok <- TRUE
-  manifest <- tryCatch(
-    readRDS(marker),
-    error = function(e) {
-      read_ok <<- FALSE
-      NULL
-    }
-  )
-  if (!read_ok) {
+  # Distinct by-reference sentinel: a real marker never deserializes to it, so
+  # `identical()` tells an unreadable marker apart from a merely malformed one
+  # without a `<<-` flag out of the error handler.
+  unreadable <- new.env()
+  manifest <- tryCatch(readRDS(marker), error = function(e) unreadable)
+  if (identical(manifest, unreadable)) {
     return(psl_cache_corrupt(on_corrupt, "marker metadata is unreadable"))
   }
   if (!valid_psl_manifest(manifest)) {
@@ -539,13 +540,13 @@ psl_use <- function(source = "bundled", path = NULL) {
 # Validate the retention count for psl_cache_prune(): a single non-negative
 # whole number. Mirrors the scalar-guard idiom of psl_validate_refresh_args().
 psl_validate_keep <- function(keep) {
-  if (
-    !is.numeric(keep) ||
-      length(keep) != 1L ||
-      is.na(keep) ||
-      keep < 0 ||
-      keep != trunc(keep)
-  ) {
+  # Gate on scalar-numeric-non-missing first (short-circuit), then check the
+  # value constraints vectorized so the guard is not one long `||` chain.
+  ok <- is.numeric(keep) &&
+    length(keep) == 1L &&
+    !is.na(keep) &&
+    isTRUE(keep >= 0 & keep == trunc(keep))
+  if (!ok) {
     stop("`keep` must be a single non-negative whole number.", call. = FALSE)
   }
   invisible(NULL)

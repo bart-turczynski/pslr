@@ -232,9 +232,7 @@ activate_bundled <- function() {
 #'
 #' @param source Where to load the list from: `"bundled"` (the pinned package
 #'   snapshot) or `"path"` (a custom file).
-#' @param path For `source = "path"`, a single readable PSL-format UTF-8 file
-#'   containing one complete ICANN section and one complete PRIVATE section,
-#'   using official markers. Must be `NULL` for any other source.
+#' @inheritParams psl_use
 #'
 #' @details
 #' The engine is **process-local**: its compiled matcher is a C++ external
