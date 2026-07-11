@@ -1,4 +1,4 @@
-# pslr (development version)
+# pslr 1.1.0
 
 * The core matcher is now a reverse-label trie: one right-to-left label descent per host replaces the previous per-suffix hash-set probes, roughly halving direct-match time on cache-cold, large-batch, and cache-disabled workloads; results are byte-identical (PSLR-rqcslhfc).
 
