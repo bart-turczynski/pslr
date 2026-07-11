@@ -2,6 +2,12 @@
 
 ## pslr 1.1.0.9000
 
+- The result cache no longer evicts on an oversized one-shot query: a
+  single call with more distinct hosts than the whole cache capacity is
+  still matched-but-not-cached, but it now leaves any existing warm
+  entries intact instead of flushing the table to make room it could
+  never use (PSLR-wyvauroc).
+
 ### Internal
 
 - Added a PSL-freshness harm corpus (McQuistin et al., IMC ’23, Table 2)
