@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pslr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.2.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,11 +34,11 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/bart-turczynski/pslr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/bart-turczynski/pslr/blob/v1.1.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="development version" id="pslr-development-version">pslr (development version)<a class="anchor" aria-label="anchor" href="#pslr-development-version"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.1.0" id="pslr-110">pslr 1.1.0<a class="anchor" aria-label="anchor" href="#pslr-110"></a></h2>
 <ul><li><p>The core matcher is now a reverse-label trie: one right-to-left label descent per host replaces the previous per-suffix hash-set probes, roughly halving direct-match time on cache-cold, large-batch, and cache-disabled workloads; results are byte-identical (PSLR-rqcslhfc).</p></li>
 <li><p>The five query functions (<code><a href="../reference/public_suffix.html">public_suffix()</a></code>, <code><a href="../reference/registrable_domain.html">registrable_domain()</a></code>, <code><a href="../reference/is_public_suffix.html">is_public_suffix()</a></code>, <code><a href="../reference/suffix_extract.html">suffix_extract()</a></code>, <code><a href="../reference/public_suffix_rule.html">public_suffix_rule()</a></code>) gain an optional <code>engine=</code> argument to query a specific <code><a href="../reference/psl_engine.html">psl_engine()</a></code> snapshot instead of the session-global list; omitting it is unchanged (PSLR-hflrsfgp).</p></li>
 <li><p>New <code><a href="../reference/psl_engine.html">psl_engine()</a></code> constructs a self-contained, process-local PSL engine (<code>source = "bundled"</code> or <code>"path"</code>) for querying a specific snapshot without <code><a href="../reference/psl_use.html">psl_use()</a></code> (PSLR-ntqoiglh).</p></li>
@@ -54,7 +54,7 @@
 <li><p>New <code><a href="../reference/psl_outdated.html">psl_outdated()</a></code> reports whether the active list snapshot is older than a threshold (default 180 days), purely offline from <code><a href="../reference/psl_version.html">psl_version()</a></code>’s <code>list_date</code>, as a nudge toward <code><a href="../reference/psl_refresh.html">psl_refresh()</a></code>; the snapshot age in days is returned in the <code>"age_days"</code> attribute (<a href="https://github.com/bart-turczynski/pslr/issues/62" class="external-link">#62</a>).</p></li>
 <li><p>New <code>options(pslr.cache = FALSE)</code> escape hatch disables the session result cache for the current session, skipping every cache read and write. It never changes a result – misses are derived by the same code path – so output is byte-identical to the cached path; it only controls whether entries are stored and read. Useful for one-shot batches of mostly-unique hosts, where within a single vectorized call <code><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique()</a></code> already deduplicates and the per-key cache read is pure overhead (roughly 1.5x faster with the cache off on a 200,000-unique batch). Caching stays on by default.</p></li>
 </ul><div class="section level3">
-<h3 id="internal-development-version">Internal<a class="anchor" aria-label="anchor" href="#internal-development-version"></a></h3>
+<h3 id="internal-1-1-0">Internal<a class="anchor" aria-label="anchor" href="#internal-1-1-0"></a></h3>
 <ul><li><p>The core C++ matcher hardened its construction: <code>psl_build_matcher()</code> now validates that its <code>keys</code>/<code>kinds</code>/<code>sections</code> columns share a length and that each section (0/1) and kind (<code>normal</code>/<code>wildcard</code>/<code>exception</code>) is in range – an unknown kind now errors instead of being silently bucketed as an exception – exact-reserves the six rule sets from a counting pass to avoid rehashing, and builds via a <code>std::unique_ptr</code> released only after the R external pointer is registered; <code>psl_match()</code> rejects a NULL external pointer before dereferencing. Behaviour on valid input is byte-identical (PSLR-sfppglqs).</p></li>
 <li><p><code><a href="../reference/psl_use.html">psl_use()</a></code> now uses a scalar formal default validated by <code>check_choice()</code>, matching the query functions, and the sole-purpose <code>match_opt()</code> helper is removed; argument handling and every result/error are unchanged (PSLR-vmwsipkm).</p></li>
 <li><p>Added <code>^\.claude$</code> to <code>.Rbuildignore</code> so a contributor using Claude Code no longer sweeps the gitignored <code>.claude/</code> session directory into the build tarball, silencing the spurious <code>R CMD check</code> hidden-files NOTE; no package content changes (PSLR-juyrfjls).</p></li>
