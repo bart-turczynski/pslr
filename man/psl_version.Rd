@@ -21,6 +21,8 @@ The columns, in order, are:
 
 \describe{
 \item{\code{source}}{\code{"bundled"}, \code{"cache"}, or \code{"path"}.}
+\item{\code{url}}{Source URL of the active snapshot: the upstream download URL
+for the bundled list; \code{NA} for a \code{"cache"} or \code{"path"} source.}
 \item{\code{path}}{File path of a \code{"cache"} or \code{"path"} source; \code{NA} otherwise.}
 \item{\code{retrieved_at}}{Network retrieval timestamp, or \code{NA}.}
 \item{\code{list_date}}{Upstream list date, or \code{NA} when unknown.}

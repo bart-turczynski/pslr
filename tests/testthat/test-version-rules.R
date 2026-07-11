@@ -9,6 +9,7 @@ test_that("psl_version reports the documented columns and types", {
     v,
     c(
       "source",
+      "url",
       "path",
       "retrieved_at",
       "list_date",
