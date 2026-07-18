@@ -190,7 +190,7 @@ recorded reference results are in
 
 These packages build on data, libraries, and prior work from many
 others. See
-[ACKNOWLEDGMENTS.md](https://bart-turczynski.github.io/pslr/ACKNOWLEDGMENTS.md)
+[ACKNOWLEDGMENTS.md](https://github.com/bart-turczynski/pslr/blob/main/ACKNOWLEDGMENTS.md)
 for the full list of thanks.
 
 ## Related packages
@@ -210,7 +210,7 @@ for the full list of thanks.
 
 If you use `pslr` in your work, please cite it. Run `citation("pslr")`
 for the current citation, or see
-[`CITATION.cff`](https://bart-turczynski.github.io/pslr/CITATION.cff).
+[`CITATION.cff`](https://github.com/bart-turczynski/pslr/blob/main/CITATION.cff).
 
 Each release is archived on Zenodo. Cite the concept DOI
 [10.5281/zenodo.20973660](https://doi.org/10.5281/zenodo.20973660) to
