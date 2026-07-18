@@ -72,7 +72,7 @@ test_that("suffix_extract unicode dedup matches per-host single calls", {
     "co.uk"
   )
   batch <- suffix_extract(hosts, output = "unicode")
-  singles <- lapply(hosts, \(h) suffix_extract(h, output = "unicode"))
+  singles <- lapply(hosts, suffix_extract, output = "unicode")
   for (col in ps_extract_cols) {
     expect_identical(
       batch[[col]],

@@ -1,8 +1,88 @@
+# This config is intentionally aligned with the linter set that
+# `goodpractice::gp()` runs (goodpractice:::linters_to_lint()), so the local /
+# CI `lintr::lint_package()` gate surfaces the same findings as the goodpractice
+# report reviewers run — new projects then don't pass their own lint gate only
+# to trip a pile of goodpractice findings later. Regenerate this list after a
+# goodpractice upgrade (compare against `names(goodpractice:::linters_to_lint())`).
+#
+# Documented deviations from the goodpractice set (test-idiom / public-API
+# reasons a real package hits as it grows past this scaffold):
+#   * object_name_linter / object_usage_linter: not part of the goodpractice set
+#     and deliberately NOT added. The cucumber DSL (when/then/context) and the
+#     testthat helpers read as undefined globals to object_usage_linter, and
+#     packages commonly expose mixed-case or dotted public parameters plus
+#     ._-prefixed internal helpers that object_name_linter would flag.
+#   * expect_identical_linter: off. Suites routinely rely on expect_equal()'s
+#     numeric tolerance (e.g. expect_equal(nrow(x), 2) compares integer vs
+#     double) and its string-encoding normalization, both of which identical()
+#     rejects; a wholesale swap means retyping literals for no behavioral gain.
+#   * implicit_assignment_linter: off. Tests use the standard
+#     `expect_warning(res <- f(), "msg")` idiom to capture both the warning and
+#     the return value (expect_warning() returns the condition, not the value).
+#   * library_require_linter: off. tests/testthat.R and vignette setup chunks
+#     legitimately call library().
+#   * undesirable_operator_linter: configured to keep flagging `<<-`/`->>` but
+#     allow `:::`, which tests use to reach internal (unexported) functions.
 linters: linters_with_defaults(
-    # Cucumber step files and testthat helpers use a DSL (when/then/context,
-    # expect_*) that the static usage linter misreads as undefined globals.
-    # Disable it here so the scaffold lints clean out of the box; re-enable it
-    # once the package has real code if you want the extra coverage.
-    object_usage_linter = NULL
+    defaults = list(),
+    undesirable_operator_linter = lintr::undesirable_operator_linter(
+      op = lintr::default_undesirable_operators[c("->>", "<<-")]
+    ),
+    assignment_linter = lintr::assignment_linter(),
+    line_length_linter = lintr::line_length_linter(80),
+    package_hooks_linter = lintr::package_hooks_linter(),
+    semicolon_linter = lintr::semicolon_linter(allow_compound = TRUE),
+    attach_detach_linter = lintr::undesirable_function_linter(fun = lintr::default_undesirable_functions[c("attach", "detach")]),
+    setwd_linter = lintr::undesirable_function_linter(fun = lintr::default_undesirable_functions["setwd"]),
+    sapply_linter = lintr::undesirable_function_linter(fun = lintr::default_undesirable_functions["sapply"]),
+    installed_packages_linter = lintr::undesirable_function_linter(fun = c(installed.packages = "it can be very slow; use find.package() or system.file() instead.")),
+    seq_linter = lintr::seq_linter(),
+    any_duplicated_linter = lintr::any_duplicated_linter(),
+    any_is_na_linter = lintr::any_is_na_linter(),
+    class_equals_linter = lintr::class_equals_linter(),
+    condition_message_linter = lintr::condition_message_linter(),
+    duplicate_argument_linter = lintr::duplicate_argument_linter(),
+    equals_na_linter = lintr::equals_na_linter(),
+    fixed_regex_linter = lintr::fixed_regex_linter(),
+    for_loop_index_linter = lintr::for_loop_index_linter(),
+    length_test_linter = lintr::length_test_linter(),
+    matrix_apply_linter = lintr::matrix_apply_linter(),
+    missing_argument_linter = lintr::missing_argument_linter(),
+    nrow_subset_linter = lintr::nrow_subset_linter(),
+    redundant_equals_linter = lintr::redundant_equals_linter(),
+    redundant_ifelse_linter = lintr::redundant_ifelse_linter(),
+    regex_subset_linter = lintr::regex_subset_linter(),
+    sort_linter = lintr::sort_linter(),
+    system_file_linter = lintr::system_file_linter(),
+    terminal_close_linter = lintr::terminal_close_linter(),
+    which_grepl_linter = lintr::which_grepl_linter(),
+    boolean_arithmetic_linter = lintr::boolean_arithmetic_linter(),
+    comparison_negation_linter = lintr::comparison_negation_linter(),
+    consecutive_assertion_linter = lintr::consecutive_assertion_linter(),
+    if_not_else_linter = lintr::if_not_else_linter(),
+    ifelse_censor_linter = lintr::ifelse_censor_linter(),
+    inner_combine_linter = lintr::inner_combine_linter(),
+    length_levels_linter = lintr::length_levels_linter(),
+    literal_coercion_linter = lintr::literal_coercion_linter(),
+    nested_ifelse_linter = lintr::nested_ifelse_linter(),
+    nested_pipe_linter = lintr::nested_pipe_linter(),
+    numeric_leading_zero_linter = lintr::numeric_leading_zero_linter(),
+    outer_negation_linter = lintr::outer_negation_linter(),
+    paste_linter = lintr::paste_linter(),
+    scalar_in_linter = lintr::scalar_in_linter(),
+    strings_as_factors_linter = lintr::strings_as_factors_linter(),
+    unnecessary_concatenation_linter = lintr::unnecessary_concatenation_linter(),
+    unnecessary_lambda_linter = lintr::unnecessary_lambda_linter(),
+    unreachable_code_linter = lintr::unreachable_code_linter(),
+    conjunct_test_linter = lintr::conjunct_test_linter(),
+    expect_comparison_linter = lintr::expect_comparison_linter(),
+    expect_length_linter = lintr::expect_length_linter(),
+    expect_named_linter = lintr::expect_named_linter(),
+    expect_not_linter = lintr::expect_not_linter(),
+    expect_null_linter = lintr::expect_null_linter(),
+    expect_s3_class_linter = lintr::expect_s3_class_linter(),
+    expect_s4_class_linter = lintr::expect_s4_class_linter(),
+    expect_true_false_linter = lintr::expect_true_false_linter(),
+    expect_type_linter = lintr::expect_type_linter()
   )
 encoding: "UTF-8"

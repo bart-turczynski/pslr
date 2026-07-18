@@ -91,7 +91,7 @@ validate_psl_meta <- function(x) {
   if (length(missing)) {
     stop(
       "Metadata is missing required field(s): ",
-      paste(missing, collapse = ", "),
+      toString(missing),
       ".",
       call. = FALSE
     )
