@@ -14,7 +14,7 @@
     "name": "R",
     "url": "https://r-project.org"
   },
-  "runtimePlatform": "R version 4.6.0 (2026-04-24)",
+  "runtimePlatform": "R version 4.6.1 (2026-06-24)",
   "provider": {
     "@id": "https://cran.r-project.org",
     "@type": "Organization",
@@ -184,7 +184,7 @@
     "SystemRequirements": null
   },
   "keywords": ["publicsuffixlist", "PSL", "eTLD", "eTLD+1", "registrabledomain", "ICANN", "domainparsing", "domainextraction", "domainnames", "TLD", "cookiedomains", "IDNA", "publicsuffix", "psl", "public-suffix", "public-suffix-list", "r", "r-lang", "r-library", "rstats", "domain-extraction", "domain-names", "etld", "icann", "idna", "punycode", "etld-plus-one", "registrable-domain", "cookies", "domain", "domain-parsing", "tld", "unicode"],
-  "fileSize": "1922.57KB",
+  "fileSize": "719.146KB",
   "citation": [
     {
       "@type": "SoftwareSourceCode",
