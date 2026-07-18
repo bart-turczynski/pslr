@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: "pslr: Public Suffix List Engine"
-version: 1.0.2
-date-released: "2026-06-27"
+version: 1.1.0
+date-released: "2026-07-11"
 doi: 10.5281/zenodo.20973660
 abstract: >-
   A focused implementation of the Public Suffix List (PSL). Bundles a

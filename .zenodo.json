@@ -1,7 +1,7 @@
 {
   "upload_type": "software",
   "title": "pslr: Public Suffix List Engine",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "language": "eng",
   "access_right": "open",
   "license": "MIT",

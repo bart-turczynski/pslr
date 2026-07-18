@@ -38,7 +38,6 @@
 ^CONTRIBUTING\.md$
 ^CODE_OF_CONDUCT\.md$
 ^SECURITY\.md$
-^CHANGELOG\.md$
 ^CITATION\.cff$
 ^codemeta\.json$
 ^\.zenodo\.json$
