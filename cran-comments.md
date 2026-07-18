@@ -2,42 +2,42 @@
 
 0 errors | 0 warnings | 1 note
 
-The NOTE is the incoming-feasibility timing flag:
-
-* Days since last update: 3
-
-This is an intentionally small maintenance resubmission to keep `pslr`
-installable with the current and upcoming `punycoder` API.
+The NOTE is an incoming-feasibility maintainer-email change, from
+`bartek+pslr@turczynski.pl` to `bartek@turczynski.pl`. This is the same
+maintainer (Bart Turczynski, ORCID 0000-0002-8788-7980); the address was
+normalized to drop the per-package plus-tag alias. No change of person or
+organization.
 
 ## Changes in this version
 
-This is a small maintenance update (1.0.1 -> 1.0.2).
+This is a feature-and-compatibility release (1.0.1 -> 1.1.1). The intervening
+1.0.2 and 1.1.0 versions were tagged during development but never submitted to
+CRAN, so their changes ship here. Highlights:
 
-* `pslr` no longer passes the `strict` argument to `punycoder::host_normalize()`.
-  `punycoder` removed that (inert) argument in favour of explicit UTS #46 flags
-  that default to the same strict profile, so the bare call is behavior-
-  preserving.
-* The `punycoder` floor is raised to `>= 1.2.0` (the current release), matching
-  the coordinated chain (see Dependencies). No user-visible behavior change in
-  `pslr` itself.
+* The core matcher is now a reverse-label trie (one right-to-left label descent
+  per host), roughly halving direct-match time; results are byte-identical.
+* New `psl_engine()` builds a self-contained, process-local PSL engine, and the
+  five query functions gain an optional `engine=` argument to query a specific
+  snapshot without touching session-global state.
+* New offline helpers `psl_outdated()`, `psl_cache_prune()`, and an
+  `options(pslr.cache = FALSE)` escape hatch.
+* **Dependency floor lowered to `punycoder (>= 1.1.0)`** — the current CRAN
+  `punycoder` release — and the development `Remotes:` field is removed, so
+  `pslr` now resolves entirely from CRAN. `pslr` calls only `punycoder` API
+  present since 1.1.0 and is forward-compatible with the upcoming `punycoder`
+  1.2.x, whose default `host_normalize()` output is byte-identical.
 
 ## Dependencies
 
-* `pslr` imports `punycoder` for its canonical-host normalization
-  (IDNA/Unicode) layer. The floor tracks the current `punycoder` release,
-  `punycoder (>= 1.2.0)`: the three packages are co-maintained and released
-  together, so each requires the current release of its sibling rather than the
-  oldest version at which a given call first worked.
+* `pslr` imports `punycoder` for its canonical-host normalization (IDNA/Unicode)
+  layer. The floor is `punycoder (>= 1.1.0)`, the current CRAN release, so the
+  import resolves against CRAN with no development remotes.
 
-**Coordinated submission order.** `punycoder`, `pslr`, and `rurl` form a
-dependency chain and are submitted to CRAN **in this order** so each resolves
-cleanly against versions already on CRAN:
-
-1. **`punycoder` 1.2.0** — the base of the chain (no CRAN sibling dependency).
-2. **`pslr` 1.0.2** — this package; imports `punycoder (>= 1.2.0)`. Submitted
-   after `punycoder` 1.2.0 reaches CRAN so the floor resolves.
-3. **`rurl` 2.2.0** — imports both `punycoder (>= 1.2.0)` and `pslr (>= 1.0.2)`;
-   submitted last, once both are on CRAN.
+**Coordinated submission order.** `pslr`, `punycoder`, and `rurl` are
+co-maintained. This `pslr` release deliberately requires only the current CRAN
+`punycoder`, so it is submitted **first** and installs cleanly today. The sibling
+releases (`punycoder` 1.2.1, then `rurl` 2.7.0) follow, each after the preceding
+package is live on CRAN.
 
 ## Test environments
 
