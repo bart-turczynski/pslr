@@ -1,6 +1,12 @@
 # Changelog
 
-## pslr 1.1.0.9000
+## pslr 1.1.1
+
+- `pslr` now installs from CRAN alone: the `punycoder` dependency floor
+  is `>= 1.1.0` (the current CRAN release) and the development
+  `Remotes:` pin is dropped. `pslr` uses only `punycoder` API present
+  since 1.1.0 and is forward-compatible with `punycoder` 1.2.x, whose
+  default `host_normalize()` output is byte-identical (PSLR-xwcqnnls).
 
 - The result cache no longer evicts on an oversized one-shot query: a
   single call with more distinct hosts than the whole cache capacity is
@@ -59,7 +65,7 @@
   call –
   [`suffix_extract()`](https://bart-turczynski.github.io/pslr/reference/suffix_extract.md)
   pools its five columns into a single
-  [`punycoder::puny_decode()`](https://bart-turczynski.github.io/punycoder/reference/puny_decode.html)
+  [`punycoder::puny_decode()`](https://rdrr.io/pkg/punycoder/man/puny_decode.html)
   crossing and every query deduplicates repeats – so unicode output on
   batches with repeated or overlapping hosts is markedly faster; decoded
   output is byte-identical (PSLR-cpzrjksw).
@@ -102,11 +108,6 @@
   error advising `psl_refresh(force = TRUE)` instead of degrading into
   silent `NULL` reads; newly written markers carry a schema version and
   markers from earlier releases stay valid (PSLR-nwdejhkf).
-
-- The `punycoder` dependency floor is raised to `>= 1.2.0`, the current
-  release; `pslr`, `punycoder`, and `rurl` are co-maintained and each
-  requires the current release of its sibling
-  ([\#70](https://github.com/bart-turczynski/pslr/issues/70)).
 
 - New
   [`psl_outdated()`](https://bart-turczynski.github.io/pslr/reference/psl_outdated.md)
@@ -312,7 +313,7 @@
 ### Internal
 
 - Dropped the redundant `strict = TRUE` argument from
-  [`punycoder::host_normalize()`](https://bart-turczynski.github.io/punycoder/reference/host_normalize.html)
+  [`punycoder::host_normalize()`](https://rdrr.io/pkg/punycoder/man/host_normalize.html)
   calls. `punycoder` removed the inert `strict` flag in favour of
   explicit UTS [\#46](https://github.com/bart-turczynski/pslr/issues/46)
   flags (all defaulting to the strict profile), so the bare call is
