@@ -301,9 +301,9 @@ the `"age_days"` attribute.
 psl_outdated() # older than the 180-day default?
 #> [1] FALSE
 #> attr(,"age_days")
-#> [1] 34.82618
+#> [1] 34.85645
 attr(psl_outdated(), "age_days") # active snapshot age, in days
-#> [1] 34.82618
+#> [1] 34.85645
 ```
 
 ## Security and scope notes
