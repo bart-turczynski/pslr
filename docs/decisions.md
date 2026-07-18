@@ -160,30 +160,33 @@ key (D11).
 
 ---
 
-## D10 — Session-global active list; no matcher objects in v1
+## D10 — Session-global active list in v1; public engines added in v1.1
 
-**Decision.** The active list is per-session state, switched by `psl_use()` /
-`psl_refresh()`. There is no per-call list switching and no user-facing matcher
-object in version 1.
+**Decision.** Version 1 shipped one active per-session list, switched by
+`psl_use()` / `psl_refresh()`. Version 1.1 retained that default and added
+`psl_engine()` plus `engine` on the five query functions for isolated per-call
+snapshot selection.
 
 **Context.** A single active matcher keeps the API small and the common case
 fast. Multiple simultaneously active lists is a real but deferred need.
 
-**Consequences.** State lives in one atomic slot (`the_matcher$state`): the
-matcher is built *before* a single-assignment swap, so an interrupt or failed
-activation never exposes a half-built matcher, and switching lists clears the
-cache. `rurl` must not use global switching to implement per-request behavior; a
-matcher-object API is a future release. Ref: `R/matcher.R:15`, `:66`.
-Status: **accepted (v1 scope); revisit if concurrent per-list queries are needed.**
+**Consequences.** The default engine lives in one atomic slot
+(`the_matcher$state`): a complete engine is built *before* a single-assignment
+swap, so an interrupt or failed activation never exposes a half-built matcher.
+Independent engines do not mutate that slot and each owns its own cache. `rurl`
+uses explicit engine ownership rather than global switching for per-request
+behavior. Ref: `R/matcher.R:16`, `:152`, `:170`, `:267`.
+Status: **accepted; expanded in v1.1.**
 
 ---
 
-## D11 — Bounded columnar cache keyed on host + list identity + section only
+## D11 — Bounded per-engine columnar cache keyed on host + section only
 
-**Decision.** A bounded session cache keys on canonical host, active-list
-identity, and section. `unknown`, `output`, and terminal-dot restoration are
-applied *after* retrieval and are deliberately **excluded** from the key. Default
-bound 200,000 entries; eviction is a full flush.
+**Decision.** Each engine owns a bounded cache keyed on canonical host and
+section. Snapshot identity is implicit in cache ownership. `unknown`, `output`,
+and terminal-dot restoration are applied *after* retrieval and are deliberately
+**excluded** from the key. Default bound 200,000 entries; eviction is a full
+flush.
 
 **Context.** The cache must never change a result. Keeping post-match shaping out
 of the key means one cached core answer serves every `unknown`/`output`/dot
@@ -195,9 +198,10 @@ drift. The bound was raised 50,000 → 200,000 because the columnar store costs
 true hit, ~2×). `options(pslr.cache = FALSE)` disables it entirely.
 
 **Consequences.** Cache-off output is byte-identical because misses use the same
-derivation path. A batch larger than capacity is matched but not cached. Full
-flush was chosen over LRU for simplicity and predictable memory. Ref:
-`R/cache.R:38`, `:55`; `R/matcher.R:229`.
+derivation path. A batch larger than capacity is matched but not cached and no
+longer evicts an existing warm set. Full flush was chosen over LRU for
+simplicity and predictable memory. Ref: `R/cache.R:48`, `:55`, `:147`;
+`R/matcher.R:501`.
 
 ---
 
@@ -235,17 +239,19 @@ snapshots are always indexed at activation under the runtime normalizer. Ref:
 
 ---
 
-## D14 — Option detection via `missing()`, not value-equality
+## D14 — Scalar option defaults with strict choice validation
 
-**Decision.** The scalar option matcher decides "was this supplied?" with
-`missing()`, not by comparing to the default value.
+**Decision.** Choice-style public arguments use scalar formal defaults and are
+validated by `check_choice()`. Explicit non-scalar or unknown values abort.
 
-**Context.** If detection compared to the default, an explicit but *invalid*
-argument that happens to equal the default vector (e.g.
-`invalid = c("na", "error")`) would slip through unvalidated.
+**Context.** Version 1 initially used choice-vector formal defaults and
+`missing()` to distinguish omission from an explicitly supplied vector. The
+scalar-default refactor removed that bookkeeping while preserving its important
+property: an explicit non-scalar value (for example
+`invalid = c("na", "error")`) never slips through unvalidated.
 
 **Consequences.** Explicit non-scalar or unknown option values always abort, and
-`invalid` cannot suppress that. Ref: `R/query.R:18`.
+`invalid` cannot suppress that. Ref: `R/query.R:18`, `:36`.
 
 ---
 

@@ -14,10 +14,10 @@ session cache and an explicit, validated offline-refresh path. The only runtime
 dependency for host canonicalization is
 [`punycoder`](https://bart-turczynski.github.io/punycoder/).
 
-It answers four questions over a character vector of hostnames: what is the
-public suffix (eTLD), what is the registrable domain (eTLD+1), is a host itself a
-public suffix, and which PSL rule produced the answer. It does **not** parse
-URLs, do DNS, or make security decisions.
+Its five query functions answer what the public suffix (eTLD) is, what the
+registrable domain (eTLD+1) is, whether a host is itself a public suffix, which
+PSL rule produced the answer, and how the host decomposes around that boundary.
+It does **not** parse URLs, do DNS, or make security decisions.
 
 ## Dependency boundary
 
@@ -40,10 +40,10 @@ drive an in-memory compatibility rebuild (see [Bundled data](#bundled-data-and-p
 Top to bottom, a query flows:
 
 ```text
-query.R            public API: option policy, unknown/output/dot shaping, framing
+query.R            public API: engine selection, option policy, shaping, framing
   -> canonicalize.R    domain vector -> canonical ASCII hosts + ok/na/invalid status
-  -> matcher.R         active-list state, matcher build, C++ result -> strings
-       -> cache.R      bounded columnar session cache (miss -> derive -> store)
+  -> matcher.R         snapshots, engines, C++ match result -> strings
+       -> cache.R      bounded per-engine columnar cache (miss -> derive -> store)
        -> src/matcher.cpp   prevailing-rule algorithm over immutable rule indexes
 ```
 
@@ -54,20 +54,22 @@ policy).
 
 ## Public API surface
 
-Ten exports (see `NAMESPACE`):
+Twelve exports (see `NAMESPACE`):
 
 | Function | Defined at | Purpose |
 |---|---|---|
-| `public_suffix()` | `R/query.R:188` | eTLD of each host |
-| `registrable_domain()` | `R/query.R:229` | eTLD+1 of each host |
-| `is_public_suffix()` | `R/query.R:274` | `TRUE` iff host equals its own public suffix |
-| `suffix_extract()` | `R/query.R:338` | data.frame splitting subdomain/domain/suffix |
-| `public_suffix_rule()` | `R/query.R:401` | data.frame of the prevailing rule per host |
-| `psl_use()` | `R/refresh.R:413` | switch active list (bundled/cache/path) |
-| `psl_refresh()` | `R/refresh.R:304` | download + validate + publish a list to the user cache |
-| `psl_version()` | `R/metadata.R:69` | one-row data.frame: identity of the active list |
-| `psl_outdated()` | `R/metadata.R:125` | offline staleness check vs `list_date` |
-| `psl_rules()` | `R/metadata.R:159` | data.frame of the active list's explicit rules |
+| `public_suffix()` | `R/query.R:247` | eTLD of each host; optional isolated engine |
+| `registrable_domain()` | `R/query.R:282` | eTLD+1 of each host; optional isolated engine |
+| `is_public_suffix()` | `R/query.R:321` | `TRUE` iff host equals its own public suffix |
+| `suffix_extract()` | `R/query.R:386` | data.frame splitting subdomain/domain/suffix |
+| `public_suffix_rule()` | `R/query.R:460` | data.frame of the prevailing rule per host |
+| `psl_engine()` | `R/matcher.R:267` | construct an isolated bundled/path engine |
+| `psl_use()` | `R/refresh.R:521` | switch default list (bundled/cache/path) |
+| `psl_refresh()` | `R/refresh.R:403` | download + validate + publish a user-cache list |
+| `psl_cache_prune()` | `R/refresh.R:595` | remove superseded on-disk cache snapshots |
+| `psl_version()` | `R/metadata.R:72` | one-row data.frame: identity of the default list |
+| `psl_outdated()` | `R/metadata.R:128` | offline staleness check vs `list_date` |
+| `psl_rules()` | `R/metadata.R:162` | data.frame of the default list's explicit rules |
 
 Shared query options (`section`, `output`, `unknown`, `invalid`) are documented
 in the PRD §6–7; their defaults and semantics are captured as decisions in
@@ -77,20 +79,22 @@ in the PRD §6–7; their defaults and semantics are captured as decisions in
 
 ### `R/query.R` — public query API
 
-Thin vectorized wrappers; each owns its `section` / `output` / `unknown` /
-`invalid` policy. Key internals:
+Thin vectorized wrappers; each resolves its engine and owns its `section` /
+`output` / `unknown` / `invalid` policy. Key internals:
 
-- `match_opt()` (`R/query.R:18`) — scalar option matcher. It detects "was this
-  argument supplied?" via `missing()`, **not** value-equality, so an explicit
-  non-scalar equal to the default still aborts. `invalid` never suppresses these
-  programming errors.
-- `psl_query_cols()` (`R/query.R:102`) — the shared per-element result builder:
+- `check_choice()` / `resolve_common_opts()` (`R/query.R:18`/`:36`) — scalar
+  option validation shared by all query wrappers. `invalid` never suppresses
+  these programming errors.
+- `psl_query_cols()` (`R/query.R:111`) — the shared per-element result builder:
   canonicalize, resolve valid cores once, and apply `unknown = "na"` by erasing
   the implicit-default rule's derived fields. Returns a **bare list**, not a
   data.frame, to avoid ~0.1–0.2 ms of `data.frame()` construction per call; only
   the two frame-returning functions pay that cost, once, at the end.
-- `psl_slice_registrant()` (`R/query.R:304`) — slices the registrant label and
+- `psl_slice_registrant()` (`R/query.R:352`) — slices the registrant label and
   subdomain from the C++ byte offsets instead of per-row `strsplit()`.
+- Every wrapper passes one `psl_engine` explicitly. Its default expression
+  resolves the process-wide engine selected by `psl_use()`; a caller can instead
+  provide an independently constructed engine.
 - `unknown` and `output` are applied **here**, after the cache, so they never
   enter the cache key.
 
@@ -130,48 +134,55 @@ allowed — section membership is part of a rule's identity.
 
 ### `R/matcher.R` — R engine over the cpp11 matcher
 
-Owns active-list state, matcher construction, C++-result → strings, and the
-cache-aware core resolver.
+Owns snapshot and engine objects, default-engine state, matcher construction,
+C++-result → strings, and the cache-aware core resolver.
 
-- Session state lives in one env slot, `the_matcher$state` (`R/matcher.R:15`), so
-  activation is a single atomic assignment — an interrupt or failed activation
-  can never expose a half-built matcher. `psl_set_active()` (`R/matcher.R:66`)
-  builds the matcher, *then* swaps, *then* clears the cache.
-- `build_matcher()` (`R/matcher.R:24`) calls into C++ (`psl_build_matcher`).
-- `activate_bundled()` / `rebuild_bundled_rules()` (`R/matcher.R:96`/`:82`) — the
+- A `psl_snapshot` carries rules and provenance; a process-local `psl_engine`
+  carries one snapshot, its compiled matcher, and its own result cache
+  (`R/matcher.R:131`, `:152`). `psl_engine()` constructs independent bundled or
+  path engines without changing the default.
+- Default session state lives in one env slot, `the_matcher$state`
+  (`R/matcher.R:16`). `psl_activate_snapshot()` (`R/matcher.R:170`) builds a
+  complete engine before one atomic assignment, so failure or interruption
+  cannot expose a half-built matcher or cache.
+- `build_matcher()` (`R/matcher.R:25`) calls into C++ (`psl_build_matcher`).
+- `bundled_snapshot()` / `rebuild_bundled_rules()`
+  (`R/matcher.R:200`/`:184`) implement the
   compatibility rebuild: if the shipped index's `normalization_profile` /
   `unicode_version` differ from the runtime `punycoder`, re-parse
   `inst/extdata/*.dat` in memory (lenient) before activating, preserving the
   shipped source identity.
-- `psl_match_records()` (`R/matcher.R:162`) calls `psl_match` (C++) and derives
-  `public_suffix` / `registrable_domain` / `rule` / `kind` / `rule_section` from
-  1-based byte offsets with one vectorized `substr()` per column.
-- `psl_resolve_cores()` (`R/matcher.R:229`) is the cache-aware resolver: honors
-  the `pslr.cache = FALSE` escape hatch, builds the key prefix
-  `identity|section_code|`, dedups cores, looks up hits, derives misses, stores,
-  and maps back to per-input.
+- `psl_match_structural()` / `psl_derive_strings()`
+  (`R/matcher.R:387`/`:407`) separate the compact C++ result from projected
+  user-facing strings, deriving requested string columns with vectorized
+  `substr()` calls.
+- `psl_resolve_cores()` (`R/matcher.R:501`) is the cache-aware resolver: honors
+  the `pslr.cache = FALSE` escape hatch, dedups cores, uses keys of
+  `section_code|host`, derives misses, stores them in that engine's cache, and
+  maps back to per-input.
 
-### `R/cache.R` — bounded columnar session cache
+### `R/cache.R` — bounded per-engine columnar cache
 
-Keyed by canonical host + active-list identity + section. Because `unknown`,
+Keyed by canonical host + section. Snapshot identity is unnecessary because
+each cache belongs to exactly one engine and matcher. Because `unknown`,
 `output`, and terminal-dot restoration are applied *after* retrieval, they are
 deliberately **not** in the key — the cache can never change a result. The store
-is columnar: a key→index env plus eight parallel column vectors sharing the same
-schema (`psl_cache_cols`, `R/cache.R:55`) used by `matcher.R` and `query.R`, so
-allocate/grow/store/resolve never drift. Default bound is 200,000 entries
-(`R/cache.R:38`); eviction is a documented **full flush** — when a store would
-exceed capacity the whole table is dropped and rebuilt, and a batch larger than
-capacity is matched but not cached. Growth within the bound doubles via
-`length<-` for amortized O(1) (`psl_cache_grow()`, `R/cache.R:97`).
+is columnar: a key→index env plus six parallel integer vectors sharing the
+`psl_cache_cols` schema (`R/cache.R:55`). Strings are reconstructed from the
+cached depths, offsets, and enum codes. Default bound is 200,000 entries
+(`R/cache.R:48`); eviction is a documented **full flush** when an ordinary
+store would exceed capacity. A batch larger than capacity is matched but not
+cached and leaves an existing warm set intact. Growth within the bound doubles
+via `length<-` for amortized O(1) (`psl_cache_grow()`, `R/cache.R:116`).
 
 ### `R/metadata.R` — active-list metadata
 
-`psl_version()` (`R/metadata.R:69`) renders the 11-column one-row identity
-data.frame (`source, path, retrieved_at, list_date, commit, size, checksum,
+`psl_version()` (`R/metadata.R:72`) renders the 12-column one-row identity
+data.frame (`source, url, path, retrieved_at, list_date, commit, size, checksum,
 normalizer, normalizer_version, normalization_profile, unicode_version`), shared
-with `psl_refresh()`. `psl_outdated(max_age = 180)` (`R/metadata.R:125`) is a
+with `psl_refresh()`. `psl_outdated(max_age = 180)` (`R/metadata.R:128`) is a
 purely offline staleness check derived from `list_date`, returning a logical with
-an `"age_days"` attribute. `psl_rules()` (`R/metadata.R:159`) returns the active
+an `"age_days"` attribute. `psl_rules()` (`R/metadata.R:162`) returns the default
 list's explicit rules (ICANN before PRIVATE, then source order; the implicit `*`
 is not included).
 
@@ -192,9 +203,11 @@ The only network access in the package, and only on an explicit `psl_refresh()`.
   handles the Windows "rename onto existing dest" case.
 - Config seams via options: `pslr.max_bytes` (default 16 MiB), `pslr.cache_dir`
   (default `tools::R_user_dir("pslr", "cache")`), `pslr.downloader`.
-- `psl_use(source, path)` (`R/refresh.R:413`) switches the active list to
+- `psl_use(source, path)` (`R/refresh.R:521`) switches the default engine to
   bundled / cache / a custom path, validating before it changes any session
-  state.
+  state. Independent engines are unaffected.
+- `psl_cache_prune(keep)` (`R/refresh.R:595`) removes superseded on-disk source
+  snapshots while retaining the active snapshot and requested history.
 
 ## The compiled matcher (`src/`)
 

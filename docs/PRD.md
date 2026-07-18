@@ -1,7 +1,8 @@
 # pslr - Product Requirements and Design Specification
 
-> Status: reviewed draft; decisions below are normative unless explicitly marked
-> "deferred".
+> Status: implemented contract. Version 1 acceptance is recorded in
+> [acceptance-v1.md](./acceptance-v1.md); later accepted changes are recorded in
+> [decisions.md](./decisions.md) and `NEWS.md`.
 >
 > Audience: package maintainer and implementation agents.
 >
@@ -258,32 +259,35 @@ programmatic comparison.
 
 ## 7. Public API
 
-Names and schemas in this section are the version 1 contract.
+Names and schemas in this section are the current public contract.
 
 ### 7.1 Core functions
 
 ```r
 public_suffix(
   domain,
-  section = c("all", "icann", "private"),
-  output = c("ascii", "unicode"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  output = "ascii",
+  unknown = "default",
+  invalid = "na",
+  engine = psl_default_engine()
 )
 
 registrable_domain(
   domain,
-  section = c("all", "icann", "private"),
-  output = c("ascii", "unicode"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  output = "ascii",
+  unknown = "default",
+  invalid = "na",
+  engine = psl_default_engine()
 )
 
 is_public_suffix(
   domain,
-  section = c("all", "icann", "private"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  unknown = "default",
+  invalid = "na",
+  engine = psl_default_engine()
 )
 ```
 
@@ -296,6 +300,8 @@ is_public_suffix(
 - Names on `domain` are preserved by vector-returning functions.
 - Zero-length input returns a zero-length output of the correct type.
 - Attributes other than names are not preserved.
+- `engine` defaults to the process-wide engine selected by `psl_use()`. Passing
+  a `psl_engine()` object queries its snapshot without changing that default.
 - No `registered_domain` alias is exported in version 1. Documentation may
   mention "registered domain" as a synonym, but one canonical function name
   avoids a permanent duplicate API.
@@ -305,10 +311,11 @@ is_public_suffix(
 ```r
 suffix_extract(
   domain,
-  section = c("all", "icann", "private"),
-  output = c("ascii", "unicode"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  output = "ascii",
+  unknown = "default",
+  invalid = "na",
+  engine = psl_default_engine()
 )
 ```
 
@@ -346,9 +353,10 @@ with `urltools::suffix_extract()`.
 ```r
 public_suffix_rule(
   domain,
-  section = c("all", "icann", "private"),
-  unknown = c("default", "na"),
-  invalid = c("na", "error")
+  section = "all",
+  unknown = "default",
+  invalid = "na",
+  engine = psl_default_engine()
 )
 ```
 
@@ -386,6 +394,10 @@ psl_use(source = c("bundled", "cache", "path"), path = NULL)
 psl_version()
 
 psl_rules(section = c("all", "icann", "private"))
+
+psl_engine(source = c("bundled", "path"), path = NULL)
+
+psl_cache_prune(keep = 1L)
 ```
 
 `psl_refresh()`:
@@ -420,7 +432,8 @@ psl_rules(section = c("all", "icann", "private"))
 - requires `path` only for `"path"` and rejects it otherwise;
 - validates before changing session state;
 - changes only the current R session;
-- invalidates all match-result caches after a successful switch;
+- replaces the default engine with one carrying a fresh, empty result cache;
+  independently constructed engines are unchanged;
 - returns metadata for the newly active list invisibly.
 
 `psl_use("path")` applies the same runtime duplicate policy as
@@ -432,8 +445,8 @@ complete PRIVATE section using official markers. Supporting unsectioned custom
 rule sets is deferred.
 
 `psl_version()` returns a one-row base `data.frame` with stable columns:
-`source`, `path`, `retrieved_at`, `list_date`, `commit`, `size`, `checksum`,
-`normalizer`, `normalizer_version`, `normalization_profile`, and
+`source`, `url`, `path`, `retrieved_at`, `list_date`, `commit`, `size`,
+`checksum`, `normalizer`, `normalizer_version`, `normalization_profile`, and
 `unicode_version`.
 
 - `normalizer` identifies the dependency providing canonicalization, initially
@@ -455,6 +468,17 @@ custom path.
 `rule`, `canonical_rule`, `kind`, `section`, and `labels`. `labels` is integer
 rule depth including a wildcard label. Results are ordered first by section and
 then by the source-file order. The implicit default rule is not included.
+
+`psl_engine()` constructs a self-contained, process-local engine for the
+bundled snapshot or a validated custom path. Each engine owns an immutable
+snapshot, compiled matcher, and bounded cache. Query functions accept it through
+`engine`; constructing or querying one never switches the process-wide default.
+The compiled external pointer does not serialize across R sessions or workers.
+
+`psl_cache_prune()` removes superseded content-addressed source snapshots from
+the user cache while always retaining the active snapshot and the requested
+number of previous snapshots. It does not change the active engine or its
+in-memory result cache.
 
 ## 8. Engine and data design
 
@@ -494,18 +518,20 @@ part of its identity.
 - Use `cpp11` for parsing the prepared rule index and matching host vectors.
 - R wrappers own argument matching, normalization calls, result shaping, and
   user-facing errors.
-- The active matcher is immutable after construction.
-- Build partitioned normal, wildcard, and exception indexes for each section.
+- Each engine's matcher is immutable after construction.
+- Build one reverse-label trie carrying normal, wildcard, and exception rule
+  endpoints for each section.
 - Matching work is proportional to hostname label count, not total rule count.
 - Deduplicate canonical hosts within a vector call before crossing into C++.
-- A bounded session cache may optimize repeated calls. Its key must include the
-  canonical host, active-list identity, and section.
-- The cache stores only canonical ASCII match results and rule metadata.
+- A bounded per-engine cache may optimize repeated calls. Because an engine is
+  bound to one snapshot, its key includes only the canonical host and section.
+- The cache stores compact structural match results as integer depths, offsets,
+  and enum codes; user-facing strings are derived after retrieval.
   `unknown` policy, `output = "unicode"` decoding, and terminal-dot restoration
   happen after cache retrieval, so `unknown` and `output` are intentionally not
   part of the cache key.
-- Cache size and eviction policy must be documented. Switching lists clears the
-  cache.
+- Cache size and eviction policy must be documented. Switching the default list
+  constructs a fresh engine and therefore starts with a fresh cache.
 - Cache state must never change results.
 - The compiled code must not call R APIs from parallel threads. Version 1 does
   not add internal multithreading.
@@ -703,7 +729,11 @@ CRAN timing are not stable.
 
 ## 12. Downstream `rurl` migration
 
-The migration is outside the `pslr` package release but must eventually:
+The code migration was completed downstream in `rurl`: embedded matching and
+list data were replaced by `pslr`, parity fixtures cover the boundary, and the
+v1.1 engine API provides per-request list ownership without global switching.
+The remaining tracked work is the downstream CRAN release cleanup. The delivered
+migration had to:
 
 1. replace embedded PSL matching and list data with `pslr`;
 2. preserve `rurl`'s documented defaults unless a deliberate breaking release
@@ -718,25 +748,25 @@ The migration is outside the `pslr` package release but must eventually:
 7. remove obsolete bundled PSL data, caches, and normalization helpers only
    after parity tests pass.
 
-`rurl` must not use `pslr` session-global list switching to implement
-per-request behavior. If downstream callers need per-list queries concurrently,
-an explicit matcher object API must be designed in a later `pslr` release.
+`rurl` does not use `pslr` session-global list switching for per-request
+behavior. It passes an explicitly owned `psl_engine` through its query path.
 
 ## 13. Delivery phases
 
-1. **Dependency prerequisite**: specify, implement, test, and release the
-   canonical-host normalization API in `punycoder`.
-2. **Parser and bundled data**: deterministic update pipeline, metadata,
-   licensing, validation, and generated indexes.
-3. **Core matcher**: cpp11 indexes and prevailing-rule implementation with
-   official vectors.
-4. **Public query API**: input policy, sections, unknown policy, output forms,
-   extraction, rule inspection, and bounded caching.
-5. **Refresh and activation**: user cache, validation, atomic updates, metadata,
-   and failure recovery.
-6. **Release hardening**: benchmarks, documentation, offline checks, CRAN checks,
-   and acceptance review.
-7. **Downstream migration**: separately tracked `rurl` integration and release.
+1. **Dependency prerequisite** (complete): specify, implement, test, and release
+   the canonical-host normalization API in `punycoder`.
+2. **Parser and bundled data** (complete): deterministic update pipeline,
+   metadata, licensing, validation, and generated indexes.
+3. **Core matcher** (complete): cpp11 indexes and prevailing-rule implementation
+   with official vectors.
+4. **Public query API** (complete): input policy, sections, unknown policy,
+   output forms, extraction, rule inspection, and bounded caching.
+5. **Refresh and activation** (complete): user cache, validation, atomic updates,
+   metadata, and failure recovery.
+6. **Release hardening** (complete): benchmarks, documentation, offline checks,
+   CRAN checks, and acceptance review.
+7. **Downstream migration** (code complete; release pending): separately tracked
+   `rurl` integration and release.
 
 ## 14. Deferred items
 
@@ -744,7 +774,6 @@ The following are explicitly not blockers for version 1:
 
 - a public custom-list lint command;
 - unsectioned custom lists;
-- matcher objects for multiple simultaneously active lists;
 - internal multithreading;
 - automatic scheduled refresh;
 - compatibility aliases beyond the API in section 7; and
@@ -752,3 +781,7 @@ The following are explicitly not blockers for version 1:
 
 Adding a deferred item requires a new design decision and must not silently
 change the version 1 defaults or return schemas.
+
+Matcher objects are no longer deferred: version 1.1 introduced `psl_engine()`
+and the query functions' `engine` argument for multiple simultaneously held
+snapshots.
