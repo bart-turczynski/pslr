@@ -8,7 +8,7 @@
   "codeRepository": "https://github.com/bart-turczynski/pslr",
   "issueTracker": "https://github.com/bart-turczynski/pslr/issues",
   "license": "https://spdx.org/licenses/MIT",
-  "version": "1.1.1",
+  "version": "1.1.1.9000",
   "programmingLanguage": {
     "@type": "ComputerLanguage",
     "name": "R",
@@ -156,7 +156,7 @@
       "@type": "SoftwareApplication",
       "identifier": "R",
       "name": "R",
-      "version": ">= 4.0.0"
+      "version": ">= 4.1.0"
     },
     "2": {
       "@type": "SoftwareApplication",
@@ -184,7 +184,7 @@
     "SystemRequirements": null
   },
   "keywords": ["publicsuffixlist", "PSL", "eTLD", "eTLD+1", "registrabledomain", "ICANN", "domainparsing", "domainextraction", "domainnames", "TLD", "cookiedomains", "IDNA", "publicsuffix", "psl", "public-suffix", "public-suffix-list", "r", "r-lang", "r-library", "rstats", "domain-extraction", "domain-names", "etld", "icann", "idna", "punycode", "etld-plus-one", "registrable-domain", "cookies", "domain", "domain-parsing", "tld", "unicode"],
-  "fileSize": "719.146KB",
+  "fileSize": "719.251KB",
   "citation": [
     {
       "@type": "SoftwareSourceCode",
@@ -200,7 +200,7 @@
       "name": "{pslr}: Public Suffix List Engine",
       "identifier": "10.5281/zenodo.20973660",
       "url": "https://CRAN.R-project.org/package=pslr",
-      "description": "R package version 1.1.1",
+      "description": "R package version 1.1.1.9000",
       "@id": "https://doi.org/10.5281/zenodo.20973660",
       "sameAs": "https://doi.org/10.5281/zenodo.20973660"
     }
