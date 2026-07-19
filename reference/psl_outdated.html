@@ -15,7 +15,7 @@ the live list over time; this is the signal to consider psl_refresh()."></head><
 
     <a class="navbar-brand me-2" href="../index.html">pslr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.1.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,7 +42,7 @@ the live list over time; this is the signal to consider psl_refresh()."></head><
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Is the active Public Suffix List snapshot stale?</h1>
-      <small class="dont-index">Source: <a href="https://github.com/bart-turczynski/pslr/blob/v1.1.1/R/metadata.R" class="external-link"><code>R/metadata.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/bart-turczynski/pslr/blob/main/R/metadata.R" class="external-link"><code>R/metadata.R</code></a></small>
       <div class="d-none name"><code>psl_outdated.Rd</code></div>
     </div>
 
@@ -95,17 +95,17 @@ caller that wants the magnitude as well as the verdict need not recompute it.</p
 <span class="r-in"><span><span class="fu">psl_outdated</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"age_days")</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 35.77109</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 35.78909</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># The age in days is available without recomputing it:</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="fu">psl_outdated</span><span class="op">(</span><span class="op">)</span>, <span class="st">"age_days"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 35.77109</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 35.78909</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Use a stricter threshold:</span></span></span>
 <span class="r-in"><span><span class="fu">psl_outdated</span><span class="op">(</span>max_age <span class="op">=</span> <span class="fl">30</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"age_days")</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 35.77109</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 35.78909</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

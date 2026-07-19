@@ -1,5 +1,7 @@
 # Changelog
 
+## pslr (development version)
+
 ## pslr 1.1.1
 
 CRAN release: 2026-07-19
