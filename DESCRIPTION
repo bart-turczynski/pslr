@@ -24,7 +24,7 @@ BugReports: https://github.com/bart-turczynski/pslr/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Depends:
-    R (>= 4.0.0)
+    R (>= 4.1.0)
 Imports:
     punycoder (>= 1.1.0),
     tools,
