@@ -1,3 +1,5 @@
+# pslr (development version)
+
 # pslr 1.1.1
 
 * `pslr` now installs from CRAN alone: the `punycoder` dependency floor is `>= 1.1.0` (the current CRAN release) and the development `Remotes:` pin is dropped. `pslr` uses only `punycoder` API present since 1.1.0 and is forward-compatible with `punycoder` 1.2.x, whose default `host_normalize()` output is byte-identical (PSLR-xwcqnnls).
