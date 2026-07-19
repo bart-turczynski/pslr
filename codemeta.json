@@ -184,7 +184,7 @@
     "SystemRequirements": null
   },
   "keywords": ["publicsuffixlist", "PSL", "eTLD", "eTLD+1", "registrabledomain", "ICANN", "domainparsing", "domainextraction", "domainnames", "TLD", "cookiedomains", "IDNA", "publicsuffix", "psl", "public-suffix", "public-suffix-list", "r", "r-lang", "r-library", "rstats", "domain-extraction", "domain-names", "etld", "icann", "idna", "punycode", "etld-plus-one", "registrable-domain", "cookies", "domain", "domain-parsing", "tld", "unicode"],
-  "fileSize": "719.251KB",
+  "fileSize": "719.281KB",
   "citation": [
     {
       "@type": "SoftwareSourceCode",
