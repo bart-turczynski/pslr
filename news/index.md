@@ -2,6 +2,8 @@
 
 ## pslr 1.1.1
 
+CRAN release: 2026-07-19
+
 - `pslr` now installs from CRAN alone: the `punycoder` dependency floor
   is `>= 1.1.0` (the current CRAN release) and the development
   `Remotes:` pin is dropped. `pslr` uses only `punycoder` API present
