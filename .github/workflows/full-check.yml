@@ -1,21 +1,28 @@
 # Full cross-platform R CMD check matrix: macOS, Windows, and Ubuntu on R
 # devel / release / oldrel-1, all under --as-cran. This is the CRAN-grade
-# coverage that is too costly (macOS = 10x, Windows = 2x Actions minute
-# multipliers) to run on every commit, so it is scoped to the points where
-# cross-platform breakage actually matters:
+# coverage, and it runs at every point where a code change could break a
+# platform we do not develop on:
 #
 #   - release tags matching 'v*'      (CRAN-submission compliance check)
-#   - merges to main                  (nothing platform-specific lands unproven)
-#   - PRs touching compiled or build inputs (see `paths` below) -- these are the
-#     changes that can break one platform while passing the Ubuntu gate
+#   - merges to main                  (unconditional -- nothing lands unproven,
+#                                      so the close of an epic is always fully
+#                                      checked whatever its final commit touched)
+#   - any PR that is not documentation-only (see `paths-ignore` below)
 #   - a weekly schedule               (catches upstream toolchain/R-devel drift
 #                                      on an otherwise quiet repo)
 #   - on demand via workflow_dispatch
 #
-# Ordinary R-only, docs, and test PRs still get fast feedback from verify.yml
-# (lint + one Ubuntu check) and do NOT pay the 5-platform tax. The local
-# pre-push hook runs the full `R CMD check --as-cran` on the developer's own
-# platform regardless.
+# This repo is PUBLIC, so standard GitHub-hosted runners are free and unlimited
+# on every OS -- the macOS 10x / Windows 2x minute multipliers only bill against
+# a private repo's quota. Coverage here is therefore NOT rationed by cost. The
+# only reason documentation-only PRs skip the matrix is turnaround: the fast
+# gate in verify.yml returns in about five minutes, the matrix in fifteen to
+# twenty, and prose cannot break a platform. Anything that R CMD check actually
+# executes -- R sources, tests, compiled code, vignettes, Rd examples, build
+# metadata -- gets all five legs.
+#
+# The local pre-push hook runs the full `R CMD check --as-cran` on the
+# developer's own platform regardless.
 name: Full platform check
 
 on:
@@ -23,19 +30,23 @@ on:
   push:
     branches: [main]
     tags: ['v*']
-  # PRs that touch compiled sources, build metadata, or the bundled index --
-  # the changes most likely to behave differently per platform or per R version.
-  # `Remotes:` pins in DESCRIPTION also land here, since a GitHub-sourced
-  # dependency is built from source on macOS/Windows rather than installed as a
-  # binary.
+  # Every PR except documentation-only ones. Inverted deliberately: a `paths`
+  # allowlist has to enumerate every code path and silently loses coverage when
+  # one is forgotten -- the previous list omitted `R/**` and `tests/**`, so
+  # ordinary R changes only ever saw the single Ubuntu leg. An ignore list fails
+  # safe: anything unlisted runs the matrix.
+  #
+  # `man/**` is deliberately NOT ignored. Rd files are documentation, but their
+  # \examples{} blocks are executed by R CMD check, so they are code for this
+  # purpose.
   pull_request:
-    paths:
-      - 'src/**'
-      - 'DESCRIPTION'
-      - 'R/sysdata.rda'
-      - 'configure*'
-      - 'cleanup*'
-      - '.github/workflows/full-check.yml'
+    paths-ignore:
+      - '**/*.md'
+      - 'pkgdown/**'
+      - '_pkgdown.yml'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/workflows/pkgdown.yaml'
   # Weekly drift check: upstream R-devel and toolchain changes can break a repo
   # that has not changed at all.
   schedule:
