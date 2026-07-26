@@ -48,6 +48,7 @@ reference:
       - psl_version
       - psl_status
       - psl_snapshots
+      - psl_reminder
       - psl_rules
       - psl_outdated
 

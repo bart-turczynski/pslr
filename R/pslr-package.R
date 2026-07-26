@@ -32,3 +32,12 @@
 ## usethis namespace: start
 ## usethis namespace: end
 NULL
+
+# Direct `library(pslr)` attachment is the only moment pslr evaluates freshness
+# on its own, and it does so offline, at most once per session, and only when
+# the user opted in with `psl_reminder(enable = TRUE)`. Loading the namespace
+# alone -- `pslr::public_suffix()` -- deliberately has no hook at all, so an
+# importing package never inherits another package's startup message.
+.onAttach <- function(libname, pkgname) {
+  psl_reminder_attach()
+}
