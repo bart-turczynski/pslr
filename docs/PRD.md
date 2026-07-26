@@ -385,8 +385,9 @@ retains one row per input.
 ```r
 psl_refresh(
   url = "https://publicsuffix.org/list/public_suffix_list.dat",
-  force = FALSE,
-  activate = FALSE
+  ...,
+  activate = FALSE,
+  force = FALSE
 )
 
 psl_use(source = c("bundled", "cache", "path"), path = NULL)
@@ -402,26 +403,46 @@ psl_cache_prune(keep = 1L)
 
 `psl_refresh()`:
 
-- performs network access only when called explicitly;
-- accepts only an absolute `https` URL, rejects embedded credentials, and does
-  not follow a redirect to a non-HTTPS scheme;
-- reuses a successfully validated cache younger than 24 hours unless
-  `force = TRUE`, respecting upstream download guidance; cache age is measured
-  from the successful network retrieval timestamp, reuse does not advance that
-  timestamp, and `activate = TRUE` activates the reused snapshot just as it
-  would a newly downloaded snapshot;
-- downloads to a temporary file in binary mode;
-- enforces a documented maximum byte size before parsing;
+- performs network access only when called explicitly, and is the only function
+  in the package that performs any;
+- takes `activate` and `force` as named-only arguments, after `...`, because two
+  same-typed logical flags in positional form are not readable at a call site;
+- accepts only an absolute `https` URL with no userinfo, query string, or
+  fragment, and follows at most five same-origin `https` redirects;
+- normalizes that URL (scheme/host case, default port, empty path) and uses the
+  normalized form as source identity, stored under a digest of itself so no
+  filename carries URL text;
+- makes no request at all while the last successful check is inside its courtesy
+  window — at least 24 hours, respecting upstream download guidance, extended by
+  advertised server freshness up to a 30-day cap. `force = TRUE` bypasses that
+  local window only and still sends a validator when one is usable;
+- sends one conditional GET carrying `If-None-Match` (preferred) or
+  `If-Modified-Since`, scoped to the exact URL that issued the validator, and
+  makes an unconditional GET only when no validator is usable, a redirect
+  invalidates validator scope, or local bytes require repair;
+- enforces a documented maximum decoded byte size, and downloads to a temporary
+  file in binary mode;
 - validates UTF-8, section markers, rule grammar, conflicting rules, and
-  successful canonicalization of every rule;
+  successful canonicalization of every rule before anything references the bytes;
 - warns once and deduplicates exact same-section duplicate rules after
   canonicalization, retaining the first source occurrence;
-- publishes source and metadata only after validation succeeds, using an atomic
-  commit protocol that never exposes a mismatched or partial snapshot;
-- never replaces a valid cache or active matcher after a failed refresh;
-- returns `psl_version()`-shaped metadata for the selected cache snapshot
-  invisibly, whether or not that snapshot is activated;
-- activates the selected snapshot only when `activate = TRUE`.
+- identifies every snapshot by the SHA-256 of its exact source bytes, and treats
+  HTTP validators purely as opaque, source-scoped revalidation tokens and never
+  as an integrity or authenticity check;
+- publishes append-only: snapshot bytes and descriptor before any reference,
+  then a new source-state generation and cache selection, so an interrupted
+  refresh exposes either the prior generation or a complete new one;
+- never replaces a valid cache or active matcher after a failed refresh, and
+  never advances `checked_at` or `retrieved_at` on failure;
+- serializes refreshes of one source across processes, so an older concurrent
+  response cannot overwrite newer source state;
+- returns invisibly one `psl_refresh_result` whose `outcome` is exactly one of
+  `skipped_recently` (0 requests, no body), `not_modified` (1 request, no body),
+  `downloaded_unchanged` (1 request with body, checksum unchanged), or `updated`
+  (1 request with body, new checksum), and signals a classed error rooted at
+  `pslr_refresh_error` for every operational failure;
+- activates the selected snapshot only when `activate = TRUE`, and then after
+  every successful outcome, including a skip and a `304`.
 
 `psl_use()`:
 
@@ -475,10 +496,84 @@ snapshot, compiled matcher, and bounded cache. Query functions accept it through
 `engine`; constructing or querying one never switches the process-wide default.
 The compiled external pointer does not serialize across R sessions or workers.
 
-`psl_cache_prune()` removes superseded content-addressed source snapshots from
-the user cache while always retaining the active snapshot and the requested
-number of previous snapshots. It does not change the active engine or its
-in-memory result cache.
+`psl_cache_prune()` removes content-addressed snapshots from the user cache that
+nothing still references. It always retains the selected cache snapshot, every
+snapshot any source record names, the snapshot active in the calling session,
+and the `keep` most recently first-retrieved snapshots beyond those. It runs
+under the publication lock, removes only complete bytes/descriptor pairs,
+collects nothing at all when any source or selection stream is unreadable, and
+never touches the reminder preference. It does not change the active engine or
+its in-memory result cache; the similarly named internal in-memory match-result
+cache is a different subsystem entirely.
+
+### 7.5 Freshness, reminders, and snapshot inventory
+
+```r
+psl_status(snapshot = c("active", "cache", "bundled"), ..., now = <clock>)
+
+psl_reminder(enable = NULL, every = NULL)
+
+psl_snapshots(..., verify = FALSE)
+```
+
+The freshness contract separates immutable snapshot identity from mutable
+knowledge about a remote endpoint. Snapshot age may *recommend* a check; only a
+validated `200` or a usable `304` may *establish* remote freshness.
+
+`psl_status()`:
+
+- makes no network request, writes nothing, and performs no cache migration;
+- returns a one-row `data.frame` of class `psl_status` with stable columns
+  `state`, `snapshot`, `source_kind`, `request_url`, `checksum`,
+  `source_checksum`, `content_date`, `retrieved_at`, `checked_at`,
+  `next_check_at`, `snapshot_age_days`, `check_age_days`, `check_due`, and
+  `message`; unavailable values are typed `NA`;
+- reports `state` by this precedence: `missing` (requested cache selection does
+  not exist), `unknown` (local state corrupt, ambiguous, or clock-skewed),
+  `untracked` (no applicable remote source), `update_available` (a successful
+  check observed a different source checksum), `never_checked` (source known,
+  never confirmed), `check_due` (confirmed, but the retained reminder interval
+  has elapsed), `confirmed_current` (confirmed, interval not elapsed);
+- never derives `update_available` from elapsed time. Elapsed time alone is
+  `check_due`, which is advice about local knowledge, not evidence about
+  upstream;
+- reports a missing cache and corrupt records as status with remediation rather
+  than as an error, so a usable active engine stays inspectable;
+- reports `NA` ages and `unknown` rather than a false freshness claim when the
+  local clock is behind a recorded time.
+
+`psl_reminder()`:
+
+- is opt-in, off until enabled, and strictly offline in every mode;
+- stores `enabled` and a whole-day `interval` (default 7) as *configuration*
+  under `tools::R_user_dir("pslr", "config")`, so refreshing, pruning, or
+  deleting the snapshot cache never alters it;
+- `enable = NULL` queries without writing; `enable = FALSE` retains the stored
+  interval for a later re-enable;
+- when enabled, a *direct* `library(pslr)` attach evaluates the offline status
+  path and may emit at most one `packageStartupMessage()` per R session, only
+  for `never_checked`, `check_due`, or `update_available`, and for the last of
+  those suggests activation rather than a further download;
+- namespace import is silent, `suppressPackageStartupMessages()` works as usual,
+  detach and reattach does not repeat the message, and any failure evaluating
+  the reminder degrades to silence.
+
+`psl_snapshots()` returns one row per distinct SHA-256 across the bundled and
+cached snapshots, with per-row `integrity` of `ok`, `missing`,
+`checksum_mismatch`, or `unknown_schema`. It makes no request and no repair,
+classifies from metadata by default, rehashes stored bytes under
+`verify = TRUE`, and reports source association only as the count `source_count`
+because request URLs of custom sources may be private.
+
+`pslr` installs no scheduler, runs no daemon, and starts no background request.
+Periodic refreshing is the caller's choice of external scheduler invoking
+`pslr::psl_refresh()`; over-scheduling is harmless because the courtesy window
+is enforced inside the call.
+
+`psl_outdated()` is removed. Its Boolean answer conflated content age with
+knowledge of the remote endpoint, and it could not describe a refreshed snapshot
+whose upstream content date is unknown. `psl_status()` replaces it, and
+`psl_reminder()` replaces its role as a nudge.
 
 ## 8. Engine and data design
 
@@ -605,7 +700,14 @@ layout is not by itself acceptance evidence.
 - Refresh and list activation failures leave the previous cache and matcher
   usable.
 - A corrupt cache is never selected automatically; `psl_use("cache")` reports
-  the validation failure.
+  the validation failure, and `psl_status()` reports `unknown` with remediation
+  instead of raising.
+- A failed refresh never advances `checked_at`, `retrieved_at`, the source
+  checksum, or the selected cache generation.
+- Every published selection and source-state generation points only to a
+  resolvable, verified snapshot; published generation files are never
+  overwritten, so an interrupted commit exposes either the prior generation or a
+  complete new one on both POSIX and Windows.
 - No partial vector results are returned when `invalid = "error"`.
 - Interrupting parsing or activation cannot leave a partially constructed
   active matcher.
@@ -687,13 +789,20 @@ Version 1 is releasable only when all criteria below pass.
 - Tests simulate a generated index whose normalization profile or Unicode
   version differs from the runtime normalizer and prove that activation rebuilds
   from source rather than using a mixed-profile index.
-- Refresh tests use an injected downloader or local TLS fixture with controlled
-  redirects; CI does not depend on publicsuffix.org availability.
-- Refresh tests prove the 24-hour throttle, `force`, atomic replacement,
-  activation of both reused and newly downloaded snapshots, HTTPS/redirect
+- Refresh tests use an injected transport returning deterministic status,
+  headers, effective URL, and byte fixtures; CI does not depend on
+  publicsuffix.org availability. Time and lock behavior have injectable seams,
+  and no test, example, vignette, or check accesses the network.
+- Refresh tests prove the 24-hour courtesy floor, `force`, append-only
+  publication, activation after every successful outcome, HTTPS/redirect
   restrictions, size limit, duplicate handling, snapshot source/metadata
-  coherence, reuse without retrieval-timestamp advancement, and rollback after
-  every validation failure.
+  coherence, and rollback after every validation failure.
+- Coverage includes every status state and refresh outcome; result and error
+  printing; ETag precedence, rotation, and weak forms; `Last-Modified` and
+  no-validator fallbacks; redirect scoping; header sanitization; `Age` and
+  `max-age` parsing; timeouts and size limits; `304` repair; identical bodies;
+  source isolation; clock skew; reminders; v1 migration; lock contention;
+  cross-source publication; snapshot inventory; and pruning invariants.
 - Cache and custom-path activation tests prove that each source is indexed
   under the runtime normalizer and never reuses the bundled generated index.
 - `R CMD check --as-cran` does not write outside R-approved temporary or user

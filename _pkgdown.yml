@@ -42,23 +42,31 @@ reference:
       - suffix_extract
       - public_suffix_rule
 
-  - title: PSL Metadata
-    desc: Inspect the active Public Suffix List snapshot.
+  - title: Provenance
+    desc: >
+      Identity of the list that answered: which snapshot, and how hosts were
+      normalized. Offline.
     contents:
       - psl_version
-      - psl_status
-      - psl_snapshots
-      - psl_reminder
       - psl_rules
-      - psl_outdated
 
-  - title: List Management
+  - title: Freshness
     desc: >
-      Refresh or switch the active PSL source. The bundled snapshot is used
-      by default; these functions let you update it or point to a local file.
+      What is known about how current a snapshot is, and how to find out more.
+      Everything here is offline except `psl_refresh()`, the package's only
+      network path.
     contents:
+      - psl_status
       - psl_refresh
+      - psl_reminder
+
+  - title: Snapshots and storage
+    desc: >
+      Choose which snapshot backs the session, see what is stored locally, and
+      reclaim snapshots nothing references any more. Offline.
+    contents:
       - psl_use
+      - psl_snapshots
       - psl_cache_prune
 
   - title: Engines
