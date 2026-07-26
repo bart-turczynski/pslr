@@ -60,3 +60,37 @@ After running the script, complete these steps before committing:
 4. **Commit the regenerated artifacts** (`inst/extdata/`, `inst/NOTICE`,
    `R/sysdata.rda`, `tests/testthat/fixtures/psl-vectors.txt`) as part of the
    release commit.
+
+#### Knowing when upstream has moved
+
+The checklist above is the release procedure and stays manual. What it does not
+tell you is *when* it needs running — staleness used to surface only if someone
+remembered to look.
+
+`.github/workflows/psl-upstream-check.yaml` is the discovery mechanism for that,
+and a discovery mechanism only — it does not replace any step above. Weekly (and
+on `workflow_dispatch`), it compares the latest upstream commit touching
+`public_suffix_list.dat` against `default_commit` in `data-raw/update_psl.R`. If
+they match it is a no-op. If they differ it runs `data-raw/update_psl.R` on a
+network-enabled runner, advances the pin, and **opens a PR** with the
+regenerated artifacts and a summary of what changed (commit range, `list_date`,
+`checksum`, rule counts, normalization identity).
+
+It never commits to `main`, never merges, and never touches `NEWS.md` or the
+package version — steps 1 to 3 above are still yours to do on that PR. It is
+deliberately separate from `verify.yml` and `full-check.yml`, which must stay
+network-free per CRAN policy, and it shells out to `data-raw/update_psl.R`
+rather than reimplementing regeneration, so the two paths cannot drift.
+
+One review point specific to the automated PR: the regenerated index records
+whichever normalizer the runner resolved, reported as `normalizer_version` in
+the PR body. While the temporary `punycoder` `Remotes:` pin is in place that
+will be a development version, which must not ship to CRAN.
+
+`data-raw/psl_snapshot_meta.R` prints a snapshot's provenance as `KEY=VALUE`
+lines straight from `R/sysdata.rda`. The workflow uses it to build that summary,
+and it is useful by hand for the same reason:
+
+```sh
+Rscript data-raw/psl_snapshot_meta.R
+```
