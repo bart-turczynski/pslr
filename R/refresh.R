@@ -368,6 +368,32 @@ psl_refresh_locked <- function(request_url, ..., now, force, activate) {
   )
 }
 
+# Dots guard for the public refresh entry point. The shared
+# `psl_check_empty_dots()` answers a stale positional call with "unnamed", which
+# tells the caller nothing -- and the caller most likely to land here is an
+# existing one, because the previously released signature was
+# `(url, force, activate)` and their positional flag has just stopped working.
+# So name both flags and show the fix; a misspelled named argument still reports
+# the name that was not recognized.
+psl_check_refresh_dots <- function(...) {
+  if (!...length()) {
+    return(invisible(NULL))
+  }
+  named <- ...names()
+  unknown <- if (is.null(named)) character(0) else named[nzchar(named)]
+  detail <- if (length(unknown)) {
+    sprintf("`psl_refresh()` got unknown argument(s): %s.", toString(unknown))
+  } else {
+    "`psl_refresh()` takes only `url` positionally."
+  }
+  stop(
+    detail,
+    " Name `activate` and `force`, as in psl_refresh(url, activate = TRUE)",
+    " or psl_refresh(url, force = TRUE).",
+    call. = FALSE
+  )
+}
+
 #' Refresh the cached Public Suffix List from upstream
 #'
 #' Revalidates the Public Suffix List against its source and publishes any
@@ -378,6 +404,12 @@ psl_refresh_locked <- function(request_url, ..., now, force, activate) {
 #'   list. URLs with another scheme, embedded credentials, a query string, or a
 #'   fragment are rejected, and a redirect that leaves `https` or the original
 #'   origin is refused.
+#' @param ... These dots are for future extensions and must be empty. They also
+#'   make `activate` and `force` named-only. The two flags are easy to confuse
+#'   -- both logical, both about doing more than a bare check -- so
+#'   `psl_refresh(url, TRUE)` is unreadable whichever order it means. Naming
+#'   them makes every call self-documenting, and the old positional form is now
+#'   a clear error instead of a silent change of meaning.
 #' @param activate When `TRUE`, the snapshot the source now points at becomes
 #'   the active list for the session, exactly as [psl_use()] would activate it
 #'   -- after *every* successful outcome, including a skip and a `304`. When
@@ -424,9 +456,11 @@ psl_refresh_locked <- function(request_url, ..., now, force, activate) {
 #' @export
 psl_refresh <- function(
   url = "https://publicsuffix.org/list/public_suffix_list.dat",
+  ...,
   activate = FALSE,
   force = FALSE
 ) {
+  psl_check_refresh_dots(...)
   psl_check_flag(activate, "activate")
   psl_check_flag(force, "force")
   request_url <- psl_normalize_source_url(url)

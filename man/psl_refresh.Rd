@@ -6,6 +6,7 @@
 \usage{
 psl_refresh(
   url = "https://publicsuffix.org/list/public_suffix_list.dat",
+  ...,
   activate = FALSE,
   force = FALSE
 )
@@ -15,6 +16,13 @@ psl_refresh(
 list. URLs with another scheme, embedded credentials, a query string, or a
 fragment are rejected, and a redirect that leaves \code{https} or the original
 origin is refused.}
+
+\item{...}{These dots are for future extensions and must be empty. They also
+make \code{activate} and \code{force} named-only. The two flags are easy to confuse
+-- both logical, both about doing more than a bare check -- so
+\code{psl_refresh(url, TRUE)} is unreadable whichever order it means. Naming
+them makes every call self-documenting, and the old positional form is now
+a clear error instead of a silent change of meaning.}
 
 \item{activate}{When \code{TRUE}, the snapshot the source now points at becomes
 the active list for the session, exactly as \code{\link[=psl_use]{psl_use()}} would activate it

@@ -268,6 +268,26 @@ test_that("changed content with activate = TRUE activates the new snapshot", {
   expect_identical(public_suffix("a.nowhere.example"), "nowhere.example")
 })
 
+test_that("named force and activate both take effect in one call", {
+  local_pslr_clean()
+  local_clock()
+  transport <- local_fake_transport(list(
+    list(path = write_test_list()),
+    list(path = write_test_list("nowhere.example"))
+  ))
+  first <- psl_refresh(refresh_url)
+  expect_false(first$activated)
+
+  # Same courtesy window, so only `force = TRUE` makes the second request, and
+  # only `activate = TRUE` makes its snapshot the session's list.
+  updated <- psl_refresh(refresh_url, force = TRUE, activate = TRUE)
+
+  expect_identical(request_count(transport), 2L)
+  expect_identical(updated$outcome, "updated")
+  expect_true(updated$activated)
+  expect_identical(psl_version()$checksum, updated$checksum)
+})
+
 test_that("both published snapshots survive an update", {
   local_pslr_clean()
   local_clock()

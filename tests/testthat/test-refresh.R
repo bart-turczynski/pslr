@@ -32,6 +32,51 @@ test_that("force/activate must be logical scalars", {
   expect_error(psl_refresh(activate = NA), "single TRUE or FALSE")
 })
 
+test_that("force/activate are named-only", {
+  local_pslr_clean()
+  transport <- local_fake_transport()
+  # The two flags are easy to confuse, so a positional flag is an error rather
+  # than a silent change of meaning -- and it is refused before any request.
+  # The message has to be actionable: the caller most likely to hit it used the
+  # previously released positional form, so it names both flags and shows the
+  # named call that replaces it.
+  positional <- expect_error(
+    psl_refresh("https://psl.example/list.dat", TRUE),
+    "takes only `url` positionally"
+  )
+  expect_match(
+    conditionMessage(positional),
+    "psl_refresh(url, activate = ",
+    fixed = TRUE
+  )
+  expect_match(
+    conditionMessage(positional),
+    "psl_refresh(url, force = ",
+    fixed = TRUE
+  )
+  two_flags <- expect_error(
+    psl_refresh("https://psl.example/list.dat", TRUE, TRUE),
+    "takes only `url` positionally"
+  )
+  expect_match(
+    conditionMessage(two_flags),
+    "`activate` and `force`",
+    fixed = TRUE
+  )
+  # A misspelled named flag names the argument that was not recognized, and
+  # still points at the two it could have meant.
+  misspelled <- expect_error(
+    psl_refresh("https://psl.example/list.dat", activte = TRUE),
+    "unknown argument\\(s\\): activte"
+  )
+  expect_match(
+    conditionMessage(misspelled),
+    "`activate` and `force`",
+    fixed = TRUE
+  )
+  expect_identical(request_count(transport), 0L)
+})
+
 test_that("the source checksum is always a sha256 identity", {
   # `digest` is a hard dependency, so a newly recorded checksum is SHA-256 on
   # every install -- there is no MD5-writing fallback that could mint a weaker
