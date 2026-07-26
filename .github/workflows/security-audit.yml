@@ -8,8 +8,12 @@
 # secrets are absent.
 #
 # Required repository secrets:
-#   OSSINDEX_USER   - OSS Index account email (https://ossindex.sonatype.org)
-#   OSSINDEX_TOKEN  - OSS Index API token
+#   OSSINDEX_USER   - the literal placeholder "x", NOT the account email.
+#                     Sonatype documents the basic-auth username as ignored for
+#                     PAT authentication; it is not. The same token returns 401
+#                     with an email and 200 with "x".
+#   OSSINDEX_TOKEN  - a Sonatype Guide PAT (sonatype_pat_*). Legacy OSS Index
+#                     API tokens are no longer issued.
 name: security-audit
 
 on:
