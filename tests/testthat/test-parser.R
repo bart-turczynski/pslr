@@ -286,3 +286,26 @@ test_that("read_psl_file rejects a missing path and bad path argument", {
   expect_error(read_psl_file(c("a", "b")), class = "pslr_parse_error")
   expect_error(read_psl_file(NA_character_), class = "pslr_parse_error")
 })
+
+test_that("non-ASCII rules are marked UTF-8, not left native (PSLR-jzdhhugc)", {
+  # "xn--nqv7f" written as its Unicode form, from explicit bytes so the fixture
+  # does not depend on the locale this file is parsed under.
+  unicode_rule <- rawToChar(as.raw(c(0xe7, 0xb5, 0x84, 0xe7, 0xb9, 0x94)))
+  rules <- parse_psl_lines(psl_doc(icann = unicode_rule))
+  expect_identical(Encoding(rules$raw), "UTF-8")
+  # Unmarked input is accepted and marked, so callers need not declare it.
+  expect_identical(Encoding(unicode_rule), "unknown")
+  expect_true(validUTF8(rules$raw))
+})
+
+test_that("read_psl_file reads UTF-8 without native transcoding", {
+  # A `file(encoding = "UTF-8")` connection truncates this file at the first
+  # non-ASCII byte under a non-UTF-8 locale; declaring the encoding does not.
+  path <- system.file("extdata", "public_suffix_list.dat", package = "pslr")
+  skip_if(path == "", "bundled PSL source not installed")
+  rules <- read_psl_file(path)
+  non_ascii <- grepl("[^\001-\177]", rules$raw, useBytes = TRUE)
+  expect_true(any(non_ascii))
+  expect_true(all(Encoding(rules$raw[non_ascii]) == "UTF-8"))
+  expect_true(all(validUTF8(rules$raw)))
+})

@@ -107,3 +107,70 @@ test_that("an all-missing vector skips the IPv4-literal scan", {
 test_that("aborting on invalid hosts is a no-op when none are invalid", {
   expect_null(psl_abort_invalid_host("ok.com", FALSE))
 })
+
+# Encoding resolution (PSLR-jzdhhugc). Hosts are built from explicit UTF-8
+# bytes rather than source literals so the fixtures mean the same thing in any
+# locale -- a literal in this file would itself be reinterpreted.
+utf8_host <- function() {
+  # "www.bucher.de" with U+00FC in place of the first "u".
+  bytes <- as.raw(c(
+    0x77,
+    0x77,
+    0x77,
+    0x2e,
+    0x62,
+    0xc3,
+    0xbc,
+    0x63,
+    0x68,
+    0x65,
+    0x72,
+    0x2e,
+    0x64,
+    0x65
+  ))
+  rawToChar(bytes)
+}
+
+test_that("an unmarked UTF-8 host canonicalizes like a marked one", {
+  unmarked <- utf8_host()
+  marked <- unmarked
+  Encoding(marked) <- "UTF-8"
+  # Same bytes, different declared encoding: the answer must not depend on it.
+  expect_identical(Encoding(unmarked), "unknown")
+  expect_identical(
+    psl_canonicalize(unmarked)$host,
+    psl_canonicalize(marked)$host
+  )
+  expect_identical(psl_canonicalize(unmarked)$status, "ok")
+})
+
+test_that("psl_declare_utf8 marks non-ASCII and leaves ASCII alone", {
+  marked <- psl_declare_utf8(c("example.com", utf8_host(), NA_character_))
+  expect_identical(Encoding(marked), c("unknown", "UTF-8", "unknown"))
+  # Already-marked input is returned untouched.
+  already <- utf8_host()
+  Encoding(already) <- "UTF-8"
+  expect_identical(psl_declare_utf8(already), already)
+})
+
+test_that("undecodable bytes are invalid input, not an error", {
+  # A lone 0xFC is valid Latin-1 but not valid UTF-8.
+  undecodable <- rawToChar(as.raw(c(0x62, 0xfc, 0x2e, 0x64, 0x65)))
+  expect_false(validUTF8(undecodable))
+  canon <- psl_canonicalize(undecodable)
+  expect_identical(canon$status, "invalid")
+  expect_identical(canon$host, NA_character_)
+  # It is malformed input, not absent input, so `invalid = "error"` aborts.
+  expect_error(
+    psl_canonicalize(undecodable, invalid = "error"),
+    "Invalid host at position 1"
+  )
+})
+
+test_that("trunc_for_msg renders undecodable bytes as a fixed stand-in", {
+  # nchar()/substr() abort on such a string, and the raw bytes would render
+  # differently per locale.
+  undecodable <- rawToChar(as.raw(c(0x62, 0xfc)))
+  expect_identical(trunc_for_msg(undecodable), "<undecodable bytes>")
+})

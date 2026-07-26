@@ -256,6 +256,14 @@ parse_psl_lines <- function(lines) {
   if (length(lines) == 0L) {
     return(psl_empty_rules())
   }
+  # The `raw` column is echoed straight from these lines, so resolve their
+  # encoding up front rather than trusting every caller to. Unmarked non-ASCII
+  # strings are otherwise reinterpreted against the running locale, making the
+  # parsed table -- and the .rda built from it -- locale-dependent. This uses
+  # the same declare-then-transcode rule as caller-supplied hosts; a plain
+  # `enc2utf8()` would corrupt unmarked UTF-8 under a non-UTF-8 locale, since
+  # it would treat those bytes as native.
+  lines <- psl_declare_utf8(lines)
   psl_validate_source_lines(lines)
 
   n <- length(lines)
@@ -326,8 +334,12 @@ read_psl_file <- function(path) {
   if (!file.exists(path)) {
     psl_parse_abort(sprintf("PSL source file not found: %s", path))
   }
-  con <- file(path, open = "r", encoding = "UTF-8")
-  on.exit(close(con), add = TRUE)
-  lines <- readLines(con, warn = FALSE)
+  # `encoding = "UTF-8"` on readLines() DECLARES the bytes are UTF-8 and marks
+  # the result accordingly; it does not transcode. A `file(encoding = "UTF-8")`
+  # connection would instead convert into the native encoding, which is lossy
+  # under a non-UTF-8 locale: under LC_ALL=C it aborts the read at the first
+  # non-ASCII byte, silently truncating the list. The PSL is defined as UTF-8,
+  # so declaring it is both correct and locale-independent.
+  lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
   parse_psl_lines(lines)
 }
