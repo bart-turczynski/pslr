@@ -1,8 +1,12 @@
 # pslr (development version)
 
+* The package landing page (`help(package = "pslr")`, `?pslr`) now carries a runnable quick tour covering both core queries, vectorized input, explicit section selection, Unicode round-tripping, and rule/list provenance (PSLR-aquayvhw).
+
 ## Internal
 
 * The bundled index is regenerated under `punycoder`'s Unicode 17.0.0 pin (profile `uts46-nontransitional-std3-v2`), restoring the fast path in `bundled_snapshot()` instead of rebuilding in memory on every load. The rule set is byte-identical to the previous build at the same pinned upstream commit — only the recorded normalization identity changes. A temporary development `Remotes:` pin on `punycoder` accompanies this and must be dropped, with the `punycoder` floor raised, before the next CRAN submission (PSLR-fjkaqckg).
+
+# pslr 1.1.1
 
 * `pslr` now installs from CRAN alone: the `punycoder` dependency floor is `>= 1.1.0` (the current CRAN release) and the development `Remotes:` pin is dropped. `pslr` uses only `punycoder` API present since 1.1.0 and is forward-compatible with `punycoder` 1.2.x, whose default `host_normalize()` output is byte-identical (PSLR-xwcqnnls).
 
