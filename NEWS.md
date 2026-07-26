@@ -2,6 +2,14 @@
 
 * The package landing page (`help(package = "pslr")`, `?pslr`) now carries a runnable quick tour covering both core queries, vectorized input, explicit section selection, Unicode round-tripping, and rule/list provenance (PSLR-aquayvhw).
 
+* Queries no longer depend on the session locale. A non-ASCII host whose encoding is undeclared — what a caller holds after reading from most sources — previously canonicalized correctly under a UTF-8 locale but returned `NA` under a non-UTF-8 one; callers had to set `Encoding(host) <- "UTF-8"` themselves. `pslr` now resolves the encoding of its own inputs (PSLR-jzdhhugc).
+
+* Reading a PSL source file is locale-independent. Under a non-UTF-8 locale the reader previously transcoded into the native encoding, which aborted at the first non-ASCII byte and silently truncated the list — 780 of 16386 lines under `LC_ALL=C` — affecting `psl_refresh()` and the profile-mismatch rebuild (PSLR-jzdhhugc).
+
+* Undecodable input is now reported as invalid rather than aborting with an internal regex error, so `invalid = "na"` returns `NA` and `invalid = "error"` reports the position as documented (PSLR-jzdhhugc).
+
+* Loading `pslr` no longer warns `strings not representable in native encoding` under a non-UTF-8 locale, which every dependent package inherited on CRAN's Windows checks and win-builder. Non-ASCII strings in the bundled index now carry explicit UTF-8 marks, as do non-ASCII query results (PSLR-jzdhhugc).
+
 ## Internal
 
 * The bundled index is regenerated under `punycoder`'s Unicode 17.0.0 pin (profile `uts46-nontransitional-std3-v2`), restoring the fast path in `bundled_snapshot()` instead of rebuilding in memory on every load. The rule set is byte-identical to the previous build at the same pinned upstream commit — only the recorded normalization identity changes. A temporary development `Remotes:` pin on `punycoder` accompanies this and must be dropped, with the `punycoder` floor raised, before the next CRAN submission (PSLR-fjkaqckg).

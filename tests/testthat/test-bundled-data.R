@@ -69,3 +69,15 @@ test_that("the real list parses cleanly under the strict build policy", {
   expect_true(all(rules$kind %in% c("normal", "wildcard", "exception")))
   expect_gt(nrow(rules), 1000L)
 })
+
+test_that("bundled rules carry UTF-8 marks so loading is locale-clean", {
+  # Unmarked non-ASCII strings in R/sysdata.rda make `load()` warn "strings not
+  # representable in native encoding" under a non-UTF-8 locale, which every
+  # downstream package inherits on CRAN's Windows checks (PSLR-jzdhhugc). This
+  # guards a regeneration that loses the marks.
+  raw <- pslr_bundled$rules$raw
+  non_ascii <- grepl("[^\001-\177]", raw, useBytes = TRUE)
+  expect_true(any(non_ascii))
+  expect_true(all(Encoding(raw[non_ascii]) == "UTF-8"))
+  expect_true(all(validUTF8(raw)))
+})
