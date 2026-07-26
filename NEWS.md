@@ -14,6 +14,8 @@
 
 * A weekly `Upstream PSL check` workflow reports when `publicsuffix/list` has a newer commit to `public_suffix_list.dat` than the pinned bundled snapshot, regenerating it via `data-raw/update_psl.R` and opening a review PR. Discovery only: it never commits to `main`, never merges, and leaves `NEWS.md` and the package version to the maintainer, so the release checklist in `CONTRIBUTING.md` is unchanged (PSLR-wzhnvyiv).
 
+* The NEWS/version CI guard now also asserts that every released version (one `v*` tag each) still has its own `# pslr X.Y.Z` heading in `NEWS.md`, so deleting or mistyping a shipped release section fails the build instead of silently reparenting its bullets under the section above (PSLR-stnequvi).
+
 * The bundled index is regenerated under `punycoder`'s Unicode 17.0.0 pin (profile `uts46-nontransitional-std3-v2`), restoring the fast path in `bundled_snapshot()` instead of rebuilding in memory on every load. The rule set is byte-identical to the previous build at the same pinned upstream commit — only the recorded normalization identity changes. A temporary development `Remotes:` pin on `punycoder` accompanies this and must be dropped, with the `punycoder` floor raised, before the next CRAN submission (PSLR-fjkaqckg).
 
 # pslr 1.1.1
