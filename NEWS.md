@@ -18,6 +18,8 @@
 
 * Refreshes of one source are serialized across processes, so a slower concurrent response can no longer overwrite newer source state, and publication is append-only, so an interrupted commit exposes either the prior generation or a complete new one on both POSIX and Windows. A failed refresh records only a coarse attempt and leaves the cache, the selected snapshot, and the active matcher byte-identical (PSLR-owqhbrli, PSLR-ygsehtko).
 
+* A source's `retrieved_at` and `checked_at` can no longer regress when the system clock moves backwards, as an NTP correction or a wrong container clock will do: a refresh publishes the later of the stored and observed times, and the returned `psl_refresh_result` reports the confirmation that was actually persisted (PSLR-usocggvm).
+
 * New `psl_reminder(enable, every)` persists an opt-in, offline, weekly-by-default freshness reminder: a direct `library(pslr)` may then print one startup message per session, and only for `never_checked`, `check_due`, or `update_available`. Reminders are off until enabled, the preference is configuration rather than cache so pruning never clears it, disabling retains the interval, and no part of the reminder path makes a request (PSLR-zfdsaciu).
 
 * New `psl_snapshots()` inventories every snapshot this installation can resolve, one row per distinct SHA-256, with per-row `integrity` of `ok`, `missing`, `checksum_mismatch`, or `unknown_schema`. It repairs nothing and makes no request; `verify = TRUE` rehashes stored bytes instead of classifying from recorded sizes. Source association is reported only as a count, because request URLs of custom sources may be private (PSLR-umwatxje).

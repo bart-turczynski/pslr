@@ -199,6 +199,19 @@ psl_plan_next_check_at <- function(response, now) {
   ))
 }
 
+# A freshness timestamp that never regresses: the later of what is already
+# published and what this call observed. Persisted times are fixed-width UTC
+# RFC 3339, so they order lexicographically. A clock that moved backwards --
+# an NTP correction, a wrong container clock -- must not publish a confirmation
+# older than one a source already carries; the observation is still real, so
+# the older, safer stamp stands rather than the attempt being refused.
+psl_advance_stamp <- function(previous, candidate) {
+  if (is.na(previous) || is.na(candidate)) {
+    return(candidate)
+  }
+  if (previous > candidate) previous else candidate
+}
+
 # Source-state fields for an outcome that observed the source. `retrieved_at`
 # is the caller's business: only accepted bytes advance it, so a `304` passes
 # the stored value straight through.
@@ -220,8 +233,14 @@ psl_plan_state <- function(
     checksum = checksum,
     etag = validators$etag,
     last_modified = validators$last_modified,
-    retrieved_at = retrieved_at,
-    checked_at = stamp,
+    retrieved_at = psl_advance_stamp(
+      psl_state_field(state, "retrieved_at"),
+      retrieved_at
+    ),
+    checked_at = psl_advance_stamp(
+      psl_state_field(state, "checked_at"),
+      stamp
+    ),
     next_check_at = psl_plan_next_check_at(fetched$response, now),
     last_attempt_at = stamp,
     last_result = outcome
@@ -288,6 +307,14 @@ psl_skip_plan <- function(request_url, state) {
 # rotated validator is accepted.
 psl_not_modified_plan <- function(request_url, state, fetched, validator, now) {
   checksum <- psl_state_field(state, "checksum")
+  record <- psl_plan_state(
+    state,
+    fetched,
+    now,
+    outcome = "not_modified",
+    checksum = checksum,
+    retrieved_at = psl_state_field(state, "retrieved_at")
+  )
   new_psl_refresh_plan(
     "not_modified",
     request_url,
@@ -295,17 +322,11 @@ psl_not_modified_plan <- function(request_url, state, fetched, validator, now) {
     http_status = fetched$response$status,
     validator = validator,
     checksum = checksum,
-    checked_at = psl_format_time(now),
+    # The result reports the confirmation that was actually published.
+    checked_at = record$checked_at,
     publish_state = TRUE,
     requests = 1L,
-    state = psl_plan_state(
-      state,
-      fetched,
-      now,
-      outcome = "not_modified",
-      checksum = checksum,
-      retrieved_at = psl_state_field(state, "retrieved_at")
-    )
+    state = record
   )
 }
 
@@ -333,6 +354,14 @@ psl_downloaded_plan <- function(
   unchanged <- !is.na(previous) && identical(checksum, previous)
   outcome <- if (unchanged) "downloaded_unchanged" else "updated"
   stamp <- psl_format_time(now)
+  record <- psl_plan_state(
+    state,
+    fetched,
+    now,
+    outcome = outcome,
+    checksum = checksum,
+    retrieved_at = stamp
+  )
   new_psl_refresh_plan(
     outcome,
     request_url,
@@ -342,19 +371,12 @@ psl_downloaded_plan <- function(
     bytes_downloaded = response$bytes_downloaded,
     checksum = checksum,
     previous_checksum = previous,
-    checked_at = stamp,
+    checked_at = record$checked_at,
     path = path,
     publish_snapshot = !isTRUE(verify(checksum)),
     publish_state = TRUE,
     requests = requests,
-    state = psl_plan_state(
-      state,
-      fetched,
-      now,
-      outcome = outcome,
-      checksum = checksum,
-      retrieved_at = stamp
-    ),
+    state = record,
     descriptor = list(
       origin_url = fetched$effective_url,
       first_retrieved_at = stamp
