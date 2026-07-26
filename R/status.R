@@ -274,10 +274,16 @@ psl_status_legacy_marker <- function() {
 # The canonical refresh source for the bundled bytes -- claimed only when build
 # provenance states that those bytes correspond to it.
 #
-# The build records an immutable raw-commit origin URL, which pins WHICH bytes
-# shipped but says nothing about the canonical endpoint's current response. So
-# the association is withheld and the bundled snapshot reports `untracked`
-# until build provenance names the canonical endpoint explicitly.
+# The build records two source-identity fields separately. `url` is the
+# immutable raw-commit origin, which pins WHICH bytes shipped but names no
+# refresh endpoint. `canonical_url` is the association this helper needs: it
+# states those bytes CAME FROM the canonical source. It asserts nothing about
+# byte-equality with what that endpoint serves now -- there is no validator and
+# no `checked_at` for a bundled snapshot, so the strongest claim available
+# stays `never_checked` and the first refresh is unconditional.
+#
+# A snapshot built before the field existed carries no association at all, and
+# is left `untracked` rather than attributed to a source the build never named.
 psl_bundled_source_url <- function() {
   if (identical(pslr_bundled$meta$canonical_url, psl_official_url)) {
     psl_official_url

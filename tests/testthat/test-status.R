@@ -128,14 +128,31 @@ test_that("a missing cache is a status, not an error", {
   expect_match(status_lines(status), "No cached snapshot")
 })
 
-test_that("the bundled snapshot is untracked without build provenance", {
+test_that("build provenance associates the bundled bytes with their source", {
   local_pslr_clean()
   status <- psl_status("bundled", now = status_now)
-  expect_identical(status$state, "untracked")
+  # The association names a source but proves nothing about its current bytes,
+  # so the strongest claim available is `never_checked`.
+  expect_identical(status$state, "never_checked")
   expect_identical(status$source_kind, "bundled")
-  expect_identical(status$request_url, NA_character_)
+  expect_identical(status$request_url, psl_official_url)
   expect_identical(status$checksum, pslr_bundled$meta$checksum)
+  expect_identical(status$source_checksum, NA_character_)
+  expect_identical(status$checked_at, psl_as_time(NA))
   expect_false(is.na(status$content_date))
+  printed <- status_lines(status)
+  expect_match(printed, "Never checked against its source")
+  expect_no_match(printed, "No remote source")
+})
+
+test_that("bundled metadata without a canonical url stays untracked", {
+  local_pslr_clean()
+  legacy <- pslr_bundled
+  legacy$meta$canonical_url <- NULL
+  local_mocked_bindings(pslr_bundled = legacy)
+  status <- psl_status("bundled", now = status_now)
+  expect_identical(status$state, "untracked")
+  expect_identical(status$request_url, NA_character_)
   expect_match(status_lines(status), "No remote source")
 })
 

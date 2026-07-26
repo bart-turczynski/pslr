@@ -22,6 +22,7 @@ test_that("bundled metadata has the documented fields and types", {
     c(
       "source",
       "url",
+      "canonical_url",
       "commit",
       "retrieved_at",
       "list_date",
@@ -36,6 +37,10 @@ test_that("bundled metadata has the documented fields and types", {
   expect_identical(meta$source, "bundled")
   expect_identical(meta$normalizer, "punycoder")
   expect_match(meta$commit, "^[0-9a-f]{40}$")
+  # `url` pins WHICH bytes shipped; `canonical_url` associates them with the
+  # refresh endpoint. Both are recorded, separately.
+  expect_match(meta$url, meta$commit, fixed = TRUE)
+  expect_identical(meta$canonical_url, psl_official_url)
   expect_match(meta$checksum, "^sha256:[0-9a-f]{64}$")
   expect_type(meta$size, "integer")
   expect_true(nzchar(meta$normalization_profile))

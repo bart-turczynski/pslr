@@ -32,6 +32,8 @@ if (!grepl("^[0-9a-f]{40}$", commit)) {
 
 raw_base <- "https://raw.githubusercontent.com/publicsuffix/list"
 dat_url <- sprintf("%s/%s/public_suffix_list.dat", raw_base, commit)
+# The canonical refresh endpoint the snapshot is associated with (see `meta`).
+canonical_url <- "https://publicsuffix.org/list/public_suffix_list.dat"
 license_url <- sprintf("%s/%s/LICENSE", raw_base, commit)
 tests_url <- sprintf("%s/%s/tests/tests.txt", raw_base, commit)
 api_url <- sprintf(
@@ -85,10 +87,20 @@ checksum <- paste0("sha256:", digest::digest(file = dat_path, algo = "sha256"))
 # identifiers the package reports, so they are sourced from the shared
 # `runtime_normalizer_meta()` helper (R/matcher.R) rather than re-spelled here.
 # The url/no-path skew from `new_psl_meta()` is intentional (PSLR-bnrbjhur).
+#
+# `url` and `canonical_url` are recorded separately and mean different things.
+# `url` is the immutable raw-commit origin: it pins exactly WHICH bytes shipped.
+# `canonical_url` is an ASSOCIATION -- it states that those bytes came from the
+# canonical refresh endpoint, which is what lets `psl_status()` name a source
+# for the bundled snapshot. It does NOT assert byte-equality with what that
+# endpoint serves now, so no validator and no `checked_at` are recorded here:
+# the first refresh stays unconditional and a fresh install reports
+# `never_checked`, never `confirmed_current`.
 meta <- c(
   list(
     source = "bundled",
     url = dat_url,
+    canonical_url = canonical_url,
     commit = commit,
     retrieved_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
     list_date = list_date,
