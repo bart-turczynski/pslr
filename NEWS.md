@@ -1,5 +1,35 @@
 # pslr (development version)
 
+* **Breaking:** `psl_outdated()` is removed. It answered "is the active list's `list_date` older than N days?" but named the answer *outdated*, conflating snapshot age with knowledge of the upstream endpoint, and returned `NA` for any snapshot whose upstream date is unknown. Use `psl_status()` for the freshness claim the local evidence actually supports, and `psl_reminder()` for the periodic nudge (PSLR-hvjaloik).
+
+* **Breaking:** `psl_refresh()`'s `activate` and `force` are now named-only, after `...`. Both are logical and both mean "do more than a bare check", so a positional `psl_refresh(url, TRUE)` was unreadable whichever it meant; it is now a clear error rather than a silent change of meaning (PSLR-nngpirsm).
+
+* **Breaking:** the v1 on-disk cache schema (`psl-<hex>.dat` plus a `current.rds` commit marker) is superseded by a content-addressed snapshot store with append-only per-source state and cache selections. Migration is lazy and idempotent: `psl_status()` and `psl_snapshots()` read v1 state without rewriting it, the first `psl_refresh()` or `psl_cache_prune()` migrates it under the publication lock, and v1 files are never deleted (PSLR-vlkspnkb, PSLR-abcfaxud).
+
+* New `psl_status(snapshot = "active")` reports, entirely offline, the strongest freshness claim the local evidence supports about one snapshot: `confirmed_current`, `check_due`, `update_available`, `never_checked`, `untracked`, `missing`, or `unknown`. Elapsed time alone is only ever `check_due`; `update_available` requires that a successful check actually observed a different checksum. A missing cache or corrupt local state is reported as status with remediation rather than raised as an error (PSLR-sbuyclkb).
+
+* `psl_refresh()` is now a conditional revalidation with four named outcomes: `skipped_recently` (no request, the last successful check is inside its courtesy window), `not_modified` (one conditional request answered `304`, no body), `downloaded_unchanged` (one `200` whose validated bytes hash to the snapshot already held), and `updated` (one `200` carrying a new snapshot). It returns a `psl_refresh_result` invisibly and signals classed errors rooted at `pslr_refresh_error` for every operational failure, instead of undocumented result variants (PSLR-cldlmtiy, PSLR-hjrpayus).
+
+* `psl_refresh()` sends `If-None-Match` (preferring `ETag`) or `If-Modified-Since`, honors the list's request to download no more than daily with a 24-hour courtesy floor extended by advertised server freshness up to 30 days, and caps decoded responses at 16 MiB with no automatic retries. `force = TRUE` bypasses the local courtesy window only — it still sends a validator, so it is not an unconditional download (PSLR-nohexwgs, PSLR-jsaohjpq).
+
+* `psl_refresh()` accepts only an absolute `https` URL with no userinfo, query string, or fragment, follows at most five same-origin `https` redirects, and clears a stored validator before any changed redirect target. The normalized URL is source identity and is stored under a digest of itself, so no filename carries URL text (PSLR-tvjzlksq).
+
+* Snapshots are identified by SHA-256 over their exact source bytes, and each distinct validated download is preserved until explicit pruning. HTTP validators are treated purely as opaque, source-scoped revalidation tokens and never as an integrity or authenticity check; `digest` moves from `Suggests` to `Imports` (PSLR-vlkspnkb).
+
+* Refreshes of one source are serialized across processes, so a slower concurrent response can no longer overwrite newer source state, and publication is append-only, so an interrupted commit exposes either the prior generation or a complete new one on both POSIX and Windows. A failed refresh records only a coarse attempt and leaves the cache, the selected snapshot, and the active matcher byte-identical (PSLR-owqhbrli, PSLR-ygsehtko).
+
+* A source's `retrieved_at` and `checked_at` can no longer regress when the system clock moves backwards, as an NTP correction or a wrong container clock will do: a refresh publishes the later of the stored and observed times, and the returned `psl_refresh_result` reports the confirmation that was actually persisted (PSLR-usocggvm).
+
+* New `psl_reminder(enable, every)` persists an opt-in, offline, weekly-by-default freshness reminder: a direct `library(pslr)` may then print one startup message per session, and only for `never_checked`, `check_due`, or `update_available`. Reminders are off until enabled, the preference is configuration rather than cache so pruning never clears it, disabling retains the interval, and no part of the reminder path makes a request (PSLR-zfdsaciu).
+
+* New `psl_snapshots()` inventories every snapshot this installation can resolve, one row per distinct SHA-256, with per-row `integrity` of `ok`, `missing`, `checksum_mismatch`, or `unknown_schema`. It repairs nothing and makes no request; `verify = TRUE` rehashes stored bytes instead of classifying from recorded sizes. Source association is reported only as a count, because request URLs of custom sources may be private (PSLR-umwatxje).
+
+* `psl_cache_prune()` is now reference-safe across the whole v2 store: it protects the selected cache snapshot, every snapshot any source record names, the snapshot active in the calling session, and the `keep` most recently first-retrieved snapshots beyond those. Retention is ordered by first retrieval rather than file mtime, it collects nothing at all when any source or selection stream is unreadable, and it never touches the reminder preference (PSLR-kdjvxtpk).
+
+* The bundled snapshot now records the canonical refresh endpoint alongside its immutable raw-commit origin, so a fresh install reports `never_checked` about bytes that plainly came from the PSL instead of `untracked`. It asserts provenance only: no validator is seeded, so the first refresh stays unconditional and a fresh install is never reported as `confirmed_current` (PSLR-jujniexk).
+
+* The vignette, README, and reference index document the v2 model: why "check due" is not "update available", `ETag`/`Last-Modified` versus SHA-256, the four refresh outcomes and their request and body behavior, opt-in reminders and how to turn them off, running `pslr::psl_refresh()` from a scheduler you already have (`pslr` installs none), and snapshot retention, explicit pruning, and the checksum seam a later comparison feature needs (PSLR-hvjaloik).
+
 * The package landing page (`help(package = "pslr")`, `?pslr`) now carries a runnable quick tour covering both core queries, vectorized input, explicit section selection, Unicode round-tripping, and rule/list provenance (PSLR-aquayvhw).
 
 * Queries no longer depend on the session locale. A non-ASCII host whose encoding is undeclared — what a caller holds after reading from most sources — previously canonicalized correctly under a UTF-8 locale but returned `NA` under a non-UTF-8 one; callers had to set `Encoding(host) <- "UTF-8"` themselves. `pslr` now resolves the encoding of its own inputs (PSLR-jzdhhugc).

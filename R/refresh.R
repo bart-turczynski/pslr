@@ -22,45 +22,28 @@ psl_cache_dir <- function() {
   getOption("pslr.cache_dir", tools::R_user_dir("pslr", "cache"))
 }
 
-# Path of the single commit marker that names the active cache snapshot.
+# Path of the single legacy (v1) commit marker that named the active cache
+# snapshot. Nothing writes it any more -- publication is append-only generations
+# -- but migration, pruning, and the legacy activation fallback still read it.
 psl_cache_marker <- function() file.path(psl_cache_dir(), "current.rds")
 
-# Schema version stamped into newly written commit markers. It gives future
-# releases a migration seam: a reader can branch on the recorded version.
-# Markers written by earlier pslr releases omit the field entirely; the manifest
-# validator treats an absent version as a compatible legacy marker, so upgrading
-# never rejects a real cache already on disk.
-psl_manifest_version <- 1L
-
-# Source checksum with an algorithm prefix (PRD s7.4). Prefers SHA-256 via
-# `digest` to match the bundled snapshot; falls back to base-R MD5 so the cache
-# path works on a clean install without optional packages. The prefix
-# disambiguates the algorithm either way.
+# Source checksum with an algorithm prefix (PRD s7.4). SHA-256 is the sole
+# identity for newly recorded bytes -- `digest` is a hard dependency, so there
+# is no MD5-writing fallback and no way to mint a new MD5 identity. The prefix
+# still names the algorithm, because legacy caches recorded MD5.
 psl_source_checksum <- function(path) {
-  if (requireNamespace("digest", quietly = TRUE)) {
-    paste0("sha256:", digest::digest(file = path, algo = "sha256"))
-  } else {
-    paste0("md5:", unname(tools::md5sum(path)))
-  }
+  paste0("sha256:", psl_sha256_file(path))
 }
 
 # Compute one specific checksum algorithm for algorithm-directed verification.
-# Unlike `psl_source_checksum()` -- which picks whatever hash is available when
-# RECORDING -- this reproduces the exact algorithm a checksum was recorded with,
-# so verification compares like with like. "sha256" needs the optional `digest`
-# package; verifying a sha256-recorded cache on a machine that lacks `digest` is
-# a missing dependency, not corruption, so raise an actionable install error
-# rather than a spurious mismatch.
+# Unlike `psl_source_checksum()` -- which always RECORDS SHA-256 -- this
+# reproduces the exact algorithm a checksum was recorded with, so verification
+# compares like with like. MD5 stays supported for verification only: a cache
+# published by an older pslr recorded an MD5 identity and must keep verifying
+# against it until migration re-identifies it by SHA-256.
 psl_checksum <- function(path, algorithm) {
   if (identical(algorithm, "sha256")) {
-    if (!requireNamespace("digest", quietly = TRUE)) {
-      stop(
-        "This PSL cache recorded a sha256 checksum, which needs the 'digest' ",
-        "package to verify; install it with install.packages(\"digest\").",
-        call. = FALSE
-      )
-    }
-    paste0("sha256:", digest::digest(file = path, algo = "sha256"))
+    paste0("sha256:", psl_sha256_file(path))
   } else if (identical(algorithm, "md5")) {
     paste0("md5:", unname(tools::md5sum(path)))
   } else {
@@ -73,26 +56,11 @@ psl_checksum <- function(path, algorithm) {
 
 # Verify a file against a recorded, algorithm-prefixed checksum. Recomputes the
 # SAME algorithm named by the prefix and compares, so a match/mismatch reflects
-# genuine content -- never which optional package happens to be installed. When
-# the recorded algorithm's implementation is unavailable, `psl_checksum()`
-# raises the actionable dependency error rather than reporting a false mismatch.
+# genuine content -- a legacy MD5-recorded cache verifies against MD5, while
+# every newly recorded identity verifies against SHA-256.
 psl_verify_checksum <- function(path, expected) {
   algorithm <- sub(":.*$", "", expected)
   identical(psl_checksum(path, algorithm), expected)
-}
-
-# Atomic-as-possible rename within the cache directory. A same-filesystem rename
-# is atomic on POSIX; if the destination exists (Windows cannot rename onto an
-# existing file) it is removed first and the rename retried.
-psl_atomic_rename <- function(from, to) {
-  if (file.rename(from, to)) {
-    return(invisible(to))
-  }
-  unlink(to)
-  if (!file.rename(from, to)) {
-    stop(sprintf("could not publish cache file to %s", to), call. = FALSE)
-  }
-  invisible(to)
 }
 
 # Validate, parse, and index a PSL source file under the runtime normalizer.
@@ -130,21 +98,6 @@ psl_load_source <- function(path, what = "list") {
   rules
 }
 
-# A current marker can be reused only when it is still within the upstream
-# courtesy window and still names an existing source file with the recorded
-# checksum.
-psl_reusable_cache_path <- function(current, cache_dir) {
-  if (is.null(current) || is.na(current$meta$retrieved_at)) {
-    return(NA_character_)
-  }
-  retrieved_at <- as.POSIXct(current$meta$retrieved_at, tz = "UTC")
-  fresh <- difftime(Sys.time(), retrieved_at, units = "hours") < 24
-  dat <- file.path(cache_dir, current$dat_file)
-  valid <- file.exists(dat) &&
-    psl_verify_checksum(dat, current$meta$checksum)
-  if (fresh && valid) dat else NA_character_
-}
-
 psl_cache_meta <- function(dat, current) {
   psl_meta(
     source = "cache",
@@ -160,90 +113,6 @@ psl_cache_meta <- function(dat, current) {
 # behind both cache-activation paths.
 psl_load_cached_snapshot <- function(dat, current) {
   new_psl_snapshot(psl_load_source(dat, "cache"), psl_cache_meta(dat, current))
-}
-
-psl_cache_version <- function(dat, current, activate = FALSE) {
-  meta <- psl_cache_meta(dat, current)
-  if (activate) {
-    psl_activate_snapshot(psl_load_cached_snapshot(dat, current))
-  }
-  psl_version_df(meta)
-}
-
-psl_reused_cache_version <- function(force, current, cache_dir, activate) {
-  if (force || is.null(current)) {
-    return(NULL)
-  }
-  dat <- psl_reusable_cache_path(current, cache_dir)
-  if (is.na(dat)) {
-    return(NULL)
-  }
-  psl_cache_version(dat, current, activate)
-}
-
-psl_publish_download <- function(tmp, rules, cache_dir) {
-  checksum <- psl_source_checksum(tmp)
-  size <- as.integer(file.size(tmp))
-  retrieved_at <- format(Sys.time(), tz = "UTC", usetz = TRUE)
-
-  # Publish: content-addressed source first (immutable, never overwritten), then
-  # the commit marker as the single atomic commit point.
-  hex <- sub("^[^:]+:", "", checksum)
-  dat_final <- file.path(cache_dir, paste0("psl-", hex, ".dat"))
-  if (
-    file.exists(dat_final) &&
-      psl_verify_checksum(dat_final, checksum)
-  ) {
-    unlink(tmp)
-  } else {
-    psl_atomic_rename(tmp, dat_final)
-  }
-
-  meta <- psl_meta(
-    source = "cache",
-    path = dat_final,
-    retrieved_at = retrieved_at,
-    size = size,
-    checksum = checksum
-  )
-  tmp_marker <- tempfile("pslr-cur-", tmpdir = cache_dir, fileext = ".rds")
-  saveRDS(
-    list(
-      manifest_version = psl_manifest_version,
-      dat_file = basename(dat_final),
-      meta = meta
-    ),
-    tmp_marker
-  )
-  psl_atomic_rename(tmp_marker, psl_cache_marker())
-  list(rules = rules, meta = meta)
-}
-
-psl_validate_refresh_args <- function(force, activate) {
-  if (!is.logical(force) || length(force) != 1L || is.na(force)) {
-    stop("`force` must be a single TRUE or FALSE.", call. = FALSE)
-  }
-  if (!is.logical(activate) || length(activate) != 1L || is.na(activate)) {
-    stop("`activate` must be a single TRUE or FALSE.", call. = FALSE)
-  }
-  invisible(NULL)
-}
-
-psl_stage_download <- function(url, downloader, cache_dir) {
-  dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
-  tmp <- tempfile("pslr-dl-", tmpdir = cache_dir, fileext = ".part")
-  staged <- FALSE
-  on.exit(if (!staged) unlink(tmp), add = TRUE)
-  downloader(url, tmp, psl_max_source_bytes())
-  staged <- TRUE
-  tmp
-}
-
-psl_activate_published <- function(published, activate) {
-  if (activate) {
-    psl_set_active(published$rules, published$meta)
-  }
-  invisible(NULL)
 }
 
 # Handle a corrupt commit marker per `on_corrupt`: "error" raises the pslr
@@ -316,83 +185,268 @@ psl_cache_current <- function(on_corrupt = c("null", "error")) {
   manifest
 }
 
-# Default network downloader (PRD s7.4). Requires `curl` so the package can
-# enforce the https-only, no-downgrade-redirect policy: redirects are followed
-# but the effective URL must remain https, and the size ceiling caps the
-# transfer. Tests and advanced callers inject their own downloader instead.
-psl_default_download <- function(url, destfile, max_bytes) {
-  if (!requireNamespace("curl", quietly = TRUE)) {
-    stop(
-      "psl_refresh() needs the 'curl' package to download lists over https; ",
-      "install it or pass a custom downloader.",
-      call. = FALSE
-    )
-  }
-  h <- curl::new_handle(
-    followlocation = TRUE,
-    maxfilesize_large = as.numeric(max_bytes)
-  )
-  res <- curl::curl_fetch_disk(url, destfile, handle = h)
-  if (!startsWith(tolower(res$url), "https://")) {
-    stop(
-      "refresh refused: download redirected to a non-HTTPS URL.",
-      call. = FALSE
-    )
-  }
-  if (res$status_code >= 400L) {
-    stop(
-      sprintf("refresh failed: HTTP status %d.", res$status_code),
-      call. = FALSE
-    )
-  }
-  invisible(destfile)
+# ---------------------------------------------------------------------------
+# Conditional refresh (freshness v2)
+# ---------------------------------------------------------------------------
+#
+# `psl_refresh()` is the composition point of the v2 freshness subsystem, and
+# the order of its steps is the contract:
+#
+#   1. take the per-source lock and hold it from the first state read through
+#      the commit, INCLUDING the network time -- that is what serializes
+#      same-source refreshes and stops an older concurrent response from
+#      overwriting newer state;
+#   2. migrate any legacy v1 cache, then read the current source state;
+#   3. run the transition machine, which decides the outcome and validates any
+#      response body before it is referenced;
+#   4. build the complete candidate engine when `activate = TRUE`, BEFORE the
+#      persistence commit;
+#   5. commit under the publish lock (source lock, then publish lock, always);
+#   6. activate with one non-failing assignment;
+#   7. return one `psl_refresh_result`, invisibly.
+#
+# A failure records only a coarse attempt -- no freshness timestamp, checksum,
+# or selection moves -- and re-signals the classed error, so no failure ever
+# returns a success-shaped answer.
+
+# The canonical endpoint. v2 keeps it a documented literal default owned by an
+# internal constant rather than a public accessor.
+psl_official_url <- "https://publicsuffix.org/list/public_suffix_list.dat"
+
+# The current source-state record, or NULL when this source has never been
+# refreshed (or its whole stream is unreadable, which is the same thing for a
+# freshness claim: nothing local can be trusted to confirm anything).
+psl_current_source_state <- function(request_url) {
+  psl_read_source_state(request_url)$record
 }
 
-# Validate a refresh URL: absolute https, no embedded credentials (PRD s7.4).
-psl_validate_refresh_url <- function(url) {
-  if (!is.character(url) || length(url) != 1L || is.na(url) || !nzchar(url)) {
-    stop("`url` must be a single non-missing string.", call. = FALSE)
+# Where a response body is staged: inside the cache directory, so publication
+# can move it into `snapshots/` with a same-file-system rename. The caller owns
+# the path and unlinks it on every exit; a body becomes a snapshot only after
+# full validation.
+psl_refresh_destfile <- function() {
+  dir.create(psl_cache_dir(), recursive = TRUE, showWarnings = FALSE)
+  tempfile("pslr-body-", tmpdir = psl_cache_dir(), fileext = ".part")
+}
+
+# Record one failed attempt against a source: `last_attempt_at` and the coarse
+# `last_result` category advance, and every freshness field is carried forward
+# byte for byte. Best effort by construction -- if the publish lock is busy or
+# the append itself fails, the original refresh error is still what the caller
+# sees, because a diagnostic write must never mask the fault it describes.
+psl_record_failed_attempt <- function(request_url, state, cnd, now) {
+  tryCatch(
+    psl_with_publish_lock(
+      do.call(
+        psl_publish_source_state,
+        c(
+          list(request_url = request_url),
+          psl_refresh_failure_state(state, cnd, now)
+        )
+      ),
+      on_busy = "null"
+    ),
+    error = \(e) NULL
+  )
+  invisible(NULL)
+}
+
+# Where the bytes for this plan's snapshot can be read right now: freshly
+# downloaded and validated bytes when the response carried a body, and the
+# already-published snapshot otherwise (a skip or a `304`).
+psl_plan_bytes_path <- function(plan) {
+  if (!is.na(plan$path)) plan$path else psl_snapshot_bytes_path(plan$checksum)
+}
+
+# Build the COMPLETE candidate engine for a plan, before anything is committed.
+# Everything that can fail -- reading, parsing, validating, and compiling the
+# matcher -- happens here, so the post-commit activation is a single assignment
+# that cannot fail. The recorded path is the snapshot's published location,
+# which is content-addressed and therefore known before publication.
+psl_refresh_engine <- function(plan, state) {
+  path <- psl_plan_bytes_path(plan)
+  rules <- if (is.na(plan$path)) {
+    psl_load_source(path, "cache")
+  } else {
+    # Accepting the response already parsed these exact bytes and emitted any
+    # duplicate-rule warning; re-parsing them to build the engine must not
+    # repeat it, or one refresh would warn twice about one list.
+    suppressWarnings(psl_load_source(path, "cache"))
   }
-  if (!grepl("^https://", url, ignore.case = TRUE)) {
-    stop("`url` must be an absolute https URL.", call. = FALSE)
+  retrieved_at <- if (is.null(plan$state)) {
+    psl_state_field(state, "retrieved_at")
+  } else {
+    plan$state$retrieved_at
   }
-  authority <- sub("^https://", "", url, ignore.case = TRUE)
-  authority <- sub("[/?#].*$", "", authority)
-  if (grepl("@", authority, fixed = TRUE)) {
-    stop("`url` must not contain embedded credentials.", call. = FALSE)
+  meta <- psl_meta(
+    source = "cache",
+    path = psl_snapshot_bytes_path(plan$checksum),
+    retrieved_at = retrieved_at,
+    size = as.integer(file.size(path)),
+    checksum = plan$checksum
+  )
+  new_psl_engine(new_psl_snapshot(rules, meta))
+}
+
+# Commit one plan. A skip observed nothing, so it appends no source-state
+# generation -- but it still appends a cache selection, because every
+# successful outcome makes the refreshed source the cache choice.
+psl_commit_plan <- function(request_url, plan) {
+  if (!plan$publish_state) {
+    if (plan$select) {
+      psl_with_publish_lock(
+        psl_publish_selection(plan$checksum, request_url = request_url)
+      )
+    }
+    return(invisible(plan$checksum))
   }
-  invisible(url)
+  psl_publish_refresh(
+    request_url,
+    path = if (plan$publish_snapshot) plan$path else NULL,
+    checksum = plan$checksum,
+    descriptor = plan$descriptor,
+    state = plan$state,
+    select = plan$select
+  )
+  invisible(plan$checksum)
+}
+
+# Turn a committed plan into the single public success value.
+psl_refresh_result_of <- function(plan, activated) {
+  new_psl_refresh_result(
+    outcome = plan$outcome,
+    request_url = plan$request_url,
+    checksum = plan$checksum,
+    effective_url = plan$effective_url,
+    http_status = plan$http_status,
+    checked_at = plan$checked_at,
+    previous_checksum = plan$previous_checksum,
+    activated = activated,
+    validator = plan$validator,
+    bytes_downloaded = plan$bytes_downloaded,
+    snapshot = psl_read_snapshot_descriptor(plan$checksum)
+  )
+}
+
+# One refresh, from the transition decision through commit and activation. The
+# caller holds the source lock around this for its whole duration.
+psl_refresh_commit <- function(request_url, state, ..., now, force, activate) {
+  psl_check_empty_dots(...)
+  destfile <- psl_refresh_destfile()
+  on.exit(unlink(destfile), add = TRUE)
+  plan <- psl_refresh_transition(
+    request_url,
+    destfile,
+    state = state,
+    now = now,
+    force = force
+  )
+  engine <- if (activate) psl_refresh_engine(plan, state) else NULL
+  psl_commit_plan(request_url, plan)
+  if (!is.null(engine)) {
+    psl_activate_engine(engine)
+  }
+  psl_refresh_result_of(plan, activate)
+}
+
+# Everything that happens while the source lock is held.
+psl_refresh_locked <- function(request_url, ..., now, force, activate) {
+  psl_check_empty_dots(...)
+  psl_migrate_legacy_cache(quiet = TRUE)
+  state <- psl_current_source_state(request_url)
+  withCallingHandlers(
+    psl_refresh_commit(
+      request_url,
+      state,
+      now = now,
+      force = force,
+      activate = activate
+    ),
+    pslr_refresh_error = function(cnd) {
+      psl_record_failed_attempt(request_url, state, cnd, now)
+    }
+  )
+}
+
+# Dots guard for the public refresh entry point. The shared
+# `psl_check_empty_dots()` answers a stale positional call with "unnamed", which
+# tells the caller nothing -- and the caller most likely to land here is an
+# existing one, because the previously released signature was
+# `(url, force, activate)` and their positional flag has just stopped working.
+# So name both flags and show the fix; a misspelled named argument still reports
+# the name that was not recognized.
+psl_check_refresh_dots <- function(...) {
+  if (!...length()) {
+    return(invisible(NULL))
+  }
+  named <- ...names()
+  unknown <- if (is.null(named)) character(0) else named[nzchar(named)]
+  detail <- if (length(unknown)) {
+    sprintf("`psl_refresh()` got unknown argument(s): %s.", toString(unknown))
+  } else {
+    "`psl_refresh()` takes only `url` positionally."
+  }
+  stop(
+    detail,
+    " Name `activate` and `force`, as in psl_refresh(url, activate = TRUE)",
+    " or psl_refresh(url, force = TRUE).",
+    call. = FALSE
+  )
 }
 
 #' Refresh the cached Public Suffix List from upstream
 #'
-#' Downloads, validates, and publishes a fresh Public Suffix List into the user
-#' cache. This is the only function in the package that accesses the network,
-#' and only when you call it explicitly.
+#' Revalidates the Public Suffix List against its source and publishes any
+#' changed bytes into the user cache. This is the only function in the package
+#' that accesses the network, and only when you call it explicitly.
 #'
 #' @param url Absolute `https` URL of the list source. Defaults to the official
-#'   list. URLs with another scheme or embedded credentials are rejected, and a
-#'   redirect to a non-HTTPS URL is refused.
-#' @param force When `FALSE` (default), a successfully validated cache younger
-#'   than 24 hours is reused without a download, respecting upstream download
-#'   guidance. `TRUE` forces a fresh download.
-#' @param activate When `TRUE`, the resulting snapshot becomes the active list
-#'   for the session, exactly as [psl_use()] would activate it. When `FALSE`
-#'   (default), the cache is updated but the active list is unchanged.
+#'   list. URLs with another scheme, embedded credentials, a query string, or a
+#'   fragment are rejected, and a redirect that leaves `https` or the original
+#'   origin is refused.
+#' @param ... These dots are for future extensions and must be empty. They also
+#'   make `activate` and `force` named-only. The two flags are easy to confuse
+#'   -- both logical, both about doing more than a bare check -- so
+#'   `psl_refresh(url, TRUE)` is unreadable whichever order it means. Naming
+#'   them makes every call self-documenting, and the old positional form is now
+#'   a clear error instead of a silent change of meaning.
+#' @param activate When `TRUE`, the snapshot the source now points at becomes
+#'   the active list for the session, exactly as [psl_use()] would activate it
+#'   -- after *every* successful outcome, including a skip and a `304`. When
+#'   `FALSE` (default), the cache is updated but the active list is unchanged.
+#' @param force When `FALSE` (default), a check whose courtesy window has not
+#'   elapsed makes no request at all, respecting upstream download guidance.
+#'   `TRUE` bypasses that local window only; the request it then makes still
+#'   carries a validator when one is available.
 #'
 #' @details
-#' Cache age is measured from the successful network retrieval timestamp;
-#' reusing a fresh cache does not advance that timestamp. The download goes to a
-#' temporary file in binary mode and must be no larger than a documented maximum
-#' (16 MiB). The source is then fully validated -- UTF-8, section markers, rule
-#' grammar, conflicting rules, and successful canonicalization of every rule --
-#' and exact same-section duplicates warn once and are deduplicated. Source and
-#' metadata are published only after validation succeeds, using an atomic commit
-#' that never exposes a partial or mismatched snapshot. A failed refresh never
-#' replaces a valid cache or the active matcher.
+#' A refresh has exactly four successful outcomes:
 #'
-#' @return Invisibly, a one-row [data.frame] shaped like [psl_version()]
-#'   describing the selected cache snapshot, whether or not it was activated.
+#' \describe{
+#'   \item{`skipped_recently`}{No request: the last successful check is still
+#'     inside its courtesy window (at least 24 hours).}
+#'   \item{`not_modified`}{One conditional request answered `304`; the local
+#'     bytes were verified and remain current.}
+#'   \item{`downloaded_unchanged`}{One `200` whose validated bytes hash to the
+#'     snapshot already held, so no new snapshot is created.}
+#'   \item{`updated`}{One `200` whose validated bytes are a new snapshot.}
+#' }
+#'
+#' Downloaded bytes are fully validated -- size ceiling, UTF-8, official section
+#' markers, rule grammar, and canonicalization of every rule -- before anything
+#' references them, and exact same-section duplicates warn once and are
+#' deduplicated. Publication is append-only: snapshot bytes and their descriptor
+#' are written before any reference to them, so an interrupted refresh never
+#' exposes a dangling reference. Refreshes of one source are serialized across
+#' processes; a second concurrent refresh of the same source makes no request
+#' and signals a busy error. A failed refresh records only a coarse attempt and
+#' leaves the cache, the selected snapshot, and the active matcher untouched.
+#'
+#' @return Invisibly, a `psl_refresh_result` with stable fields `outcome`,
+#'   `request_url`, `effective_url`, `http_status`, `checked_at`,
+#'   `previous_checksum`, `checksum`, `activated`, `validator`,
+#'   `bytes_downloaded`, and `snapshot`. Operational failures signal a classed
+#'   error rooted at `pslr_refresh_error` instead.
 #' @seealso [psl_use()], [psl_version()]
 #' @examples
 #' if (interactive()) {
@@ -402,30 +456,67 @@ psl_validate_refresh_url <- function(url) {
 #' @export
 psl_refresh <- function(
   url = "https://publicsuffix.org/list/public_suffix_list.dat",
-  force = FALSE,
-  activate = FALSE
+  ...,
+  activate = FALSE,
+  force = FALSE
 ) {
-  psl_validate_refresh_url(url)
-  psl_validate_refresh_args(force, activate)
-  # Internal seam for tests: an injected downloader replaces the network call.
-  downloader <- getOption("pslr.downloader", psl_default_download)
+  psl_check_refresh_dots(...)
+  psl_check_flag(activate, "activate")
+  psl_check_flag(force, "force")
+  request_url <- psl_normalize_source_url(url)
+  # One clock read per public call; every persisted timestamp derives from it.
+  now <- psl_now()
+  result <- psl_refresh_with_busy(psl_with_source_lock(
+    request_url,
+    psl_refresh_locked(
+      request_url,
+      now = now,
+      force = force,
+      activate = activate
+    )
+  ))
+  invisible(result)
+}
 
-  cache_dir <- psl_cache_dir()
-  current <- psl_cache_current()
-  reused <- psl_reused_cache_version(force, current, cache_dir, activate)
-  if (!is.null(reused)) {
-    return(invisible(reused))
+# Activate the snapshot named by the highest valid cache-selection generation.
+# Returns NULL when no selection exists, so the caller can fall back to a legacy
+# v1 cache that has not been migrated yet; a selection that exists but does not
+# resolve is corruption and is reported with remediation rather than skipped.
+psl_activate_selected_cache <- function() {
+  checksum <- psl_read_selection()$record$checksum
+  if (is.null(checksum)) {
+    return(NULL)
   }
-
-  tmp <- psl_stage_download(url, downloader, cache_dir)
-  on.exit(unlink(tmp), add = TRUE)
-  rules <- psl_load_source(tmp, "downloaded list")
-  published <- psl_publish_download(tmp, rules, cache_dir)
-  psl_activate_published(published, activate)
-  invisible(psl_version_df(published$meta))
+  integrity <- psl_snapshot_integrity(checksum, verify = TRUE)
+  if (!identical(integrity, "ok")) {
+    psl_cache_corrupt(
+      "error",
+      switch(
+        integrity,
+        missing = "source file is missing",
+        checksum_mismatch = "checksum mismatch",
+        "snapshot metadata is unreadable"
+      )
+    )
+  }
+  descriptor <- psl_read_snapshot_descriptor(checksum)
+  path <- psl_snapshot_bytes_path(checksum)
+  meta <- psl_meta(
+    source = "cache",
+    path = path,
+    retrieved_at = descriptor$first_retrieved_at,
+    size = descriptor$size,
+    checksum = checksum
+  )
+  psl_activate_snapshot(new_psl_snapshot(psl_load_source(path, "cache"), meta))
+  invisible(psl_version())
 }
 
 psl_activate_cache <- function() {
+  selected <- psl_activate_selected_cache()
+  if (!is.null(selected)) {
+    return(selected)
+  }
   current <- psl_cache_current(on_corrupt = "error")
   if (is.null(current)) {
     stop(
@@ -535,89 +626,4 @@ psl_use <- function(source = "bundled", path = NULL) {
 
   # The remaining source is "path".
   psl_activate_path(path)
-}
-
-# Validate the retention count for psl_cache_prune(): a single non-negative
-# whole number. Mirrors the scalar-guard idiom of psl_validate_refresh_args().
-psl_validate_keep <- function(keep) {
-  # Gate on scalar-numeric-non-missing first (short-circuit), then check the
-  # value constraints vectorized so the guard is not one long `||` chain.
-  ok <- is.numeric(keep) &&
-    length(keep) == 1L &&
-    !is.na(keep) &&
-    isTRUE(keep >= 0 & keep == trunc(keep))
-  if (!ok) {
-    stop("`keep` must be a single non-negative whole number.", call. = FALSE)
-  }
-  invisible(NULL)
-}
-
-#' Prune stale on-disk PSL cache snapshots
-#'
-#' Removes superseded `psl-<hex>.dat` snapshot files from the user cache
-#' directory, always keeping the snapshot named by the active commit marker plus
-#' the `keep` most-recent other snapshots by modification time.
-#'
-#' @details
-#' Each [psl_refresh()] that finds changed upstream content writes a new
-#' content-addressed snapshot and repoints the commit marker at it, but never
-#' removes the snapshot it supersedes; across many refreshes these accumulate.
-#' `psl_cache_prune()` reclaims that space.
-#'
-#' This operates on the *on-disk* snapshot files and is distinct from
-#' `psl_cache_clear()`, which flushes the in-memory match-result cache for the
-#' current session: pruning deletes stale `.dat` files from disk to reclaim
-#' space, whereas clearing only discards computed query results. Pruning never
-#' changes which list is active and never removes the active snapshot, so the
-#' active matcher and a later `psl_use("cache")` keep working.
-#'
-#' When there is no cache directory or no commit marker (nothing has been
-#' published yet), there is no active snapshot to anchor retention on, so the
-#' call is a no-op that returns an empty vector rather than an error.
-#'
-#' @param keep Number of previous snapshots to retain *in addition to* the
-#'   active one, as a single non-negative whole number. The default `1` keeps
-#'   the current snapshot and one previous snapshot (two `.dat` files). `0`
-#'   keeps only the active snapshot; the active snapshot is never removed, even
-#'   then.
-#'
-#' @return Invisibly, a character vector of the removed snapshot file paths,
-#'   empty when nothing was pruned.
-#' @seealso [psl_refresh()], which writes the snapshots this prunes;
-#'   [psl_use()].
-#' @examples
-#' if (interactive()) {
-#'   psl_refresh(force = TRUE)
-#'   psl_cache_prune() # keep the current snapshot and one previous
-#'   psl_cache_prune(keep = 0) # keep only the active snapshot
-#' }
-#' @export
-psl_cache_prune <- function(keep = 1L) {
-  psl_validate_keep(keep)
-  keep <- as.integer(keep)
-
-  cache_dir <- psl_cache_dir()
-  if (!dir.exists(cache_dir)) {
-    return(invisible(character(0)))
-  }
-  current <- psl_cache_current()
-  if (is.null(current)) {
-    return(invisible(character(0)))
-  }
-
-  snapshots <- list.files(
-    cache_dir,
-    pattern = "^psl-.*\\.dat$",
-    full.names = TRUE
-  )
-  # Everything except the active snapshot is a pruning candidate.
-  others <- snapshots[basename(snapshots) != current$dat_file]
-  if (length(others) <= keep) {
-    return(invisible(character(0)))
-  }
-  # Keep the `keep` most-recent candidates by mtime; remove the rest.
-  others <- others[order(file.mtime(others), decreasing = TRUE)]
-  stale <- others[(keep + 1L):length(others)]
-  unlink(stale)
-  invisible(stale)
 }

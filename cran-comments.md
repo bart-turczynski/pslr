@@ -19,8 +19,8 @@ CRAN, so their changes ship here. Highlights:
 * New `psl_engine()` builds a self-contained, process-local PSL engine, and the
   five query functions gain an optional `engine=` argument to query a specific
   snapshot without touching session-global state.
-* New offline helpers `psl_outdated()`, `psl_cache_prune()`, and an
-  `options(pslr.cache = FALSE)` escape hatch.
+* New offline helpers `psl_cache_prune()` and an `options(pslr.cache = FALSE)`
+  escape hatch.
 * **Dependency floor lowered to `punycoder (>= 1.1.0)`** — the current CRAN
   `punycoder` release — and the development `Remotes:` field is removed, so
   `pslr` now resolves entirely from CRAN. `pslr` calls only `punycoder` API

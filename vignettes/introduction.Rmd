@@ -156,17 +156,200 @@ function that touches the network: an explicit, HTTPS-only, validated download
 into a user cache. `psl_use()` chooses which list backs the session.
 
 ```{r, eval = FALSE}
-# Download and validate a fresh list into the user cache, then activate it:
+# Revalidate against upstream, publish any changed bytes, and activate them:
 psl_refresh(activate = TRUE)
 
 # Switch the active list for this session:
-psl_use("cache") # the latest refreshed snapshot
+psl_use("cache") # the snapshot the last refresh selected
 psl_use("bundled") # back to the shipped snapshot
 psl_use("path", path = "my_list.dat") # a custom file
 ```
 
+`activate` and `force` are named-only arguments. Both are logical and both mean
+"do more than a bare check", so `psl_refresh(url, TRUE)` would be unreadable
+whichever one it meant; naming them makes every call say what it does.
+
 Activation is session-only and validated before any state changes; a failed
 refresh never replaces a working cache or active list.
+
+## Freshness: what is known versus what is merely due
+
+The upstream list keeps changing, so sooner or later you will want to know how
+current the list answering your queries actually is. `pslr` answers that with
+evidence, not with arithmetic on a date.
+
+`psl_status()` is the offline read. It makes no request, writes nothing, and
+reports the strongest claim the locally stored evidence supports:
+
+```{r freshness-setup, include = FALSE}
+# Build this vignette against an empty snapshot cache, so its output describes
+# a fresh installation rather than whatever the building machine refreshed.
+options(
+  pslr.cache_dir = file.path(tempdir(), "pslr-vignette-cache"),
+  pslr.config_dir = file.path(tempdir(), "pslr-vignette-config")
+)
+```
+
+```{r}
+psl_status() # the list active in this session
+psl_status("bundled")$state # the snapshot installed with the package
+```
+
+Its `state`, in precedence order:
+
+| State | Meaning |
+|---|---|
+| `missing` | The requested cache selection does not exist. |
+| `unknown` | Local state is corrupt or ambiguous, or the clock moved backwards. |
+| `untracked` | The snapshot has no remote source, so no claim is possible — a custom file, say. |
+| `update_available` | A successful earlier check *observed* a different checksum for the source. |
+| `never_checked` | The source is known, but nothing has ever confirmed this snapshot against it. |
+| `check_due` | The snapshot was confirmed current, and the reminder interval has since elapsed. |
+| `confirmed_current` | Confirmed current, and the interval has not elapsed. |
+
+### Why "check due" is not "update available"
+
+These are different kinds of statement, and conflating them is the mistake this
+design exists to avoid.
+
+`check_due` is about *your* knowledge: some days have passed since anything last
+confirmed this snapshot, so a check is worth making. It says nothing whatsoever
+about upstream. The list may not have changed in months.
+
+`update_available` is about *upstream*: a check actually ran, and the source
+reported a checksum that differs from the snapshot you are looking at. That is
+an observation, and `pslr` will only ever make it after a real check.
+
+Elapsed time alone therefore never produces `update_available`. A year-old
+snapshot that nobody has checked is `never_checked`, not "outdated" — because
+nothing in the local state knows whether it is out of date. (This is why the old
+`psl_outdated()` was removed: a Boolean derived from the list date could only
+ever answer the age question while sounding like it answered the upstream one.)
+
+### ETag and Last-Modified versus SHA-256
+
+Two different identifiers do two different jobs, and they are not
+interchangeable.
+
+A **SHA-256 checksum** identifies bytes. `pslr` computes it over the exact
+source bytes of every snapshot, and it is the package's own, verifiable answer
+to "are these the same list?" Two snapshots with the same SHA-256 are the same
+list; a stored file whose bytes no longer hash to its name is corrupt. Checksums
+are computed locally, so nothing upstream has to be trusted for them to mean
+something.
+
+An **ETag** or **Last-Modified** value is an opaque token the *server* issues
+for one URL. `pslr` stores it and sends it back on the next check, which lets
+the server answer `304 Not Modified` and skip resending a list that has not
+changed — a courtesy to publicsuffix.org and a saving for you. But a validator
+proves nothing about content: it is scoped to the server that issued it, it can
+change while the bytes do not, and it is never used as an integrity or
+authenticity check. Downloaded bytes are always hashed and fully validated on
+their own merits.
+
+### The four successful refresh outcomes
+
+A successful `psl_refresh()` returns invisibly with exactly one outcome:
+
+| Outcome | Requests | Body | Meaning |
+|---|:--:|:--:|---|
+| `skipped_recently` | 0 | no | The last successful check is still inside its courtesy window. |
+| `not_modified` | 1 | no | The conditional request answered `304`; local bytes were verified and stand. |
+| `updated` | 1 | yes | A `200` whose validated bytes are a new snapshot. |
+| `downloaded_unchanged` | 1 | yes | A `200` whose validated bytes hash to the snapshot already held. |
+
+`downloaded_unchanged` is the honest name for the case where no validator was
+usable, so the list had to be fetched to find out that it was identical.
+
+Anything that is not one of those four is a failure, and failures are classed
+errors rooted at `pslr_refresh_error` — never a success-shaped result. A failed
+refresh leaves the cache, the selected snapshot, and the active matcher exactly
+as they were.
+
+### Courtesy: no more than daily
+
+The Public Suffix List asks clients to download it no more than once a day. An
+ordinary `psl_refresh()` therefore makes no request at all while the last
+successful check is inside a courtesy window of at least 24 hours; it returns
+`skipped_recently` without touching the network. If the server advertises longer
+freshness, the window follows it, up to a 30-day cap.
+
+`force = TRUE` bypasses that local window and nothing else. It is not an
+unconditional download: the request it makes still carries a validator when one
+is available, so upstream can still answer `304`.
+
+### Opt-in reminders
+
+Reminders are off until you turn them on, and they never make a request. When
+enabled, a direct `library(pslr)` prints at most one startup message per R
+session, and only for the three states where local evidence supports advice:
+`never_checked`, `check_due`, and `update_available`.
+
+```{r, eval = FALSE}
+psl_reminder(enable = TRUE) # weekly by default
+psl_reminder(enable = TRUE, every = 30) # or a month
+psl_reminder(enable = FALSE) # off; the interval is remembered
+psl_reminder() # just query, writes nothing
+```
+
+The preference is configuration rather than cache: it lives under
+`tools::R_user_dir("pslr", "config")`, so refreshing, pruning, or deleting the
+snapshot cache never changes it. `suppressPackageStartupMessages()` silences the
+message as usual, and a package that merely imports the namespace never triggers
+it.
+
+Note that a reminder is a prompt to *check*, not a claim that something changed
+— with the one exception of `update_available`, where the newer snapshot is
+already stored locally and the message suggests activating it with
+`psl_use("cache")` rather than downloading anything again.
+
+### Refreshing on a schedule
+
+`pslr` installs no scheduler, runs no daemon, and starts no background request.
+If you want a daily or weekly refresh, drive it from a scheduler you already
+have, with a one-line script:
+
+```{r, eval = FALSE}
+# refresh-psl.R
+pslr::psl_refresh()
+```
+
+```sh
+# cron: every day at 04:30
+30 4 * * * Rscript /path/to/refresh-psl.R
+
+# or a weekly GitHub Actions / systemd timer / Task Scheduler entry
+```
+
+Because `psl_refresh()` enforces the courtesy window itself, over-scheduling is
+harmless: extra runs return `skipped_recently` without making a request. Nothing
+is activated unless you pass `activate = TRUE`, so a scheduled refresh stages new
+bytes and leaves it to the next session to pick them up.
+
+### Snapshots, retention, and pruning
+
+Every distinct validated download is preserved by its checksum until you
+explicitly remove it. `psl_snapshots()` lists what this installation can resolve
+— one row per distinct SHA-256, so bytes stored twice collapse into one row:
+
+```{r}
+snapshots <- psl_snapshots()
+snapshots[c("checksum", "bundled", "size", "integrity")]
+```
+
+`psl_cache_prune()` is the explicit, offline, destructive counterpart. It
+protects the selected cache snapshot, every snapshot any source record still
+names, the snapshot active in this session, and the `keep` most recently
+retrieved snapshots beyond those:
+
+```{r, eval = FALSE}
+psl_cache_prune() # referenced snapshots, plus one more
+psl_cache_prune(keep = 0) # referenced snapshots only
+```
+
+Keeping history is not an accident: stable checksums are the seam a future
+`psl_diff()` needs to say what changed between two snapshots. Pruning to
+`keep = 0` gives that up in exchange for disk.
 
 ## Multiple lists with engines
 
@@ -218,24 +401,18 @@ Unicode version than the installed `punycoder`, the list is transparently
 rebuilt in memory from source on activation, so an index is never mixed with
 hosts normalized under a different profile.
 
-The list drifts from the live upstream over time, so `psl_outdated()` offers an
-offline staleness check against the active `list_date` — the cue to consider a
-`psl_refresh()`. It never touches the network; the snapshot age in days is
-returned in the `"age_days"` attribute.
-
-```{r}
-psl_outdated() # older than the 180-day default?
-attr(psl_outdated(), "age_days") # active snapshot age, in days
-```
-
 ## Security and scope notes
 
 * **Hostnames, not URLs.** The query functions accept DNS hostnames. URL-shaped
   input is rejected as invalid; parse the host out of a URL first.
-* **Explicit network only.** Nothing in package load, queries, examples, or
-  tests touches the network. Only `psl_refresh()` does, and only when you call
-  it. It is HTTPS-only, rejects embedded credentials and downgrade redirects,
+* **Explicit network only.** Nothing in package load, queries, status, snapshot
+  inventory, reminders, pruning, examples, or tests touches the network. Only
+  `psl_refresh()` does, and only when you call it. It is HTTPS-only, rejects
+  embedded credentials, query strings, and downgrade or cross-origin redirects,
   and enforces a source-size ceiling.
+* **Stored URLs stay private.** Source identity is stored under a digest of the
+  request URL rather than under the URL text, and `psl_snapshots()` reports only
+  how *many* sources reference a snapshot, never which.
 * **The PSL is advisory.** It is a best-effort community list, not an
   authoritative statement of ownership or a security boundary by itself. Treat a
   registrable-domain result as a heuristic for grouping, not proof of control.

@@ -48,13 +48,14 @@ query.R            public API: engine selection, option policy, shaping, framing
 ```
 
 Provenance and lifecycle sit alongside: `metadata.R` (`psl_version`,
-`psl_outdated`, `psl_rules`), `refresh.R` (`psl_refresh`, `psl_use`, the only
-network path), `parser.R` (PSL-format parsing), `duplicates.R` (duplicate/conflict
+`psl_rules`), `refresh.R` (`psl_refresh`, `psl_use`, the only network path),
+`status.R` / `reminder.R` / `snapshots.R` / `prune.R` (the offline freshness
+subsystem), `parser.R` (PSL-format parsing), `duplicates.R` (duplicate/conflict
 policy).
 
 ## Public API surface
 
-Twelve exports (see `NAMESPACE`):
+Fourteen exports (see `NAMESPACE`):
 
 | Function | Defined at | Purpose |
 |---|---|---|
@@ -63,13 +64,15 @@ Twelve exports (see `NAMESPACE`):
 | `is_public_suffix()` | `R/query.R:321` | `TRUE` iff host equals its own public suffix |
 | `suffix_extract()` | `R/query.R:386` | data.frame splitting subdomain/domain/suffix |
 | `public_suffix_rule()` | `R/query.R:460` | data.frame of the prevailing rule per host |
-| `psl_engine()` | `R/matcher.R:267` | construct an isolated bundled/path engine |
-| `psl_use()` | `R/refresh.R:521` | switch default list (bundled/cache/path) |
-| `psl_refresh()` | `R/refresh.R:403` | download + validate + publish a user-cache list |
-| `psl_cache_prune()` | `R/refresh.R:595` | remove superseded on-disk cache snapshots |
+| `psl_engine()` | `R/matcher.R:276` | construct an isolated bundled/path engine |
+| `psl_use()` | `R/refresh.R:612` | switch default list (bundled/cache/path) |
+| `psl_refresh()` | `R/refresh.R:457` | conditional revalidate + validate + publish |
+| `psl_status()` | `R/status.R:581` | offline freshness claim for one snapshot |
+| `psl_reminder()` | `R/reminder.R:163` | opt-in offline attach-time reminder preference |
+| `psl_snapshots()` | `R/snapshots.R:437` | offline inventory of locally resolvable snapshots |
+| `psl_cache_prune()` | `R/prune.R:337` | remove unreferenced on-disk cache snapshots |
 | `psl_version()` | `R/metadata.R:72` | one-row data.frame: identity of the default list |
-| `psl_outdated()` | `R/metadata.R:128` | offline staleness check vs `list_date` |
-| `psl_rules()` | `R/metadata.R:162` | data.frame of the default list's explicit rules |
+| `psl_rules()` | `R/metadata.R:113` | data.frame of the default list's explicit rules |
 
 Shared query options (`section`, `output`, `unknown`, `invalid`) are documented
 in the PRD §6–7; their defaults and semantics are captured as decisions in
@@ -180,34 +183,76 @@ via `length<-` for amortized O(1) (`psl_cache_grow()`, `R/cache.R:116`).
 `psl_version()` (`R/metadata.R:72`) renders the 12-column one-row identity
 data.frame (`source, url, path, retrieved_at, list_date, commit, size, checksum,
 normalizer, normalizer_version, normalization_profile, unicode_version`), shared
-with `psl_refresh()`. `psl_outdated(max_age = 180)` (`R/metadata.R:128`) is a
-purely offline staleness check derived from `list_date`, returning a logical with
-an `"age_days"` attribute. `psl_rules()` (`R/metadata.R:162`) returns the default
-list's explicit rules (ICANN before PRIVATE, then source order; the implicit `*`
-is not included).
+with `psl_refresh()`. `psl_parse_list_date()` (`R/metadata.R:80`) is the shared
+lenient timestamp reader (`NA` in / unparseable in → `NA` out) used by
+`psl_status()` and `psl_snapshots()`. `psl_rules()` (`R/metadata.R:113`) returns
+the default list's explicit rules (ICANN before PRIVATE, then source order; the
+implicit `*` is not included).
 
 ### `R/refresh.R` — refresh and activation
 
 The only network access in the package, and only on an explicit `psl_refresh()`.
 
-- **Downloader seam**: `psl_default_download()` (`R/refresh.R:224`) requires
-  `curl`, follows redirects but refuses a non-HTTPS effective URL, caps size, and
-  errors on HTTP ≥ 400. It is injected via
-  `getOption("pslr.downloader", psl_default_download)` (`R/refresh.R:312`) — the
+- `psl_refresh(url, ..., activate, force)` (`R/refresh.R:457`) resolves the
+  URL policy, takes the source lock, runs the state machine, publishes, and
+  optionally activates. `...` sits before the two flags so both are named-only.
+- **Transport seam**: `R/http-transport.R` owns the `curl` request, the
+  `pslr/<version>` user agent, timeouts, the 16 MiB decoded-body ceiling, and
+  header sanitization. It is injected via `getOption("pslr.transport")` — the
   test seam that keeps CI off publicsuffix.org.
-- **Atomic commit**: `psl_publish_download()` (`R/refresh.R:133`) writes a
-  content-addressed, immutable `psl-<hex>.dat` first, then atomically renames a
-  commit marker (`current.rds`) as the single commit point — a partial or
-  mismatched snapshot is never exposed, and a failed refresh leaves the prior
-  cache and active matcher usable. `psl_atomic_rename()` (`R/refresh.R:43`)
-  handles the Windows "rename onto existing dest" case.
+- **Append-only publication**: `R/publication.R` writes snapshot bytes and their
+  descriptor before any reference to them, then appends a new source-state and
+  selection generation. Published generation files are never overwritten, so a
+  crash exposes a safe older generation or a complete newer one on both POSIX
+  and Windows. A failed refresh records only a coarse attempt.
 - Config seams via options: `pslr.max_bytes` (default 16 MiB), `pslr.cache_dir`
-  (default `tools::R_user_dir("pslr", "cache")`), `pslr.downloader`.
-- `psl_use(source, path)` (`R/refresh.R:521`) switches the default engine to
+  (default `tools::R_user_dir("pslr", "cache")`), `pslr.config_dir`,
+  `pslr.transport`.
+- `psl_use(source, path)` (`R/refresh.R:612`) switches the default engine to
   bundled / cache / a custom path, validating before it changes any session
   state. Independent engines are unaffected.
-- `psl_cache_prune(keep)` (`R/refresh.R:595`) removes superseded on-disk source
-  snapshots while retaining the active snapshot and requested history.
+
+### The freshness subsystem
+
+Freshness v2 keeps *immutable snapshot identity* strictly apart from *mutable
+knowledge about a remote endpoint*. A snapshot is named by the SHA-256 of its
+exact source bytes and never changes; what a source last said about it lives in
+a separate append-only stream. Snapshot age can recommend a check; only a
+validated `200` or a usable `304` can establish remote freshness.
+
+| Module | Owns |
+|---|---|
+| `R/freshness-schema.R` | versioned snapshot / source-state / selection / preference records |
+| `R/generation-store.R` | append-only generation streams; readers take the greatest valid generation |
+| `R/locking.R` | advisory source and publish locks, bounded wait; order is source → publish |
+| `R/url-policy.R` | HTTPS-only absolute URLs, normalization to source identity, redirect scoping |
+| `R/validator-policy.R` | `ETag` / `Last-Modified` selection, sanitization, and rotation |
+| `R/http-transport.R` | injectable transport, user agent, timeouts, size ceiling |
+| `R/refresh-conditions.R` | classed errors rooted at `pslr_refresh_error` |
+| `R/refresh-machine.R` | the skip / `304` / `200` decision and its four success outcomes |
+| `R/publication.R` | validated publication of bytes, descriptor, source state, selection |
+| `R/migration.R` | lazy, idempotent, write-free-on-read v1 → v2 cache migration |
+| `R/status.R` | offline status state machine and its print contract |
+| `R/reminder.R` | opt-in preference (config, not cache) and the attach-time message |
+| `R/snapshots.R` | distinct-checksum inventory with per-row `integrity` |
+| `R/prune.R` | reference-safe deletion under the publish lock |
+
+Two invariants drive most of the code. First, **an observed checksum difference
+is `update_available`; elapsed time alone is only `check_due`** — status never
+translates age into a claim about upstream. Second, **`checked_at` advances only
+on a validated `200` or a usable `304`**; a failure may update attempt
+diagnostics but neither freshness timestamp, so a working cache and active
+matcher survive every failed operation byte-identically.
+
+Same-source refreshes serialize across the whole network operation (source lock
+held from the state read through commit), which trades parallel requests to one
+endpoint for a simple non-regression guarantee. Different sources may download
+concurrently; only their short publication phases serialize.
+
+Naming footgun worth remembering: `psl_cache_prune()` deletes snapshot files
+from the *disk* cache, while the internal `psl_cache_clear()` (`R/cache.R:96`)
+only resets an engine's *in-memory match-result* cache and deletes nothing.
+They are unrelated subsystems that happen to share the word "cache".
 
 ## The compiled matcher (`src/`)
 
@@ -289,9 +334,10 @@ edit them by hand; regenerate with `cpp11::cpp_register()` after changing a
   acceptance scenarios executed inside the normal test pass, guarded on
   `cucumber` being installed so `_R_CHECK_DEPENDS_ONLY_=true` degrades
   gracefully.
-- **Helpers**: `helper-active.R` provides `fake_downloader` (the injected
-  network double) and `local_pslr_clean` (isolates the cache dir and resets
-  active state per test).
+- **Helpers**: `helper-active.R` provides `local_fake_transport()` (the injected
+  network double, scripted per request with status, headers, and body),
+  `seed_legacy_cache()` (a v1 cache to migrate from), and `local_pslr_clean()`
+  (isolates the cache and config dirs and resets active state per test).
 - Coverage is 100%; the one unreachable spot is `src/matcher.cpp:97`, a closing
   brace to which gcov attributes an epilogue basic block no test can reach —
   excluded with `// # nocov` rather than chased.
@@ -317,7 +363,9 @@ recorded reference numbers in [benchmarks.md](./benchmarks.md).
 | Input validation (IPv4, missing/invalid) | `R/canonicalize.R` | update `test-canonicalize.R` |
 | The matching algorithm | `src/matcher.cpp` | `cpp11::cpp_register()`, update `test-matcher.R` |
 | Cache behavior / bound | `R/cache.R` | keep the shared schema in sync with `matcher.R` |
-| Refresh / download / activation | `R/refresh.R` | use the `pslr.downloader` seam in tests |
+| Refresh / download / activation | `R/refresh.R`, `R/refresh-machine.R` | use the `pslr.transport` seam in tests |
+| Freshness status / reminders / inventory | `R/status.R`, `R/reminder.R`, `R/snapshots.R` | keep the state precedence in PRD §7.5 in sync |
+| Persisted record shapes | `R/freshness-schema.R` | bump the schema version; extend `R/migration.R` |
 | Metadata / provenance columns | `R/metadata.R` | update `psl_version_df` + `test-version-rules.R` |
 | The bundled snapshot | run `data-raw/update_psl.R` | new version + `NEWS.md` entry with old/new commit |
 

@@ -414,3 +414,51 @@ query instead of being flushed for nothing (user-visible; tested in
 only against a *measured* real workload that the numbers above do not already
 answer. Status: **accepted** (declined the two headline ideas; adopted the
 oversized-no-evict refinement).
+
+---
+
+## D20 — Freshness is evidence, not arithmetic: `psl_status()` replaces `psl_outdated()`
+
+**Decision.** `psl_outdated(max_age = 180)` is removed. Freshness is reported by
+`psl_status()`, which keeps immutable snapshot identity (a SHA-256 over the
+exact source bytes) strictly apart from mutable knowledge about a remote
+endpoint (an append-only source-state stream). Snapshot age may *recommend* a
+check — the `check_due` state — but only a validated `200` or a usable `304` may
+*establish* remote freshness, and only an observed checksum difference produces
+`update_available`. `psl_refresh()` becomes a conditional revalidation with four
+named outcomes, `psl_reminder()` carries the opt-in nudge, `psl_snapshots()`
+inventories what is stored, and `psl_cache_prune()` reclaims what nothing
+references.
+
+**Context.** `psl_outdated()` answered "is the active list's `list_date` more
+than N days old?" and named the answer *outdated*. Those are two different
+claims. A list date says nothing about whether upstream has changed: the PSL can
+sit unchanged for weeks, and a snapshot refreshed from a source that publishes no
+content date has no usable date at all, so the function degraded to `NA` exactly
+where it was most needed. A Boolean also has no room for the states that matter
+in practice — never checked, checked and confirmed, checked and *found*
+different, local state unreadable — so every one of them collapsed into
+`TRUE`/`FALSE`/`NA`.
+
+The redesign's normative contract is [PRD](./PRD.md) §7.4–7.5; the code map is
+in [architecture.md](./architecture.md) ("The freshness subsystem").
+
+**Consequences.** Breaking: `psl_outdated()` is gone with no deprecation shim,
+because a shim would have to keep making the claim the redesign exists to stop
+making. `psl_refresh()`'s `activate` and `force` are named-only (D4 still holds:
+one explicit network path), and the v1 cache schema is superseded, migrated
+lazily by the first explicit mutator and never deleted.
+
+Costs accepted: more public surface (four freshness functions where there was
+one), more persisted state (snapshot store, per-source generations, selections,
+locks, a config-side reminder preference), and a status vocabulary users must
+learn. In exchange the package stops asserting things it cannot know, gains
+polite conditional revalidation the PSL's own guidance asks for, and gains a
+stable per-snapshot checksum — the seam a later `psl_diff()` needs to say what
+actually changed between two lists.
+
+Two names remain a documented footgun: `psl_cache_prune()` deletes snapshot
+files from the disk cache, while the internal `psl_cache_clear()` resets an
+engine's in-memory match-result cache (D11) and deletes nothing. Ref:
+`R/status.R`, `R/refresh.R`, `R/reminder.R`, `R/snapshots.R`, `R/prune.R`;
+PRD §7.4–7.5. Status: **accepted.**

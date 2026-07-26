@@ -93,7 +93,39 @@ public_suffix_rule("a.b.kobe.jp")
 
 See `vignette("introduction", package = "pslr")` for the full tour: section
 choice, the unknown-suffix policy, IDN output, terminal dots, refresh and
-activation, reproducibility, and security notes.
+activation, freshness and scheduling, reproducibility, and security notes.
+
+## Freshness
+
+`psl_status()` reports, entirely offline, the strongest claim the locally stored
+evidence supports about the active snapshot — whether it was confirmed current
+against its source, whether a check is merely due, or whether a check actually
+observed a newer list. Elapsed time alone is never reported as an update:
+"a check is due" and "upstream changed" are different statements, and `pslr`
+only makes the second one after a real check.
+
+```{r freshness-setup, include = FALSE}
+# Render against an empty snapshot cache so this block is byte-identical on
+# every machine (the CI gate re-renders README.md and diffs it). Without this,
+# the output would reflect whatever the rendering machine happens to have
+# refreshed.
+options(
+  pslr.cache_dir = file.path(tempdir(), "pslr-readme-cache"),
+  pslr.config_dir = file.path(tempdir(), "pslr-readme-config")
+)
+```
+
+```{r freshness}
+psl_status()
+```
+
+`psl_refresh()` is the only network path. It sends a conditional request when it
+can, honors the list's no-more-than-daily download guidance, and returns one of
+four outcomes: `skipped_recently` (no request), `not_modified` (`304`, no body),
+`downloaded_unchanged`, or `updated`. Opt in to a weekly offline reminder with
+`psl_reminder(enable = TRUE)`; for automation, run `pslr::psl_refresh()` from
+cron or any scheduler you already have — `pslr` installs none and runs no
+background task.
 
 ## Reproducibility
 
@@ -139,9 +171,12 @@ auditable suffix handling. ✅ first-class · ◐ partial/limited · ❌ absent.
   every check.
 - **Offline by default, one hardened network path.** Every query works with zero
   network access; `psl_refresh()` is the *only* code that touches the network —
-  HTTPS-only, credential- and downgrade-rejecting, size-capped, atomically
-  committed. This is stricter than network-first designs and pairs with the
-  reproducibility story rather than fighting it.
+  HTTPS-only, credential- and downgrade-rejecting, size-capped, conditional when
+  it can be, published append-only. This is stricter than network-first designs
+  and pairs with the reproducibility story rather than fighting it.
+- **Freshness reported honestly.** `psl_status()` separates "a check is due"
+  from "a newer list was actually observed", and never infers the second from
+  snapshot age. Surveyed libraries report a date or nothing at all.
 - **Strict, policy-driven validation.** URLs, IPv6, dotted-decimal IPv4, and
   malformed labels are rejected; `invalid = "na"` / `"error"` lets you choose
   silent `NA` or a hard stop. Many libraries are deliberately lenient.

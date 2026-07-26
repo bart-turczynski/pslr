@@ -168,8 +168,17 @@ new_psl_engine <- function(snapshot) {
 # atomically replaces the cache too -- switching the active list starts cold
 # (PRD s7.4, s8.2) with no explicit clear.
 psl_activate_snapshot <- function(snapshot) {
-  the_matcher$state <- new_psl_engine(snapshot)
-  invisible(snapshot$meta)
+  psl_activate_engine(new_psl_engine(snapshot))
+}
+
+# The assignment itself, for callers that must build the candidate engine
+# earlier than they activate it. `psl_refresh(activate = TRUE)` constructs and
+# fully validates the engine BEFORE its persistence commit, so that after the
+# commit activation is exactly one assignment that cannot fail (PRD s9;
+# freshness v2 "Core invariants").
+psl_activate_engine <- function(engine) {
+  the_matcher$state <- engine
+  invisible(engine$snapshot$meta)
 }
 
 # Activate a validated rule table under `meta`. A thin wrapper that builds the

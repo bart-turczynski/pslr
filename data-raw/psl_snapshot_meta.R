@@ -38,6 +38,7 @@ emit <- function(key, value) {
 }
 
 emit("commit", meta$commit)
+emit("canonical_url", meta$canonical_url)
 emit("list_date", meta$list_date)
 emit("checksum", meta$checksum)
 emit("size", meta$size)
