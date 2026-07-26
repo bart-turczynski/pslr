@@ -46,6 +46,7 @@ reference:
     desc: Inspect the active Public Suffix List snapshot.
     contents:
       - psl_version
+      - psl_status
       - psl_rules
       - psl_outdated
 
