@@ -12,6 +12,8 @@
 
 ## Internal
 
+* The NEWS/version CI guard now also asserts that every released version (one `v*` tag each) still has its own `# pslr X.Y.Z` heading in `NEWS.md`, so deleting or mistyping a shipped release section fails the build instead of silently reparenting its bullets under the section above (PSLR-stnequvi).
+
 * The bundled index is regenerated under `punycoder`'s Unicode 17.0.0 pin (profile `uts46-nontransitional-std3-v2`), restoring the fast path in `bundled_snapshot()` instead of rebuilding in memory on every load. The rule set is byte-identical to the previous build at the same pinned upstream commit — only the recorded normalization identity changes. A temporary development `Remotes:` pin on `punycoder` accompanies this and must be dropped, with the `punycoder` floor raised, before the next CRAN submission (PSLR-fjkaqckg).
 
 # pslr 1.1.1
