@@ -3,12 +3,13 @@
 # R-only, docs, or test changes -- so small slices are not blocked on the full
 # cross-platform matrix.
 #
-# Full cross-platform coverage (macOS, Windows, R devel/release/oldrel) lives in
-# full-check.yml, which runs on merges to main, on PRs that touch compiled or
-# build files, on a weekly schedule, and on demand. Together they keep CRAN-grade
-# coverage without paying the 5-platform tax on every commit. The local pre-push
-# hook still runs the full `R CMD check --as-cran`, so a developer's own platform
-# is always checked before a push.
+# Full cross-platform coverage (macOS, Windows, R devel/release/oldrel-1, all
+# under --as-cran) lives in full-check.yml, which runs on release tags, on merges
+# to main, on PRs that touch compiled or build inputs, on a weekly schedule, and
+# on demand. Together they keep CRAN-grade coverage without paying the
+# 5-platform tax on every commit. The local pre-push hook still runs the full
+# `R CMD check --as-cran`, so a developer's own platform is always checked
+# before a push.
 #
 # This intentionally overrides the shared Node/uv verify.yml: an R package is
 # verified with r-lib/actions, and the testthat + cucumber specs run inside

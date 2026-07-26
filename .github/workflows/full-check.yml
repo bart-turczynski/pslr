@@ -1,19 +1,45 @@
 # Full cross-platform R CMD check matrix: macOS, Windows, and Ubuntu on R
-# devel / release / oldrel-1. This is the CRAN-grade coverage that is too slow
-# (and too costly: macOS = 10x, Windows = 2x Actions minute multipliers) to run
-# routinely, so it runs ONLY:
+# devel / release / oldrel-1, all under --as-cran. This is the CRAN-grade
+# coverage that is too costly (macOS = 10x, Windows = 2x Actions minute
+# multipliers) to run on every commit, so it is scoped to the points where
+# cross-platform breakage actually matters:
 #
+#   - release tags matching 'v*'      (CRAN-submission compliance check)
+#   - merges to main                  (nothing platform-specific lands unproven)
+#   - PRs touching compiled or build inputs (see `paths` below) -- these are the
+#     changes that can break one platform while passing the Ubuntu gate
+#   - a weekly schedule               (catches upstream toolchain/R-devel drift
+#                                      on an otherwise quiet repo)
 #   - on demand via workflow_dispatch
-#   - on release tags matching 'v*'   (CRAN-submission compliance check)
 #
-# Routine merges to main and PRs do NOT trigger it. Fast per-PR feedback
-# (lint + one Ubuntu check) lives in verify.yml.
+# Ordinary R-only, docs, and test PRs still get fast feedback from verify.yml
+# (lint + one Ubuntu check) and do NOT pay the 5-platform tax. The local
+# pre-push hook runs the full `R CMD check --as-cran` on the developer's own
+# platform regardless.
 name: Full platform check
 
 on:
   # CRAN-submission prep: release tags matching 'v*'.
   push:
+    branches: [main]
     tags: ['v*']
+  # PRs that touch compiled sources, build metadata, or the bundled index --
+  # the changes most likely to behave differently per platform or per R version.
+  # `Remotes:` pins in DESCRIPTION also land here, since a GitHub-sourced
+  # dependency is built from source on macOS/Windows rather than installed as a
+  # binary.
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'DESCRIPTION'
+      - 'R/sysdata.rda'
+      - 'configure*'
+      - 'cleanup*'
+      - '.github/workflows/full-check.yml'
+  # Weekly drift check: upstream R-devel and toolchain changes can break a repo
+  # that has not changed at all.
+  schedule:
+    - cron: '17 5 * * 1'
   # On demand.
   workflow_dispatch:
 
