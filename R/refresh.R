@@ -32,35 +32,23 @@ psl_cache_marker <- function() file.path(psl_cache_dir(), "current.rds")
 # never rejects a real cache already on disk.
 psl_manifest_version <- 1L
 
-# Source checksum with an algorithm prefix (PRD s7.4). Prefers SHA-256 via
-# `digest` to match the bundled snapshot; falls back to base-R MD5 so the cache
-# path works on a clean install without optional packages. The prefix
-# disambiguates the algorithm either way.
+# Source checksum with an algorithm prefix (PRD s7.4). SHA-256 is the sole
+# identity for newly recorded bytes -- `digest` is a hard dependency, so there
+# is no MD5-writing fallback and no way to mint a new MD5 identity. The prefix
+# still names the algorithm, because legacy caches recorded MD5.
 psl_source_checksum <- function(path) {
-  if (requireNamespace("digest", quietly = TRUE)) {
-    paste0("sha256:", digest::digest(file = path, algo = "sha256"))
-  } else {
-    paste0("md5:", unname(tools::md5sum(path)))
-  }
+  paste0("sha256:", psl_sha256_file(path))
 }
 
 # Compute one specific checksum algorithm for algorithm-directed verification.
-# Unlike `psl_source_checksum()` -- which picks whatever hash is available when
-# RECORDING -- this reproduces the exact algorithm a checksum was recorded with,
-# so verification compares like with like. "sha256" needs the optional `digest`
-# package; verifying a sha256-recorded cache on a machine that lacks `digest` is
-# a missing dependency, not corruption, so raise an actionable install error
-# rather than a spurious mismatch.
+# Unlike `psl_source_checksum()` -- which always RECORDS SHA-256 -- this
+# reproduces the exact algorithm a checksum was recorded with, so verification
+# compares like with like. MD5 stays supported for verification only: a cache
+# published by an older pslr recorded an MD5 identity and must keep verifying
+# against it until migration re-identifies it by SHA-256.
 psl_checksum <- function(path, algorithm) {
   if (identical(algorithm, "sha256")) {
-    if (!requireNamespace("digest", quietly = TRUE)) {
-      stop(
-        "This PSL cache recorded a sha256 checksum, which needs the 'digest' ",
-        "package to verify; install it with install.packages(\"digest\").",
-        call. = FALSE
-      )
-    }
-    paste0("sha256:", digest::digest(file = path, algo = "sha256"))
+    paste0("sha256:", psl_sha256_file(path))
   } else if (identical(algorithm, "md5")) {
     paste0("md5:", unname(tools::md5sum(path)))
   } else {
@@ -73,9 +61,8 @@ psl_checksum <- function(path, algorithm) {
 
 # Verify a file against a recorded, algorithm-prefixed checksum. Recomputes the
 # SAME algorithm named by the prefix and compares, so a match/mismatch reflects
-# genuine content -- never which optional package happens to be installed. When
-# the recorded algorithm's implementation is unavailable, `psl_checksum()`
-# raises the actionable dependency error rather than reporting a false mismatch.
+# genuine content -- a legacy MD5-recorded cache verifies against MD5, while
+# every newly recorded identity verifies against SHA-256.
 psl_verify_checksum <- function(path, expected) {
   algorithm <- sub(":.*$", "", expected)
   identical(psl_checksum(path, algorithm), expected)

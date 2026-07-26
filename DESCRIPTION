@@ -26,6 +26,7 @@ Roxygen: list(markdown = TRUE)
 Depends:
     R (>= 4.1.0)
 Imports:
+    digest,
     punycoder (>= 1.1.0),
     tools,
     utils
@@ -34,7 +35,6 @@ LinkingTo:
 Suggests:
     cucumber (>= 2.0.0),
     curl,
-    digest,
     knitr,
     oysteR,
     rmarkdown,

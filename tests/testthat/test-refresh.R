@@ -269,14 +269,14 @@ test_that("the default downloader accepts an https 200 response", {
   )
 })
 
-test_that("the source checksum falls back to md5 when digest is absent", {
-  # A clean install without the optional 'digest' package still gets a
-  # prefixed checksum, via base-R md5sum.
-  testthat::local_mocked_bindings(
-    requireNamespace = function(package, ...) FALSE,
-    .package = "base"
+test_that("the source checksum is always a sha256 identity", {
+  # `digest` is a hard dependency, so a newly recorded checksum is SHA-256 on
+  # every install -- there is no MD5-writing fallback that could mint a weaker
+  # identity.
+  expect_match(
+    psl_source_checksum(bundled_dat_path()),
+    "^sha256:[0-9a-f]{64}$"
   )
-  expect_match(psl_source_checksum(bundled_dat_path()), "^md5:")
 })
 
 test_that("an md5-recorded checksum verifies against md5 with digest present", {
@@ -289,17 +289,13 @@ test_that("an md5-recorded checksum verifies against md5 with digest present", {
   expect_true(psl_verify_checksum(path, recorded))
 })
 
-test_that("verifying an sha256 record without digest is an actionable error", {
-  # A sha256-recorded cache verified where digest is unavailable is a missing
-  # dependency, not corruption: it must ask the user to install digest.
-  testthat::local_mocked_bindings(
-    requireNamespace = function(package, ...) FALSE,
-    .package = "base"
-  )
-  recorded <- paste0("sha256:", strrep("0", 64L))
-  expect_error(
-    psl_verify_checksum(bundled_dat_path(), recorded),
-    "needs the 'digest' package"
+test_that("an sha256-recorded checksum verifies against the recorded bytes", {
+  # Verification reproduces the recorded algorithm, so the identity written by
+  # psl_source_checksum() round-trips and a different digest is rejected.
+  path <- bundled_dat_path()
+  expect_true(psl_verify_checksum(path, psl_source_checksum(path)))
+  expect_false(
+    psl_verify_checksum(path, paste0("sha256:", strrep("0", 64L)))
   )
 })
 
