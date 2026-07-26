@@ -190,9 +190,17 @@ psl_publish_snapshot_bytes <- function(path, checksum = NULL) {
     ))
   }
   target <- psl_snapshot_bytes_path(identity)
+  # Bytes already published under this identity are authoritative -- but only
+  # while they still ARE those bytes. A file that fails its own checksum is
+  # local corruption, not a published snapshot, and is exactly what a repair
+  # download exists to replace; keeping it would leave the cache permanently
+  # unusable after one bad sector.
   if (file.exists(target)) {
-    unlink(path)
-    return(identity)
+    if (psl_verify_checksum(target, identity)) {
+      unlink(path)
+      return(identity)
+    }
+    unlink(target)
   }
   staged <- psl_stage_into_snapshots(path)
   on.exit(unlink(staged), add = TRUE)

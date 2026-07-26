@@ -6,42 +6,60 @@
 \usage{
 psl_refresh(
   url = "https://publicsuffix.org/list/public_suffix_list.dat",
-  force = FALSE,
-  activate = FALSE
+  activate = FALSE,
+  force = FALSE
 )
 }
 \arguments{
 \item{url}{Absolute \code{https} URL of the list source. Defaults to the official
-list. URLs with another scheme or embedded credentials are rejected, and a
-redirect to a non-HTTPS URL is refused.}
+list. URLs with another scheme, embedded credentials, a query string, or a
+fragment are rejected, and a redirect that leaves \code{https} or the original
+origin is refused.}
 
-\item{force}{When \code{FALSE} (default), a successfully validated cache younger
-than 24 hours is reused without a download, respecting upstream download
-guidance. \code{TRUE} forces a fresh download.}
+\item{activate}{When \code{TRUE}, the snapshot the source now points at becomes
+the active list for the session, exactly as \code{\link[=psl_use]{psl_use()}} would activate it
+-- after \emph{every} successful outcome, including a skip and a \code{304}. When
+\code{FALSE} (default), the cache is updated but the active list is unchanged.}
 
-\item{activate}{When \code{TRUE}, the resulting snapshot becomes the active list
-for the session, exactly as \code{\link[=psl_use]{psl_use()}} would activate it. When \code{FALSE}
-(default), the cache is updated but the active list is unchanged.}
+\item{force}{When \code{FALSE} (default), a check whose courtesy window has not
+elapsed makes no request at all, respecting upstream download guidance.
+\code{TRUE} bypasses that local window only; the request it then makes still
+carries a validator when one is available.}
 }
 \value{
-Invisibly, a one-row \link{data.frame} shaped like \code{\link[=psl_version]{psl_version()}}
-describing the selected cache snapshot, whether or not it was activated.
+Invisibly, a \code{psl_refresh_result} with stable fields \code{outcome},
+\code{request_url}, \code{effective_url}, \code{http_status}, \code{checked_at},
+\code{previous_checksum}, \code{checksum}, \code{activated}, \code{validator},
+\code{bytes_downloaded}, and \code{snapshot}. Operational failures signal a classed
+error rooted at \code{pslr_refresh_error} instead.
 }
 \description{
-Downloads, validates, and publishes a fresh Public Suffix List into the user
-cache. This is the only function in the package that accesses the network,
-and only when you call it explicitly.
+Revalidates the Public Suffix List against its source and publishes any
+changed bytes into the user cache. This is the only function in the package
+that accesses the network, and only when you call it explicitly.
 }
 \details{
-Cache age is measured from the successful network retrieval timestamp;
-reusing a fresh cache does not advance that timestamp. The download goes to a
-temporary file in binary mode and must be no larger than a documented maximum
-(16 MiB). The source is then fully validated -- UTF-8, section markers, rule
-grammar, conflicting rules, and successful canonicalization of every rule --
-and exact same-section duplicates warn once and are deduplicated. Source and
-metadata are published only after validation succeeds, using an atomic commit
-that never exposes a partial or mismatched snapshot. A failed refresh never
-replaces a valid cache or the active matcher.
+A refresh has exactly four successful outcomes:
+
+\describe{
+\item{\code{skipped_recently}}{No request: the last successful check is still
+inside its courtesy window (at least 24 hours).}
+\item{\code{not_modified}}{One conditional request answered \code{304}; the local
+bytes were verified and remain current.}
+\item{\code{downloaded_unchanged}}{One \code{200} whose validated bytes hash to the
+snapshot already held, so no new snapshot is created.}
+\item{\code{updated}}{One \code{200} whose validated bytes are a new snapshot.}
+}
+
+Downloaded bytes are fully validated -- size ceiling, UTF-8, official section
+markers, rule grammar, and canonicalization of every rule -- before anything
+references them, and exact same-section duplicates warn once and are
+deduplicated. Publication is append-only: snapshot bytes and their descriptor
+are written before any reference to them, so an interrupted refresh never
+exposes a dangling reference. Refreshes of one source are serialized across
+processes; a second concurrent refresh of the same source makes no request
+and signals a busy error. A failed refresh records only a coarse attempt and
+leaves the cache, the selected snapshot, and the active matcher untouched.
 }
 \examples{
 if (interactive()) {

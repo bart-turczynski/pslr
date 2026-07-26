@@ -111,13 +111,14 @@ test_that("keep must be a single non-negative whole number", {
   expect_error(psl_cache_prune(keep = "1"), "non-negative whole number")
 })
 
-test_that("prune leaves a real refreshed cache activatable via psl_use", {
+test_that("prune leaves a real cached snapshot activatable via psl_use", {
   dir <- local_pslr_clean()
-  withr::local_options(pslr.downloader = fake_downloader())
-  psl_refresh(force = TRUE)
+  # v2 publication is append-only under `snapshots/`; the flat `psl-<hex>.dat`
+  # layout this prunes is the v1 one, so the fixture is a legacy cache until
+  # pruning is redesigned around v2 references.
+  active <- seed_legacy_cache(dir)
 
   # Seed extra stale snapshots alongside the genuine one, then prune them.
-  active <- readRDS(file.path(dir, "current.rds"))$dat_file
   seed_snapshots(dir, c("psl-stale1.dat", "psl-stale2.dat"))
 
   psl_cache_prune(keep = 0L)
