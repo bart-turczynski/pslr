@@ -27,5 +27,5 @@ head(psl_rules("icann"))
 nrow(psl_rules("private"))
 }
 \seealso{
-\code{\link[=psl_version]{psl_version()}}, \code{\link[=public_suffix_rule]{public_suffix_rule()}}
+\code{\link[=psl_version]{psl_version()}}, \code{\link[=public_suffix_rule]{public_suffix_rule()}}, \code{\link[=psl_diff]{psl_diff()}}
 }

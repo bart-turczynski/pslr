@@ -422,7 +422,8 @@ psl_snapshots_row <- function(checksum, ctx) {
 #'   bytes), and `integrity` (character, see Details). Unavailable values are a
 #'   typed `NA`. The bundled snapshot is always inventoried, so the result is
 #'   never empty on a working installation.
-#' @seealso [psl_status()], [psl_refresh()], [psl_cache_prune()]
+#' @seealso [psl_status()], [psl_refresh()], [psl_diff()],
+#'   [psl_cache_prune()]
 #' @examples
 #' # Every snapshot this installation can resolve, without any network access:
 #' snapshots <- psl_snapshots()

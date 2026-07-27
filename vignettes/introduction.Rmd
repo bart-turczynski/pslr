@@ -347,9 +347,74 @@ psl_cache_prune() # referenced snapshots, plus one more
 psl_cache_prune(keep = 0) # referenced snapshots only
 ```
 
-Keeping history is not an accident: stable checksums are the seam a future
-`psl_diff()` needs to say what changed between two snapshots. Pruning to
-`keep = 0` gives that up in exchange for disk.
+Keeping history is not an accident: stable checksums are the seam `psl_diff()`
+needs to say what changed between two snapshots. Pruning to `keep = 0` gives that
+up in exchange for disk.
+
+### Comparing two snapshots
+
+`psl_diff(old, new)` reports which rules were added, removed, or changed between
+two snapshots — offline, from bytes already on this machine. The usual comparison
+is the snapshot you installed against one you have since retrieved:
+
+```{r, eval = FALSE}
+# After at least one psl_refresh(), the cache selection is a second snapshot:
+changes <- psl_diff("bundled", "cache")
+table(changes$change)
+head(changes)
+```
+
+That works only once local collection has started. Installing pslr makes no
+request and gives you exactly one snapshot: the bundled one. The first explicit
+`psl_refresh()` is what begins the history — from then on every distinct
+validated download is retained by checksum until you prune it, and each retained
+file is a valid `old` or `new`. Any path from `psl_snapshots()` can be passed
+directly, as can a historical revision you materialized as a file by other means;
+`psl_diff()` resolves no dates and downloads nothing.
+
+Either side also accepts a source-file path, a `psl_engine()`, or a
+`psl_rules()`-shaped table, which is enough to see the semantics without a cache:
+
+```{r}
+write_list <- function(private) {
+  path <- tempfile(fileext = ".dat")
+  writeLines(
+    c(
+      "// ===BEGIN ICANN DOMAINS===",
+      "com",
+      "// ===END ICANN DOMAINS===",
+      "// ===BEGIN PRIVATE DOMAINS===",
+      private,
+      "// ===END PRIVATE DOMAINS==="
+    ),
+    path
+  )
+  path
+}
+
+psl_diff(
+  write_list(c("a.example.com", "*.b.example.com")),
+  write_list(c("b.example.com", "c.example.com"))
+)
+```
+
+A row is keyed on a rule's *logical identity* — its canonical labels with any
+leading `*.` or `!` removed — so `*.b.example.com` becoming `b.example.com` is one
+`changed` row rather than an unrelated removal and addition. A rule moving
+between the ICANN and PRIVATE sections is `changed` for the same reason. The
+comparison happens after parsing and canonicalization, so comments, blank lines,
+whitespace, letter case, source ordering, and raw Unicode spelling never appear
+as changes. Two snapshots that agree return the same columns with zero rows.
+
+`psl_diff()` never activates anything: both sides resolve independently, and the
+session-global list keeps answering from whatever `psl_use()` last selected.
+Provenance travels with the result as attributes, so a diff can be filed
+alongside the identities it compared:
+
+```{r}
+d <- psl_diff("bundled", "bundled")
+attr(d, "old_version")[c("source", "checksum")]
+```
 
 ## Multiple lists with engines
 

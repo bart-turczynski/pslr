@@ -171,6 +171,11 @@ auditable suffix handling. ✅ first-class · ◐ partial/limited · ❌ absent.
 - **Freshness reported honestly.** `psl_status()` separates “a check is due”
   from “a newer list was actually observed”, and never infers the second from
   snapshot age. Surveyed libraries report a date or nothing at all.
+- **Snapshots can be diffed.** Because every retained download is an immutable,
+  checksummed artifact, `psl_diff()` reports what actually changed between two
+  snapshots — canonically, offline, keyed on each rule’s logical identity so a
+  wildcard/exception change or an ICANN/PRIVATE move reads as one change rather
+  than an unrelated removal and addition. No surveyed library offers this.
 - **Strict, policy-driven validation.** URLs, IPv6, dotted-decimal IPv4, and
   malformed labels are rejected; `invalid = "na"` / `"error"` lets you choose
   silent `NA` or a hard stop. Many libraries are deliberately lenient.

@@ -478,11 +478,13 @@ psl_refresh <- function(
   invisible(result)
 }
 
-# Activate the snapshot named by the highest valid cache-selection generation.
+# Build the snapshot named by the highest valid cache-selection generation.
 # Returns NULL when no selection exists, so the caller can fall back to a legacy
 # v1 cache that has not been migrated yet; a selection that exists but does not
 # resolve is corruption and is reported with remediation rather than skipped.
-psl_activate_selected_cache <- function() {
+# Pure: reads local state and builds the snapshot without touching session
+# state, so `psl_diff()` can resolve `"cache"` without activating it.
+psl_selected_cache_snapshot <- function() {
   checksum <- psl_read_selection()$record$checksum
   if (is.null(checksum)) {
     return(NULL)
@@ -508,15 +510,13 @@ psl_activate_selected_cache <- function() {
     size = descriptor$size,
     checksum = checksum
   )
-  psl_activate_snapshot(new_psl_snapshot(psl_load_source(path, "cache"), meta))
-  invisible(psl_version())
+  new_psl_snapshot(psl_load_source(path, "cache"), meta)
 }
 
-psl_activate_cache <- function() {
-  selected <- psl_activate_selected_cache()
-  if (!is.null(selected)) {
-    return(selected)
-  }
+# Build the snapshot a legacy (v1) commit marker names, for a cache that has not
+# been migrated to v2 generations yet. Errors -- with remediation -- when there
+# is no marker at all or the bytes it names are absent or do not verify.
+psl_legacy_cache_snapshot <- function() {
   current <- psl_cache_current(on_corrupt = "error")
   if (is.null(current)) {
     stop(
@@ -540,7 +540,23 @@ psl_activate_cache <- function() {
       call. = FALSE
     )
   }
-  psl_activate_snapshot(psl_load_cached_snapshot(dat, current))
+  psl_load_cached_snapshot(dat, current)
+}
+
+# The snapshot `psl_use("cache")` resolves to: the v2 cache selection when there
+# is one, otherwise the legacy v1 marker. Pure, offline, and shared with
+# `psl_diff()`.
+# @noRd
+cache_snapshot <- function() {
+  selected <- psl_selected_cache_snapshot()
+  if (!is.null(selected)) {
+    return(selected)
+  }
+  psl_legacy_cache_snapshot()
+}
+
+psl_activate_cache <- function() {
+  psl_activate_snapshot(cache_snapshot())
   invisible(psl_version())
 }
 
