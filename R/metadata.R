@@ -105,7 +105,7 @@ psl_parse_list_date <- function(x) {
 #'   (`"icann"` or `"private"`), and `labels` (integer rule depth, counting a
 #'   wildcard label). Rows are ordered first by section (ICANN before PRIVATE)
 #'   and then by source-file order.
-#' @seealso [psl_version()], [public_suffix_rule()]
+#' @seealso [psl_version()], [public_suffix_rule()], [psl_diff()]
 #' @examples
 #' head(psl_rules("icann"))
 #' nrow(psl_rules("private"))

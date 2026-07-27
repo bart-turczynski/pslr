@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* New `psl_diff(old, new)` reports which rules were added, removed, or changed between two Public Suffix List snapshots that are already available locally. Either side accepts `"bundled"`, `"cache"`, a source-file path, a `psl_engine`, or a `psl_rules()` table; rows are keyed on a rule's canonical labels with any `*.` or `!` marker removed, so a kind change or an ICANN/PRIVATE move is one `changed` row rather than an unrelated removal and addition. It resolves no dates, downloads nothing, and activates neither side (PSLR-aeuaykkf).
+
 * **Breaking:** `psl_outdated()` is removed. It answered "is the active list's `list_date` older than N days?" but named the answer *outdated*, conflating snapshot age with knowledge of the upstream endpoint, and returned `NA` for any snapshot whose upstream date is unknown. Use `psl_status()` for the freshness claim the local evidence actually supports, and `psl_reminder()` for the periodic nudge (PSLR-hvjaloik).
 
 * **Breaking:** `psl_refresh()`'s `activate` and `force` are now named-only, after `...`. Both are logical and both mean "do more than a bare check", so a positional `psl_refresh(url, TRUE)` was unreadable whichever it meant; it is now a clear error rather than a silent change of meaning (PSLR-nngpirsm).

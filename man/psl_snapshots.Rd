@@ -91,6 +91,7 @@ snapshots[snapshots$bundled, ]$integrity
 psl_snapshots(verify = TRUE)$integrity
 }
 \seealso{
-\code{\link[=psl_status]{psl_status()}}, \code{\link[=psl_refresh]{psl_refresh()}}, \code{\link[=psl_cache_prune]{psl_cache_prune()}}
+\code{\link[=psl_status]{psl_status()}}, \code{\link[=psl_refresh]{psl_refresh()}}, \code{\link[=psl_diff]{psl_diff()}},
+\code{\link[=psl_cache_prune]{psl_cache_prune()}}
 }
 \keyword{internal}
