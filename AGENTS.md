@@ -79,4 +79,18 @@ unrelated to your change.
 
 On `git push`, the `verify` hook runs the project's verify command — the same chain CI runs. Server-side branch protection is unavailable on this GitHub plan, so this local pre-push gate is the stand-in for branch protection: it blocks a push whose tree would turn CI red.
 
+### The tracker is not in git unless it is snapshotted
+
+`.fp/` is gitignored, so the issue tracker is a local database that no commit, no clone and no bundle has ever contained — while `NEWS.md`, the design documents under `docs/` and the test suite all cite `PSLR-*` ids as the reasoning behind what they assert. Regenerate the one copy that is in git with:
+
+```bash
+sh data-raw/snapshot-tracker.sh
+```
+
+It writes `docs/tracker-snapshot.md`, beside the documents whose citations it backs up. `docs/` is committed source here — pkgdown builds into `site/` because `_pkgdown.yml` sets `destination: site` — so unlike a package that publishes from `docs/`, the snapshot lands in a directory that actually reaches a commit.
+
+`fp` stays authoritative — nothing reads the snapshot back, `fp context <id>` is still the way to read an issue, and **every run overwrites the file wholesale**, so hand-edits to it are lost.
+
+**Refresh it before taking any copy you intend to keep** — a mirror push to the `backup` remote at `~/Projects/_backups/pslr.git`, or a `git bundle create <path> --all`. Both exist for this repository as of 2026-08-01. A bundle taken without refreshing carries a stale copy of the only tracker reasoning in git, and a snapshot that is never regenerated is worse than none, because it looks current. Push to `backup` with `--no-verify`: a mirror must capture whatever state exists, including a red one.
+
 @FP_AGENTS.md
