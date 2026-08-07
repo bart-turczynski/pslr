@@ -117,7 +117,12 @@ variables:
 # ---------------------------------------------------------------------------
 
 # Base R container. pandoc is needed to build the vignettes and to render
-# README.Rmd; git, curl and jq are used by the scripted jobs.
+# README.Rmd; git, curl and jq are used by the scripted jobs. qpdf and
+# ghostscript are needed by `R CMD check` itself: without qpdf the PDF
+# size-reduction check emits "'qpdf' is needed for checks on size reduction of
+# PDFs" as a WARNING, and `error_on = "warning"` turns that into a red build
+# describing the runner rather than the package. R 4.5 raised it while 4.6 and
+# devel did not, so it failed exactly one leg of the matrix.
 .r-image:
   image: rocker/r-ver:${R_VERSION}
   interruptible: true
@@ -125,7 +130,7 @@ variables:
     - apt-get update -qq
     - >-
       apt-get install -y --no-install-recommends
-      ca-certificates curl git jq
+      ca-certificates curl git jq qpdf ghostscript
     - >-
       curl -fsSL -o /tmp/pandoc.deb
       "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
@@ -152,7 +157,7 @@ variables:
     - apt-get update -qq
     - >-
       apt-get install -y --no-install-recommends
-      ca-certificates curl git jq
+      ca-certificates curl git jq qpdf ghostscript
     - >-
       curl -fsSL -o /tmp/pandoc.deb
       "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
@@ -176,7 +181,7 @@ variables:
     - apt-get update -qq
     - >-
       apt-get install -y --no-install-recommends
-      ca-certificates curl git jq
+      ca-certificates curl git jq qpdf ghostscript
     - >-
       curl -fsSL -o /tmp/pandoc.deb
       "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
@@ -264,7 +269,8 @@ check:
     - |
       Rscript -e '
         chk <- rcmdcheck::rcmdcheck(
-          args = c("--no-manual", "--as-cran"), error_on = "warning"
+          args = c("--no-manual", "--as-cran"), error_on = "warning",
+          check_dir = "check"
         )
         log <- readLines(file.path(chk[["checkdir"]], "00check.log"), warn = FALSE)
         if (any(grepl("Execution halted", log, fixed = TRUE))) {
@@ -278,7 +284,11 @@ check:
     when: on_failure
     expire_in: 1 week
     paths:
-      - "*.Rcheck/"
+      # `check_dir = "check"` above, because rcmdcheck defaults to a tempdir
+      # outside the build directory. The previous "*.Rcheck/" pattern matched
+      # nothing there, so every failed check uploaded no artifacts at all and
+      # logged only "no matching files".
+      - "check/"
 
 # README.md is generated from README.Rmd and drifts silently otherwise. The
 # README carries a live `library(pslr)` chunk, so build_readme() installs the
@@ -336,7 +346,8 @@ full-check:
     - |
       Rscript -e '
         chk <- rcmdcheck::rcmdcheck(
-          args = c("--no-manual", "--as-cran"), error_on = "warning"
+          args = c("--no-manual", "--as-cran"), error_on = "warning",
+          check_dir = "check"
         )
         log <- readLines(file.path(chk[["checkdir"]], "00check.log"), warn = FALSE)
         if (any(grepl("Execution halted", log, fixed = TRUE))) {
@@ -350,7 +361,11 @@ full-check:
     when: on_failure
     expire_in: 1 week
     paths:
-      - "*.Rcheck/"
+      # `check_dir = "check"` above, because rcmdcheck defaults to a tempdir
+      # outside the build directory. The previous "*.Rcheck/" pattern matched
+      # nothing there, so every failed check uploaded no artifacts at all and
+      # logged only "no matching files".
+      - "check/"
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "full-check"
     - if: $CI_COMMIT_TAG =~ /^v/
