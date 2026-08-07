@@ -3,7 +3,7 @@
 
 <!-- Regenerate with: devtools::build_readme() -->
 
-<!-- CI (verify.yml) fails if README.md is out of sync with README.Rmd. -->
+<!-- CI (the `readme` job in .gitlab-ci.yml) fails if README.md is out of sync with README.Rmd. -->
 
 # pslr
 

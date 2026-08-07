@@ -42,22 +42,23 @@ package is live on CRAN.
 ## Test environments
 
 * local: macOS (aarch64), R 4.6.0 — `R CMD check --as-cran`
-* GitHub Actions (`.github/workflows/full-check.yml`): macOS-latest (release),
-  Windows-latest (release), Ubuntu-latest (R devel, release, oldrel-1), all with
-  `--as-cran`.
-* R-hub is configured through `.github/workflows/rhub.yaml`. Local release
-  checks can be launched with:
-  `rhub::rhub_check("https://github.com/bart-turczynski/pslr")`.
+* GitLab CI (`.gitlab-ci.yml`, job `full-check`): Ubuntu on R devel, release and
+  oldrel-1, all with `--as-cran`.
+* GitLab's shared runners are Linux-only, so there is no continuous macOS or
+  Windows leg. Those platforms are covered before submission by win-builder
+  (`devtools::check_win_devel()`) and mac-builder
+  (`devtools::check_mac_release()`).
+* R-hub is not used for this package: `rhub` v2 dispatches its checks to GitHub
+  Actions, and this package is hosted on GitLab.
 
 ## Portability
 
 * The matcher is compiled with `cpp11` and links no external system library.
 * Host normalization is delegated to `punycoder`. `punycoder` works with or
   without the optional `libidn2` system library; when `libidn2` is absent it
-  uses a bundled fallback backend. The Windows CI configuration builds
-  `punycoder` from source without `libidn2`, so the continuously tested Windows
-  job exercises the fallback backend, and `pslr`'s full normalization and query
-  suite passes against it.
+  uses a bundled fallback backend. On Windows `punycoder` is built without
+  `libidn2`, so `pslr`'s full normalization and query suite runs against the
+  fallback backend there.
 
 ## Network use
 
