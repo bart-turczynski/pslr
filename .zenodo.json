@@ -39,7 +39,7 @@
       "scheme": "url"
     },
     {
-      "identifier": "https://bart-turczynski.github.io/pslr/",
+      "identifier": "https://CRAN.R-project.org/package=pslr",
       "relation": "isDocumentedBy",
       "resource_type": "publication-softwaredocumentation",
       "scheme": "url"

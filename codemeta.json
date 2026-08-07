@@ -4,9 +4,9 @@
   "identifier": "pslr",
   "description": "A focused implementation of the Public Suffix List (PSL). Bundles a reproducible, pinned PSL snapshot and implements the official prevailing-rule algorithm to answer public-suffix (eTLD) and registrable-domain (eTLD+1) queries. Distinguishes ICANN and PRIVATE rule sections, accepts Unicode and ASCII hostnames via 'punycoder' canonicalization, and supports an explicit, validated offline refresh path. The matcher is compiled with 'cpp11' and requires no external system library. Used as the PSL engine by the 'rurl' package.",
   "name": "pslr: Public Suffix List Engine",
-  "relatedLink": ["https://bart-turczynski.github.io/pslr/", "https://CRAN.R-project.org/package=pslr", "https://bart-turczynski.r-universe.dev"],
-  "codeRepository": "https://github.com/bart-turczynski/pslr",
-  "issueTracker": "https://github.com/bart-turczynski/pslr/issues",
+  "relatedLink": ["https://CRAN.R-project.org/package=pslr", "https://bart-turczynski.r-universe.dev"],
+  "codeRepository": "https://gitlab.com/bart-turczynski/pslr",
+  "issueTracker": "https://gitlab.com/bart-turczynski/pslr/-/issues",
   "license": "https://spdx.org/licenses/MIT",
   "version": "1.1.1.9000",
   "programmingLanguage": {
@@ -169,7 +169,7 @@
         "name": "Comprehensive R Archive Network (CRAN)",
         "url": "https://cran.r-project.org"
       },
-      "sameAs": "https://github.com/bart-turczynski/punycoder"
+      "sameAs": "https://CRAN.R-project.org/package=punycoder"
     },
     "3": {
       "@type": "SoftwareApplication",
@@ -205,8 +205,8 @@
       "sameAs": "https://doi.org/10.5281/zenodo.20973660"
     }
   ],
-  "releaseNotes": "https://github.com/bart-turczynski/pslr/blob/main/NEWS.md",
-  "readme": "https://github.com/bart-turczynski/pslr/blob/main/README.md",
-  "contIntegration": ["https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml", "https://app.codecov.io/gh/bart-turczynski/pslr", "https://github.com/bart-turczynski/pslr/actions/workflows/security-audit.yml", "https://github.com/bart-turczynski/pslr/actions/workflows/osv-audit.yml"],
+  "releaseNotes": "https://gitlab.com/bart-turczynski/pslr/-/blob/main/NEWS.md",
+  "readme": "https://gitlab.com/bart-turczynski/pslr/-/blob/main/README.md",
+  "contIntegration": ["https://app.codecov.io/gh/bart-turczynski/pslr"],
   "developmentStatus": "https://lifecycle.r-lib.org/articles/stages.html#stable"
 }

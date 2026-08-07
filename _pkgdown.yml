@@ -1,4 +1,4 @@
-url: https://bart-turczynski.github.io/pslr/
+url: https://bart-turczynski.gitlab.io/pslr/
 destination: site
 
 template:
@@ -7,15 +7,15 @@ template:
 navbar:
   structure:
     left: [reference, articles, news, acknowledgments]
-    right: [search, github]
+    right: [search, gitlab]
   components:
     acknowledgments:
       text: Acknowledgments
-      href: https://github.com/bart-turczynski/pslr/blob/main/ACKNOWLEDGMENTS.md
-    github:
-      icon: fab fa-github fa-lg
-      href: https://github.com/bart-turczynski/pslr
-      aria-label: GitHub
+      href: https://gitlab.com/bart-turczynski/pslr/-/blob/main/ACKNOWLEDGMENTS.md
+    gitlab:
+      icon: fab fa-gitlab fa-lg
+      href: https://gitlab.com/bart-turczynski/pslr
+      aria-label: GitLab
 
 authors:
   "Bart Turczynski":
@@ -28,8 +28,8 @@ footer:
   components:
     related: >
       Related:
-      <a href="https://bart-turczynski.github.io/punycoder/">punycoder</a> ·
-      <a href="https://bart-turczynski.github.io/rurl/">rurl</a>
+      <a href="https://CRAN.R-project.org/package=punycoder">punycoder</a> ·
+      <a href="https://CRAN.R-project.org/package=rurl">rurl</a>
 
 reference:
   - title: Querying

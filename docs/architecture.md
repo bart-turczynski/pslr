@@ -12,7 +12,7 @@ How `pslr` is actually built, for maintainers and future dev sessions. For
 API, backed by a pinned PSL snapshot in `R/sysdata.rda`, with a bounded columnar
 session cache and an explicit, validated offline-refresh path. The only runtime
 dependency for host canonicalization is
-[`punycoder`](https://bart-turczynski.github.io/punycoder/).
+[`punycoder`](https://CRAN.R-project.org/package=punycoder).
 
 Its five query functions answer what the public suffix (eTLD) is, what the
 registrable domain (eTLD+1) is, whether a host is itself a public suffix, which
