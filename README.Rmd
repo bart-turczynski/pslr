@@ -11,7 +11,7 @@ output:
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 <!-- Regenerate with: devtools::build_readme() -->
-<!-- CI (verify.yml) fails if README.md is out of sync with README.Rmd. -->
+<!-- CI (the `readme` job in .gitlab-ci.yml) fails if README.md is out of sync with README.Rmd. -->
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(

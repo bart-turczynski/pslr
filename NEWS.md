@@ -46,6 +46,8 @@
 
 ## Internal
 
+* CI moved from GitHub Actions to GitLab CI: `.gitlab-ci.yml` runs the `AGENTS.md` verify command — `lintr::lint_package()` then `R CMD check --as-cran` with `error_on = "warning"` — on every push and merge request, alongside the README-sync and NEWS/version guards, coverage, a Linux R devel/release/oldrel-1 matrix, and the weekly OSV, OSS Index and upstream-PSL jobs. The nine `.github/workflows/` files had stopped running entirely, leaving the local pre-push hook as the only gate. GitLab's shared runners are Linux-only, so the macOS and Windows legs and the R-hub workflow have no equivalent; those move to win-builder and mac-builder before a submission (PSLR-totktvlq).
+
 * A weekly `Upstream PSL check` workflow reports when `publicsuffix/list` has a newer commit to `public_suffix_list.dat` than the pinned bundled snapshot, regenerating it via `data-raw/update_psl.R` and opening a review PR. Discovery only: it never commits to `main`, never merges, and leaves `NEWS.md` and the package version to the maintainer, so the release checklist in `CONTRIBUTING.md` is unchanged (PSLR-wzhnvyiv).
 
 * The NEWS/version CI guard now also asserts that every released version (one `v*` tag each) still has its own `# pslr X.Y.Z` heading in `NEWS.md`, so deleting or mistyping a shipped release section fails the build instead of silently reparenting its bullets under the section above (PSLR-stnequvi).

@@ -1,0 +1,654 @@
+# GitLab CI for pslr — the replacement for the nine .github/workflows/ files
+# that stopped running when the GitHub account was suspended (PSLR-thcaqtnw).
+# Filed and specified as PSLR-totktvlq.
+#
+# Why this file matters more than a badge: AGENTS.md states that the local
+# pre-push hook exists as the stand-in for server-side branch protection,
+# "mirroring what CI runs". With no CI at all, that hook was the entire gate —
+# and it is bypassed by `--no-verify` and absent in any clone that never ran
+# `pre-commit install --hook-type pre-push`.
+#
+# ---------------------------------------------------------------------------
+# Deliberate deviations from the GitHub workflows, and why
+# ---------------------------------------------------------------------------
+#
+# 1. NO macOS AND NO WINDOWS LEG. full-check.yml ran a five-leg matrix across
+#    macOS, Windows and Linux. GitLab.com shared runners are Linux-only on the
+#    plans available here, so the matrix collapses to the R-version axis
+#    (devel / release / oldrel-1) on Linux. This is a genuine loss of coverage,
+#    not a simplification. Cross-platform assurance before a CRAN submission now
+#    has to come from win-builder and mac-builder (see item 3) and must be
+#    described honestly in cran-comments.md.
+#
+# 2. full-check DOES NOT RUN ON EVERY MERGE REQUEST. The GitHub file ran the
+#    matrix on every non-documentation MR and said so explicitly, reasoning that
+#    a public repo gets unlimited free runner minutes on every OS. That premise
+#    is gone: GitLab.com bills shared-runner compute minutes from a monthly
+#    quota. The matrix therefore runs on default-branch pushes, on `v*` tags and
+#    on a weekly schedule. The per-MR gate is the `check` job below, which is
+#    *stricter* than the GitHub per-PR check ever was — it runs the full
+#    `--as-cran` pass with `error_on = "warning"`, exactly the AGENTS.md verify
+#    command, where verify.yml ran a plain `--no-manual` check.
+#
+# 3. NO R-HUB JOB. rhub v2 (`rhub::rhub_check()`) dispatches to the maintainer's
+#    own GitHub Actions runners and requires a GitHub repository. There is no
+#    GitLab equivalent to port. R-hub is unavailable while the account is
+#    suspended; pre-release platform checks move to manual invocation of
+#    `devtools::check_win_devel()` and `devtools::check_mac_release()`, neither
+#    of which involves GitHub.
+#
+# 4. SCHEDULES LIVE IN THE PROJECT SETTINGS, NOT IN THIS FILE. Unlike a GitHub
+#    `on: schedule:` block, a GitLab schedule is a project-level object. The
+#    scheduled jobs below select themselves on a `SCHEDULED_TASK` variable, so
+#    each schedule in Settings > CI/CD > Schedules must set exactly one of:
+#
+#      SCHEDULED_TASK=full-check      weekly, was Mon 05:17 UTC
+#      SCHEDULED_TASK=security-audit  weekly, was Mon 04:17 UTC
+#      SCHEDULED_TASK=osv-audit       weekly, was Mon 04:23 UTC
+#      SCHEDULED_TASK=psl-upstream    weekly, was Mon 06:23 UTC
+#
+#    Until those four schedules exist, the weekly coverage is still off — most
+#    consequentially the upstream-PSL watcher (PSLR-wzhnvyiv), whose absence
+#    means the bundled snapshot silently stops being refreshed.
+#
+# 5. TOKENS. Three jobs need credentials that only a project maintainer can
+#    create; each skips loudly rather than failing when its secret is absent.
+#      PSL_BOT_TOKEN   project access token, scopes `api` + `write_repository`.
+#                      Used by psl-upstream-check (pushes a branch, opens an MR)
+#                      and codemeta (commits a regenerated codemeta.json).
+#      OSSINDEX_USER   the literal string "x", NOT an email — see the note in
+#      OSSINDEX_TOKEN  .github/workflows/security-audit.yml, which was hard-won.
+#    GITLAB_PAT is deliberately NOT in that list. DESCRIPTION pins
+#    `Remotes: gitlab::bart-turczynski/punycoder`, which needed a credential
+#    only while that project was private; it was made public on 2026-08-07, so
+#    every job resolves the dependency closure anonymously and no token is
+#    involved. If it ever goes private again, a `read_api` + `read_repository`
+#    PAT in GITLAB_PAT is what pkgdepends reads.
+
+stages:
+  - lint
+  - check
+  - audit
+  - deploy
+
+workflow:
+  # Merge-request pipelines where an MR exists, branch pipelines otherwise, so
+  # a push to any branch is checked even before an MR is opened. That is the
+  # whole point: the tree that `--no-verify` let through still meets a gate.
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH
+  auto_cancel:
+    on_new_commit: interruptible
+
+variables:
+  # R release. Bumping this is a deliberate act: the cache key includes it.
+  R_VERSION: "4.6"
+  # Project-local library, cached between jobs and pipelines.
+  R_LIBS_USER: "$CI_PROJECT_DIR/.rlib"
+  R_KEEP_PKG_SOURCE: "yes"
+  # Let pak install the Debian/Ubuntu system requirements of R dependencies.
+  PKG_SYSREQS: "true"
+  # Non-interactive apt.
+  DEBIAN_FRONTEND: "noninteractive"
+  # `--as-cran` runs an incoming-feasibility step that fetches
+  # $CRAN/src/contrib/Meta/current.rds. The rocker image points `repos` at the
+  # P3M *binary* mirror, which has no src/contrib at all, so that fetch 404s and
+  # halts R CMD check about 8 seconds in — and rcmdcheck reads the truncated log
+  # as a clean "0 errors | 0 warnings | 0 notes" pass. A green check that
+  # checked nothing is worse than a red one, so the remote half is turned off
+  # here; every local --as-cran check still runs. CRAN performs the remote half
+  # itself at submission time.
+  _R_CHECK_CRAN_INCOMING_REMOTE_: "false"
+  # pandoc is PINNED, not taken from apt. The `readme` job compares generated
+  # README.md byte-for-byte, so the generator has to be reproducible: Ubuntu
+  # noble ships pandoc 3.1.3, which pads pipe-table cells to align them, while
+  # the `devtools::build_readme()` dev loop in AGENTS.md runs whatever pandoc is
+  # local. Tracking the distro's version made the guard fail on formatting that
+  # no one wrote. Bump this deliberately and regenerate README.md in the same
+  # commit.
+  PANDOC_VERSION: "3.10"
+
+# ---------------------------------------------------------------------------
+# Shared setup
+# ---------------------------------------------------------------------------
+
+# Base R container. pandoc is needed to build the vignettes and to render
+# README.Rmd; git, curl and jq are used by the scripted jobs.
+.r-image:
+  image: rocker/r-ver:${R_VERSION}
+  interruptible: true
+  before_script:
+    - apt-get update -qq
+    - >-
+      apt-get install -y --no-install-recommends
+      ca-certificates curl git jq
+    - >-
+      curl -fsSL -o /tmp/pandoc.deb
+      "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+    - dpkg -i /tmp/pandoc.deb
+
+# Adds pak and the cached project library, but NOT the package's dependency
+# closure. Kept separate from .r-deps on purpose: `lintr::lint_package()` parses
+# sources and needs nothing installed, so the lint gate stays green even while
+# the private-punycoder resolve below is unresolved.
+#
+# The apt lines are repeated across these templates rather than pulled in with
+# GitLab's `!reference` tag: the pre-commit `check-yaml` hook parses this file
+# with a standard YAML loader, which rejects that custom tag.
+.r-pak:
+  extends: .r-image
+  cache:
+    key:
+      prefix: "rlib-${R_VERSION}"
+      files:
+        - DESCRIPTION
+    paths:
+      - .rlib
+  before_script:
+    - apt-get update -qq
+    - >-
+      apt-get install -y --no-install-recommends
+      ca-certificates curl git jq
+    - >-
+      curl -fsSL -o /tmp/pandoc.deb
+      "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+    - dpkg -i /tmp/pandoc.deb
+    - mkdir -p "$R_LIBS_USER"
+    - >-
+      Rscript -e 'if (!requireNamespace("pak", quietly = TRUE))
+      install.packages("pak", repos = sprintf(
+      "https://r-lib.github.io/p/pak/stable/%s/%s/%s",
+      .Platform$pkgType, R.version$os, R.version$arch))'
+
+# Adds the package's own dependency closure. pak is used rather than
+# `install.packages()` because DESCRIPTION carries `Remotes:
+# gitlab::bart-turczynski/punycoder`, which only a remotes-aware installer
+# resolves — and getting that wrong would silently check against the CRAN
+# punycoder instead of the pinned development one (PSLR-fjkaqckg). That project
+# is public, so the resolve is anonymous and needs no credential.
+.r-deps:
+  extends: .r-pak
+  before_script:
+    - apt-get update -qq
+    - >-
+      apt-get install -y --no-install-recommends
+      ca-certificates curl git jq
+    - >-
+      curl -fsSL -o /tmp/pandoc.deb
+      "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+    - dpkg -i /tmp/pandoc.deb
+    - mkdir -p "$R_LIBS_USER"
+    - >-
+      Rscript -e 'if (!requireNamespace("pak", quietly = TRUE))
+      install.packages("pak", repos = sprintf(
+      "https://r-lib.github.io/p/pak/stable/%s/%s/%s",
+      .Platform$pkgType, R.version$os, R.version$arch))'
+    - Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
+
+# ---------------------------------------------------------------------------
+# Per-push / per-MR gate — the part whose absence was dangerous
+# ---------------------------------------------------------------------------
+
+lint:
+  extends: .r-pak
+  stage: lint
+  script:
+    - Rscript -e 'pak::pak("lintr")'
+    - >-
+      Rscript -e 'lints <- lintr::lint_package();
+      if (length(lints)) { print(lints); quit(status = 1) }'
+
+# The NEWS/DESCRIPTION drift guard. No R involved, so it runs in a small image
+# and reports in seconds. GIT_DEPTH: 0 because the released-heading check reads
+# `v*` tags, which a shallow CI clone does not fetch.
+news-version:
+  stage: lint
+  image:
+    # alpine/git declares ENTRYPOINT ["git"], so without this override every
+    # script line is run as a git subcommand ("git: 'sh' is not a git command").
+    name: alpine/git:latest
+    entrypoint: [""]
+  interruptible: true
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - set -eu
+    - |
+      version="$(grep -E '^Version:' DESCRIPTION | head -n1 | sed -E 's/^Version:[[:space:]]*//')"
+      heading="$(grep -m1 -E '^# ' NEWS.md | sed -E 's/^#[[:space:]]+pslr[[:space:]]*//')"
+      echo "DESCRIPTION Version : '$version'"
+      echo "Top NEWS heading    : '$heading'"
+      if [ "$heading" = "(development version)" ] || [ "$heading" = "$version" ]; then
+        echo "OK: NEWS heading and version are consistent."
+      else
+        echo "ERROR: top NEWS.md heading ('$heading') is neither '(development version)' nor the DESCRIPTION Version ('$version'). Update NEWS.md before release."
+        exit 1
+      fi
+    - |
+      tags="$(git tag -l 'v*')"
+      if [ -z "$tags" ]; then
+        echo "ERROR: no 'v*' tags found. GIT_DEPTH must be 0 for this check to mean anything."
+        exit 1
+      fi
+      missing=0
+      for tag in $tags; do
+        released="${tag#v}"
+        # -x -F: whole line, literal, so the dots in a version are not regex.
+        if grep -qxF "# pslr ${released}" NEWS.md; then
+          echo "OK: '# pslr ${released}' present for tag ${tag}."
+        else
+          echo "ERROR: tag ${tag} has no matching '# pslr ${released}' heading in NEWS.md. A released section was deleted or renamed; its bullets now read as unreleased work."
+          missing=1
+        fi
+      done
+      exit "$missing"
+
+# THE gate. This is the AGENTS.md verify command, the same one the pre-push
+# hook runs, with `--no-manual` added because the image carries no LaTeX (the
+# PDF manual is built by CRAN's own incoming checks, not here).
+check:
+  extends: .r-deps
+  stage: check
+  needs: [lint]
+  script:
+    - Rscript -e 'pak::pak("rcmdcheck")'
+    # rcmdcheck summarises whatever 00check.log contains. When the check aborts
+    # partway, that log holds no findings, and the summary reads as a pass — the
+    # exact false green that shipped in the first pipeline. Insist the log shows
+    # a check that ran to the end. `[["checkdir"]]` rather than `$checkdir` so
+    # nothing downstream tries to expand a `$name`.
+    - |
+      Rscript -e '
+        chk <- rcmdcheck::rcmdcheck(
+          args = c("--no-manual", "--as-cran"), error_on = "warning"
+        )
+        log <- readLines(file.path(chk[["checkdir"]], "00check.log"), warn = FALSE)
+        if (any(grepl("Execution halted", log, fixed = TRUE))) {
+          stop("R CMD check aborted: Execution halted in 00check.log")
+        }
+        if (!any(grepl("^Status:", log))) {
+          stop("R CMD check did not run to completion: no Status line in 00check.log")
+        }
+      '
+  artifacts:
+    when: on_failure
+    expire_in: 1 week
+    paths:
+      - "*.Rcheck/"
+
+# README.md is generated from README.Rmd and drifts silently otherwise. The
+# README carries a live `library(pslr)` chunk, so build_readme() installs the
+# package first.
+readme:
+  extends: .r-deps
+  stage: check
+  needs: []
+  script:
+    - Rscript -e 'pak::pak("devtools")'
+    - Rscript -e 'devtools::build_readme()'
+    - |
+      if ! git diff --exit-code -- README.md; then
+        echo "ERROR: README.md is out of sync with README.Rmd. Run devtools::build_readme() and commit the result."
+        exit 1
+      fi
+
+coverage:
+  extends: .r-deps
+  stage: check
+  needs: [check]
+  script:
+    - Rscript -e 'pak::pak(c("covr", "xml2"))'
+    - >-
+      Rscript -e 'cov <- covr::package_coverage(quiet = FALSE);
+      covr::to_cobertura(cov);
+      cat(sprintf("Coverage: %.2f%%\n", covr::percent_coverage(cov)))'
+  coverage: '/Coverage: \d+\.\d+%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: cobertura.xml
+    expire_in: 1 week
+
+# ---------------------------------------------------------------------------
+# Full platform check — see deviation notes 1 and 2 in the header
+# ---------------------------------------------------------------------------
+
+full-check:
+  extends: .r-deps
+  stage: check
+  needs: []
+  timeout: 1h
+  parallel:
+    matrix:
+      - R_VERSION: ["devel", "4.6", "4.5"]
+  script:
+    - Rscript -e 'pak::pak("rcmdcheck")'
+    # rcmdcheck summarises whatever 00check.log contains. When the check aborts
+    # partway, that log holds no findings, and the summary reads as a pass — the
+    # exact false green that shipped in the first pipeline. Insist the log shows
+    # a check that ran to the end. `[["checkdir"]]` rather than `$checkdir` so
+    # nothing downstream tries to expand a `$name`.
+    - |
+      Rscript -e '
+        chk <- rcmdcheck::rcmdcheck(
+          args = c("--no-manual", "--as-cran"), error_on = "warning"
+        )
+        log <- readLines(file.path(chk[["checkdir"]], "00check.log"), warn = FALSE)
+        if (any(grepl("Execution halted", log, fixed = TRUE))) {
+          stop("R CMD check aborted: Execution halted in 00check.log")
+        }
+        if (!any(grepl("^Status:", log))) {
+          stop("R CMD check did not run to completion: no Status line in 00check.log")
+        }
+      '
+  artifacts:
+    when: on_failure
+    expire_in: 1 week
+    paths:
+      - "*.Rcheck/"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "full-check"
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - when: manual
+      allow_failure: true
+
+# ---------------------------------------------------------------------------
+# Weekly audits
+# ---------------------------------------------------------------------------
+
+# Both audit jobs set NOT_CRAN, and only these jobs do: testthat::test_local()
+# does not set it, so skip_on_cran() in the audit tests would skip the audit
+# silently. It is deliberately NOT set globally — that would also un-skip
+# network-dependent tests inside `check`, which must stay offline.
+
+osv-audit:
+  extends: .r-deps
+  stage: audit
+  needs: []
+  variables:
+    NOT_CRAN: "true"
+  script:
+    - Rscript -e 'pak::pak(c("rosv", "testthat", "decor"))'
+    - >-
+      Rscript -e 'testthat::test_local(filter = "osv", stop_on_failure = TRUE)'
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "osv-audit"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - DESCRIPTION
+        - tests/testthat/test-osv.R
+        - .gitlab-ci.yml
+    - when: manual
+      allow_failure: true
+
+security-audit:
+  extends: .r-deps
+  stage: audit
+  needs: []
+  variables:
+    NOT_CRAN: "true"
+  script:
+    - |
+      if [ -z "${OSSINDEX_TOKEN:-}" ]; then
+        echo "OSSINDEX_TOKEN is not set. OSS Index rejects anonymous requests with HTTP 401, so this audit would be vacuous rather than green. Set OSSINDEX_USER (the literal 'x') and OSSINDEX_TOKEN as masked CI/CD variables — see PSLR-njeqwltb."
+        exit 1
+      fi
+    - Rscript -e 'pak::pak(c("oysteR", "testthat", "decor"))'
+    - >-
+      Rscript -e 'testthat::test_local(filter = "security",
+      stop_on_failure = TRUE)'
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "security-audit"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - DESCRIPTION
+        - tests/testthat/test-security.R
+        - .gitlab-ci.yml
+    - when: manual
+      allow_failure: true
+
+# ---------------------------------------------------------------------------
+# Upstream PSL watcher — the scheduled job with a data consequence
+# ---------------------------------------------------------------------------
+
+# Discovery only, exactly as .github/workflows/psl-upstream-check.yaml was:
+# it opens a merge request for review, never commits to main, never merges, and
+# never touches NEWS.md or the package version. Regeneration is not
+# reimplemented — it shells out to data-raw/update_psl.R, the same script a
+# maintainer runs by hand, so the normalization profile cannot drift between the
+# two paths.
+#
+# Reading upstream still uses the *public* GitHub API. The suspended account is
+# irrelevant to an unauthenticated read of publicsuffix/list; only pslr's own
+# hosting moved.
+psl-upstream-check:
+  extends: .r-deps
+  stage: audit
+  needs: []
+  timeout: 1h
+  variables:
+    GIT_STRATEGY: clone
+  script:
+    - |
+      set -eu
+      if [ -z "${PSL_BOT_TOKEN:-}" ]; then
+        echo "PSL_BOT_TOKEN is not set. This job can detect upstream movement but cannot push a branch or open a merge request, which is the only useful thing it does. Create a project access token with 'api' and 'write_repository' scopes."
+        exit 1
+      fi
+    - |
+      set -eu
+      pinned="$(sed -nE 's/^default_commit <- "([0-9a-f]{40})".*/\1/p' data-raw/update_psl.R)"
+      if [ -z "$pinned" ]; then
+        echo "ERROR: could not read 'default_commit' from data-raw/update_psl.R. The pin format changed; this job needs updating."
+        exit 1
+      fi
+      # Latest commit that touched the list file itself, not the repo HEAD:
+      # upstream carries tooling and test commits that leave the list alone.
+      upstream="$(curl -sSf 'https://api.github.com/repos/publicsuffix/list/commits?path=public_suffix_list.dat&per_page=1' | jq -r '.[0].sha')"
+      if ! printf '%s' "$upstream" | grep -qxE '[0-9a-f]{40}'; then
+        echo "ERROR: upstream lookup did not return a 40-character SHA (got '$upstream')."
+        exit 1
+      fi
+      echo "pinned in tree : $pinned"
+      echo "upstream latest: $upstream"
+      branch="chore/psl-snapshot-$(printf '%s' "$upstream" | cut -c1-12)"
+      if [ "$pinned" = "$upstream" ]; then
+        echo "Bundled snapshot is current. No merge request needed."
+        exit 0
+      fi
+      if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+        echo "Branch '$branch' already exists; a merge request for this upstream commit was opened already."
+        exit 0
+      fi
+      echo "Upstream has moved. Regenerating."
+
+      Rscript data-raw/psl_snapshot_meta.R > before.env
+      Rscript data-raw/update_psl.R "$upstream"
+      sed -i -E "s/^default_commit <- \"[0-9a-f]{40}\"/default_commit <- \"${upstream}\"/" data-raw/update_psl.R
+      # Leaving the pin behind would ship artifacts that disagree with the
+      # script that claims to generate them, so treat a failed edit as fatal.
+      if ! grep -qxF "default_commit <- \"${upstream}\"" data-raw/update_psl.R; then
+        echo "ERROR: failed to advance 'default_commit' to ${upstream}."
+        exit 1
+      fi
+      Rscript data-raw/psl_snapshot_meta.R > after.env
+
+      # Fold the two KEY=VALUE snapshots into old_* / new_* shell variables.
+      # shellcheck disable=SC2163
+      while IFS='=' read -r key value; do
+        [ -n "$key" ] || continue
+        eval "old_${key}=\$value"
+      done < before.env
+      while IFS='=' read -r key value; do
+        [ -n "$key" ] || continue
+        eval "new_${key}=\$value"
+      done < after.env
+
+      git config user.name "pslr CI"
+      git config user.email "bartek@turczynski.pl"
+      git checkout -b "$branch"
+      git add \
+        inst/extdata/public_suffix_list.dat \
+        inst/extdata/PSL-LICENSE \
+        inst/NOTICE \
+        R/sysdata.rda \
+        tests/testthat/fixtures/psl-vectors.txt \
+        data-raw/update_psl.R
+      if git diff --cached --quiet; then
+        echo "WARNING: upstream SHA moved but regeneration produced no file changes. Nothing to review."
+        exit 0
+      fi
+      git commit -m "chore: refresh bundled PSL snapshot to ${upstream}
+
+      Regenerated by the psl-upstream-check job in .gitlab-ci.yml via
+      data-raw/update_psl.R. Review the upstream diff before merging;
+      NEWS.md and the package version are deliberately untouched."
+      git push "https://oauth2:${PSL_BOT_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:refs/heads/${branch}"
+
+      cat > mr-body.md <<EOF
+      Automated **discovery** merge request: upstream \`publicsuffix/list\` has a newer
+      commit to \`public_suffix_list.dat\` than the snapshot pinned in this repo.
+      Regenerated by the \`psl-upstream-check\` job in \`.gitlab-ci.yml\`, which shells
+      out to \`data-raw/update_psl.R\` -- the same script a maintainer runs by hand.
+
+      This MR is for review. Nothing was auto-merged, and \`NEWS.md\` and the package
+      version are deliberately untouched: a bundled-data change alters query results
+      and is release-shaped, so per \`CONTRIBUTING.md\` those stay maintainer calls.
+
+      ## Snapshot
+
+      | | Before | After |
+      |---|---|---|
+      | Upstream commit | \`${pinned}\` | \`${upstream}\` |
+      | \`list_date\` | ${old_list_date} | ${new_list_date} |
+      | \`checksum\` | \`${old_checksum}\` | \`${new_checksum}\` |
+      | Size (bytes) | ${old_size} | ${new_size} |
+      | Rules | ${old_rules} | ${new_rules} |
+      | ICANN / private | ${old_icann} / ${old_private} | ${new_icann} / ${new_private} |
+      | Normalization | ${old_profile} / Unicode ${old_unicode_version} | ${new_profile} / Unicode ${new_unicode_version} |
+      | Normalizer | ${old_normalizer} ${old_normalizer_version} | ${new_normalizer} ${new_normalizer_version} |
+
+      Upstream diff: <https://github.com/publicsuffix/list/compare/${pinned}...${upstream}>
+
+      ## Before merging
+
+      1. **Review the upstream diff** -- \`git diff inst/extdata/public_suffix_list.dat\`.
+         A rule that moves the registrable-domain boundary is a behaviour change.
+      2. **Check \`normalizer_version\` above.** It records whatever the runner
+         resolved. While the temporary \`punycoder\` \`Remotes:\` pin is in place this
+         will be a development version, which must not ship to CRAN (PSLR-fjkaqckg).
+      3. **Add the \`NEWS.md\` entry** recording the new \`list_date\`, \`commit\`, and
+         \`checksum\`, and decide the version bump.
+      4. Run the \`full-check\` matrix on this MR manually; the CC0 conformance vectors
+         in \`tests/testthat/fixtures/psl-vectors.txt\` are re-pinned in lockstep and
+         must stay green.
+
+      See \`CONTRIBUTING.md\` > Release process > Bundled PSL snapshot.
+      EOF
+
+      jq -n \
+        --arg source "$branch" \
+        --arg target "$CI_DEFAULT_BRANCH" \
+        --arg title "chore: refresh bundled PSL snapshot to $(printf '%s' "$upstream" | cut -c1-12)" \
+        --rawfile description mr-body.md \
+        '{source_branch: $source, target_branch: $target, title: $title, description: $description, remove_source_branch: true}' \
+        > mr.json
+
+      curl -sSf -X POST \
+        --header "PRIVATE-TOKEN: ${PSL_BOT_TOKEN}" \
+        --header "Content-Type: application/json" \
+        --data @mr.json \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests" \
+        | jq -r '"Opened " + .web_url'
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "psl-upstream"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - when: manual
+      allow_failure: true
+
+# ---------------------------------------------------------------------------
+# Generated metadata
+# ---------------------------------------------------------------------------
+
+# Was .github/workflows/codemeta.yaml. Commits back to the default branch, so
+# it needs PSL_BOT_TOKEN; `[skip ci]` in the message stops the push from
+# triggering another pipeline.
+codemeta:
+  extends: .r-deps
+  stage: deploy
+  needs: []
+  variables:
+    GIT_STRATEGY: clone
+  script:
+    - |
+      set -eu
+      if [ -z "${PSL_BOT_TOKEN:-}" ]; then
+        echo "PSL_BOT_TOKEN is not set; cannot commit a regenerated codemeta.json."
+        exit 1
+      fi
+    - Rscript -e 'pak::pak("codemetar")'
+    - Rscript -e 'codemetar::write_codemeta(".")'
+    - |
+      set -eu
+      if [ -z "$(git status --porcelain codemeta.json)" ]; then
+        echo "codemeta.json unchanged."
+        exit 0
+      fi
+      git config user.name "pslr CI"
+      git config user.email "bartek@turczynski.pl"
+      git add codemeta.json
+      git commit -m "chore: refresh codemeta.json [skip ci]"
+      git push "https://oauth2:${PSL_BOT_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:refs/heads/${CI_DEFAULT_BRANCH}"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - DESCRIPTION
+        - inst/CITATION
+        - .gitlab-ci.yml
+    - when: manual
+      allow_failure: true
+
+# ---------------------------------------------------------------------------
+# Documentation site — gated, pending the visibility decision
+# ---------------------------------------------------------------------------
+
+# _pkgdown.yml already names https://bart-turczynski.gitlab.io/pslr/ and builds
+# into site/, but the project's pages_access_level is 'private', so publishing
+# would produce a URL that DESCRIPTION advertises and visitors cannot open.
+# That decision belongs to PSLR-thcaqtnw, so this job stays inert until the
+# CI/CD variable PKGDOWN_PAGES is set to "true".
+pages:
+  extends: .r-deps
+  stage: deploy
+  needs: []
+  script:
+    - Rscript -e 'pak::pak("pkgdown")'
+    - Rscript -e 'pak::local_install(upgrade = FALSE)'
+    - >-
+      Rscript -e 'pkgdown::build_site(new_process = FALSE, install = FALSE)'
+    # GitLab Pages publishes `public/`; _pkgdown.yml builds into `site/`
+    # because docs/ holds committed design documents here.
+    - rm -rf public && mv site public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $PKGDOWN_PAGES != "true"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG =~ /^v/
