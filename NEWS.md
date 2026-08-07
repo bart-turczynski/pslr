@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* The project's declared homepage and bug tracker moved from GitHub to GitLab: `URL` is now the GitLab repository plus the canonical CRAN and r-universe pages, and `BugReports` is the GitLab issue tracker. The GitHub URLs, including the `github.io` pkgdown site, no longer resolve (PSLR-thcaqtnw).
+
 * New `psl_diff(old, new)` reports which rules were added, removed, or changed between two Public Suffix List snapshots that are already available locally. Either side accepts `"bundled"`, `"cache"`, a source-file path, a `psl_engine`, or a `psl_rules()` table; rows are keyed on a rule's canonical labels with any `*.` or `!` marker removed, so a kind change or an ICANN/PRIVATE move is one `changed` row rather than an unrelated removal and addition. It resolves no dates, downloads nothing, and activates neither side (PSLR-aeuaykkf).
 
 * **Breaking:** `psl_outdated()` is removed. It answered "is the active list's `list_date` older than N days?" but named the answer *outdated*, conflating snapshot age with knowledge of the upstream endpoint, and returned `NA` for any snapshot whose upstream date is unknown. Use `psl_status()` for the freshness claim the local evidence actually supports, and `psl_reminder()` for the periodic nudge (PSLR-hvjaloik).

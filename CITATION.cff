@@ -14,9 +14,9 @@ authors:
   - family-names: Turczynski
     given-names: Bart
     orcid: "https://orcid.org/0000-0002-8788-7980"
-repository-code: "https://github.com/bart-turczynski/pslr"
+repository-code: "https://gitlab.com/bart-turczynski/pslr"
 repository: "https://CRAN.R-project.org/package=pslr"
-url: "https://bart-turczynski.github.io/pslr/"
+url: "https://CRAN.R-project.org/package=pslr"
 license: MIT
 identifiers:
   - type: doi

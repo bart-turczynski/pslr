@@ -9,7 +9,6 @@
 
 <!-- badges: start -->
 
-[![Verify](https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml/badge.svg)](https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml)
 [![CRAN status](https://www.r-pkg.org/badges/version/pslr)](https://CRAN.R-project.org/package=pslr)
 [![CRAN downloads](https://cranlogs.r-pkg.org/badges/pslr)](https://CRAN.R-project.org/package=pslr)
 [![Codecov coverage](https://codecov.io/gh/bart-turczynski/pslr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/pslr)
@@ -19,8 +18,6 @@
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr?ref=badge_shield&issueType=license)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr?ref=badge_shield&issueType=security)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13430/badge)](https://www.bestpractices.dev/projects/13430)
-[![Security audit](https://github.com/bart-turczynski/pslr/actions/workflows/security-audit.yml/badge.svg)](https://github.com/bart-turczynski/pslr/actions/workflows/security-audit.yml)
-[![OSV audit](https://github.com/bart-turczynski/pslr/actions/workflows/osv-audit.yml/badge.svg)](https://github.com/bart-turczynski/pslr/actions/workflows/osv-audit.yml)
 <!-- badges: end -->
 
 A focused, spec-complete implementation of the
@@ -44,11 +41,11 @@ Install the released version from CRAN:
 install.packages("pslr")
 ```
 
-Or the development version from GitHub:
+Or the development version from GitLab:
 
 ``` r
 # install.packages("pak")
-pak::pak("bart-turczynski/pslr")
+pak::pak("gitlab::bart-turczynski/pslr")
 ```
 
 `pslr` depends on [`punycoder`](https://cran.r-project.org/package=punycoder),
@@ -187,7 +184,7 @@ auditable suffix handling. ✅ first-class · ◐ partial/limited · ❌ absent.
 - **Session-global active list.** There is no per-call list switching yet; the
   active list is per-session state (`psl_use()` / `psl_refresh()`).
 - **Hostnames, not URLs.** URL-shaped input is rejected by design; parse the host
-  out first or use [`rurl`](https://bart-turczynski.github.io/rurl/).
+  out first or use [`rurl`](https://CRAN.R-project.org/package=rurl).
 - **No network-first auto-fetch.** Refreshing is always explicit — a deliberate
   choice for reproducibility, not a convenience feature.
 
@@ -207,8 +204,8 @@ Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); q
 
 `R CMD check` runs the testthat and cucumber specs, so the behaviour specs are
 verified as part of the check. A non-CRAN performance benchmark and its release
-gate live in [`bench/benchmark.R`](https://github.com/bart-turczynski/pslr/blob/main/bench/benchmark.R); recorded reference
-results are in [`docs/benchmarks.md`](https://github.com/bart-turczynski/pslr/blob/main/docs/benchmarks.md).
+gate live in [`bench/benchmark.R`](https://gitlab.com/bart-turczynski/pslr/-/blob/main/bench/benchmark.R); recorded reference
+results are in [`docs/benchmarks.md`](https://gitlab.com/bart-turczynski/pslr/-/blob/main/docs/benchmarks.md).
 
 ### Project layout
 
@@ -224,19 +221,19 @@ results are in [`docs/benchmarks.md`](https://github.com/bart-turczynski/pslr/bl
 ## Acknowledgments
 
 These packages build on data, libraries, and prior work from many others.
-See [ACKNOWLEDGMENTS.md](https://github.com/bart-turczynski/pslr/blob/main/ACKNOWLEDGMENTS.md) for the full list of thanks.
+See [ACKNOWLEDGMENTS.md](https://gitlab.com/bart-turczynski/pslr/-/blob/main/ACKNOWLEDGMENTS.md) for the full list of thanks.
 
 ## Related packages
 
 `pslr` is part of a small ecosystem of R packages by the same author:
 
-- **[punycoder](https://bart-turczynski.github.io/punycoder/)** — the Punycode and IDNA codec that `pslr` uses for host canonicalization before PSL matching. Use it directly for raw Unicode ↔ ACE round-trips.
-- **[rurl](https://bart-turczynski.github.io/rurl/)** — full URL parsing, normalization, cleaning, and joining toolkit. Uses `pslr` as its PSL engine; reach for it when you need more than domain extraction.
+- **[punycoder](https://CRAN.R-project.org/package=punycoder)** — the Punycode and IDNA codec that `pslr` uses for host canonicalization before PSL matching. Use it directly for raw Unicode ↔ ACE round-trips.
+- **[rurl](https://CRAN.R-project.org/package=rurl)** — full URL parsing, normalization, cleaning, and joining toolkit. Uses `pslr` as its PSL engine; reach for it when you need more than domain extraction.
 
 ## Citation
 
 If you use `pslr` in your work, please cite it. Run `citation("pslr")` for the
-current citation, or see [`CITATION.cff`](https://github.com/bart-turczynski/pslr/blob/main/CITATION.cff).
+current citation, or see [`CITATION.cff`](https://gitlab.com/bart-turczynski/pslr/-/blob/main/CITATION.cff).
 
 Each release is archived on Zenodo. Cite the concept DOI
 [10.5281/zenodo.20973660](https://doi.org/10.5281/zenodo.20973660) to refer to
