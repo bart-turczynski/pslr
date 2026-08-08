@@ -281,7 +281,15 @@ run_matrix() {
       bash -c '
         set -eu
         apt-get update -qq
-        apt-get install -y --no-install-recommends qpdf ghostscript pandoc git curl jq >/dev/null
+        # libcurl/libssl headers are here to bootstrap pak itself, not for the
+        # package: pak installs system requirements, but only once it is
+        # installed. R releases get a prebuilt pak binary and never compile, so
+        # this is invisible on 4.5/4.6; on devel there is no binary, pak builds
+        # its embedded curl from source, and without the headers the whole tier
+        # fails before reaching any check.
+        apt-get install -y --no-install-recommends \
+          qpdf ghostscript pandoc git curl jq \
+          libcurl4-openssl-dev libssl-dev >/dev/null
         mkdir -p "$R_LIBS_USER"
         Rscript -e "if (!requireNamespace(\"pak\", quietly = TRUE)) install.packages(\"pak\")"
         Rscript -e "pak::local_install_deps(dependencies = TRUE)"
