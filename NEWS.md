@@ -46,6 +46,8 @@
 
 ## Internal
 
+* Agent instructions are consolidated: `AGENTS.md` now carries only what is true for every task and points at `docs/r-conventions.md` and `docs/git-workflow.md`, and `CLAUDE.md` is the single line `@AGENTS.md`. It had reached 1197 words while `CLAUDE.md` imported `FP_CLAUDE.md` alongside it, so every request loaded that file plus a near-duplicate of `FP_AGENTS.md`. The audit also found `AGENTS.md` claiming TOML validation the hooks did not do and `CONTRIBUTING.md` naming a `features/` directory that does not exist and a hand-run `lintr`/`rcmdcheck` pair that bypasses `tools/verify.sh`; `check-toml` is added, both claims are corrected, `man/`, `NAMESPACE` and the cpp11 glue are marked `linguist-generated`, and `_pkgdown.yml` records why it builds into `site/` (PSLR-yddiszjh).
+
 * The `matrix` tier of `tools/verify.sh` now installs the `libcurl` and `libssl` headers in its containers, so the R devel leg can bootstrap `pak`. `pak` installs a package's system requirements, but only once `pak` itself is installed; released R gets a prebuilt `pak` binary and never compiles, while devel has none and must build `pak`'s embedded `curl` from source, which failed on a missing `curl/curl.h` before any check ran. All three legs (R 4.5, 4.6 and devel) now pass (PSLR-alwcualu).
 
 * `.verify-stamp` is now in `.Rbuildignore`. It was gitignored but not build-ignored, and `tools/verify.sh full` writes it to the package root *after* its check passes, so every later `R CMD check` swept it into the tarball and reported it under "checking for hidden files and directories". The gate quietly poisoned its own next run: the first `full` was clean only because the stamp did not exist yet (PSLR-alwcualu).

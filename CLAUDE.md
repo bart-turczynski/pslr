@@ -1,3 +1,1 @@
 @AGENTS.md
-
-@FP_CLAUDE.md
