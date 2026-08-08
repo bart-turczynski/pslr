@@ -10,7 +10,7 @@
 # regeneration actually changed. It is a reader only; regeneration logic lives
 # in update_psl.R and is not duplicated here.
 #
-# Consumed by .github/workflows/psl-upstream-check.yaml to build its PR body.
+# Consumed by the `psl-upstream-check` job in .gitlab-ci.yml for its MR body.
 
 cli_args <- commandArgs(trailingOnly = TRUE)
 sysdata_path <- if (length(cli_args) >= 1L && nzchar(cli_args[1])) {

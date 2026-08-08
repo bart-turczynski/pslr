@@ -46,6 +46,8 @@
 
 ## Internal
 
+* The `.github/` tree is removed. The nine workflows had already been replaced by named jobs in `.gitlab-ci.yml` (PSLR-totktvlq) and the GitHub repository now returns 403, so nothing could trigger them; `dependabot.yml` and the issue and pull-request templates are GitHub-only surfaces that GitLab never reads. `data-raw/psl_snapshot_meta.R` named one of the deleted workflows as its consumer and now names the `psl-upstream-check` job that actually calls it (PSLR-bbuuafin).
+
 * Agent instructions are consolidated: `AGENTS.md` now carries only what is true for every task and points at `docs/r-conventions.md` and `docs/git-workflow.md`, and `CLAUDE.md` is the single line `@AGENTS.md`. It had reached 1197 words while `CLAUDE.md` imported `FP_CLAUDE.md` alongside it, so every request loaded that file plus a near-duplicate of `FP_AGENTS.md`. The audit also found `AGENTS.md` claiming TOML validation the hooks did not do and `CONTRIBUTING.md` naming a `features/` directory that does not exist and a hand-run `lintr`/`rcmdcheck` pair that bypasses `tools/verify.sh`; `check-toml` is added, both claims are corrected, `man/`, `NAMESPACE` and the cpp11 glue are marked `linguist-generated`, and `_pkgdown.yml` records why it builds into `site/` (PSLR-yddiszjh).
 
 * The `matrix` tier of `tools/verify.sh` now installs the `libcurl` and `libssl` headers in its containers, so the R devel leg can bootstrap `pak`. `pak` installs a package's system requirements, but only once `pak` itself is installed; released R gets a prebuilt `pak` binary and never compiles, while devel has none and must build `pak`'s embedded `curl` from source, which failed on a missing `curl/curl.h` before any check ran. All three legs (R 4.5, 4.6 and devel) now pass (PSLR-alwcualu).
