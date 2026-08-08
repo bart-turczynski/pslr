@@ -17,6 +17,10 @@ repos:
         exclude: '^inst/extdata/'
       - id: check-merge-conflict
       - id: check-yaml
+      # `air.toml` configures the formatter that rewrites every R source in the
+      # repo, so a malformed one is worth catching at the commit rather than at
+      # the next `air format` run.
+      - id: check-toml
       - id: mixed-line-ending
         exclude: '^inst/extdata/'
       - id: check-case-conflict

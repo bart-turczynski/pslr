@@ -9,8 +9,14 @@ Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
 Run verification:
 
 ```sh
-Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }' && Rscript -e 'rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning")'
+tools/verify.sh            # standard: lint + tests (the pre-push gate, ~2 min)
+tools/verify.sh full       # + R CMD check --as-cran and the release audits
 ```
+
+`tools/verify.sh` is the single definition of the gate — the pre-push hook and
+the release checklist call it too, so running the underlying `lintr` and
+`rcmdcheck` commands by hand checks less than a push does. See
+[docs/git-workflow.md](docs/git-workflow.md#the-verify-gate) for all four tiers.
 
 Format R sources with [Air](https://posit-dev.github.io/air/) (a fast,
 R-free formatter; config in `air.toml`):
@@ -23,7 +29,7 @@ Air runs automatically as a pre-commit hook, so you rarely need to invoke it by
 hand. Air owns layout; lintr (in the verify gate above) owns logic and
 best-practice lints. Don't reformat code unrelated to your change.
 
-Source lives in `src/`, behavior features live in `features/`, tests live in `tests/`, and durable project context lives in `docs/`.
+R sources live in `R/`, compiled sources in `src/`, tests and their Cucumber `.feature` specs in `tests/testthat/`, and durable project context in `docs/`.
 
 Keep local-only planning state in `_scratch/`. Do not commit `_scratch/`, `.fp/`, secrets, dependency folders, build outputs, or generated caches.
 

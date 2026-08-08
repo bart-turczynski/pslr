@@ -1,1 +1,9 @@
 * text=auto eol=lf
+
+# Generated, never hand-edited: `man/` and `NAMESPACE` come from
+# `devtools::document()`, the cpp11 glue from `cpp11::cpp_register()`. Marking
+# them collapses their diffs in review and keeps them out of language stats.
+man/** linguist-generated=true
+NAMESPACE linguist-generated=true
+R/cpp11.R linguist-generated=true
+src/cpp11.cpp linguist-generated=true

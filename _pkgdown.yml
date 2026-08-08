@@ -1,4 +1,7 @@
 url: https://bart-turczynski.gitlab.io/pslr/
+# Build into `site/`, not the pkgdown default `docs/`: `docs/` is committed
+# source here (PRD, architecture, decisions, tracker snapshot), so a build into
+# it would overwrite hand-written material.
 destination: site
 
 template:
