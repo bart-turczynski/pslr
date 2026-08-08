@@ -1,7 +1,7 @@
 # Overrides the shared config: the shared `verify` hook wraps the command in a
 # bash invocation that breaks on R's verify command (it contains the double
-# quotes from the rcmdcheck --as-cran argument). Here the R code is passed as a
-# single argv element, so no shell quoting is involved.
+# quotes from the rcmdcheck --as-cran argument). The gate now lives in
+# tools/verify.sh, so there is no R source in this file to quote at all.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -29,11 +29,19 @@ repos:
       - id: air-format
   - repo: local
     hooks:
+      # The hosted pipeline no longer runs per push (see the `workflow:` rules
+      # in .gitlab-ci.yml), so this hook is not a mirror of CI any more — it is
+      # the gate. It runs the `standard` tier and then prints how long it has
+      # been since a `full` run. That staleness line is a nudge, never a block:
+      # a hook that refused a push until a 15-minute check had run would be
+      # bypassed with --no-verify within a fortnight, and then nothing would run
+      # at all. That applies to the tier itself too: `standard` is lint plus the
+      # test suite, not `R CMD check --as-cran`, because the check version took
+      # ~5 minutes and got skipped on its very first real push.
       - id: verify
-        name: verify (mirrors CI)
-        entry: Rscript -e
-        args:
-          - 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }; rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning")'
+        name: verify (standard tier + staleness nudge)
+        entry: tools/verify.sh
+        args: [standard]
         language: system
         pass_filenames: false
         always_run: true

@@ -38,3 +38,7 @@ tests/testthat/_snaps/
 
 # Fiberplane local issue tracking
 .fp/
+
+# Timestamp of the last successful `tools/verify.sh full`. Local state about
+# one machine's checkout, not a property of the source.
+.verify-stamp
