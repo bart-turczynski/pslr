@@ -14,14 +14,24 @@ Follow the tidyverse [style guide](https://style.tidyverse.org) and [design guid
 - Run tests: `testthat::test_local(reporter = "check")`; a single file with `testthat::test_local(filter = "matcher")` (matches `test-matcher.R`).
 - Regenerate docs: `devtools::document()` — rebuilds `man/` and `NAMESPACE` from the roxygen comments in `R/`.
 - After changing any `[[cpp11::register]]` signature in `src/`, run `cpp11::cpp_register()` to regenerate `R/cpp11.R` and the C bindings.
-- Verify gate (mirrors CI; the pre-push hook runs exactly this):
+- Verify gate — `tools/verify.sh`, which is the single definition of the gate. The pre-push hook, this dev loop and the release checklist all call it rather than restating the command:
 
   ```sh
-  Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }' \
-    && Rscript -e 'rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning")'
+  tools/verify.sh            # standard: lint + tests (the pre-push gate, ~2 min)
+  tools/verify.sh full       # + R CMD check --as-cran, NEWS/version, README, coverage, audits, PSL
+  tools/verify.sh matrix     # R 4.5 / 4.6 / devel via Docker
+  tools/verify.sh cran       # full + matrix + remote incoming checks; pre-submission
   ```
 
+  `R CMD check --as-cran` sits in `full`, not `standard`, on purpose: at ~5 minutes it made the pre-push hook something to be skipped rather than run, and a gate that is habitually bypassed protects nothing.
+
 - When no R REPL is available, run snippets with `Rscript -e "..."`.
+
+#### Keeping the full tier from going stale
+
+**At the start of a session in this repository, run `tools/verify.sh --staleness`.** It prints one line beginning `FRESH`, `STALE` or `NEVER`, and always exits 0. If it reports `STALE` or `NEVER`, say so and offer to run `tools/verify.sh full` — don't start it unasked, it takes about fifteen minutes.
+
+Key the decision on that command's output, never on the calendar. A rule like "run it on Saturdays" fires repeatedly on a working Saturday and never at all in a week you don't open the repo; elapsed time since the last successful run is the thing that actually matters.
 
 ### Code style
 
@@ -77,7 +87,11 @@ unrelated to your change.
 
 ### Pre-push verify gate
 
-On `git push`, the `verify` hook runs the project's verify command — the same chain CI runs. Server-side branch protection is unavailable on this GitHub plan, so this local pre-push gate is the stand-in for branch protection: it blocks a push whose tree would turn CI red.
+On `git push`, the `verify` hook runs `tools/verify.sh standard` — lint plus the test suite, about two minutes — and then prints a staleness line for the `full` tier.
+
+This hook is no longer a mirror of CI — it **is** the gate. GitLab runner minutes are a paid resource, so the hosted pipeline runs only on a `v*` tag and on manual trigger; nothing checks a branch push server-side. Everything CI used to do weekly is in `tools/verify.sh full`, run locally.
+
+The staleness line is deliberately non-blocking. A hook that refused a push until a fifteen-minute check had run would be met with `--no-verify` within a fortnight, and then neither tier would run.
 
 ### The tracker is not in git unless it is snapshotted
 

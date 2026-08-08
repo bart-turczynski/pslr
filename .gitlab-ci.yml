@@ -72,15 +72,28 @@ stages:
   - deploy
 
 workflow:
-  # Merge-request pipelines where an MR exists, branch pipelines otherwise, so
-  # a push to any branch is checked even before an MR is opened. That is the
-  # whole point: the tree that `--no-verify` let through still meets a gate.
+  # Runner minutes are a paid resource and this project ran out of them, so the
+  # hosted pipeline is reserved for the occasions that need a clean-room result
+  # on someone else's machine: a release, and a deliberate manual trigger.
+  #
+  # It used to run on every branch push and merge request. That gate has NOT
+  # been dropped, it has moved: `tools/verify.sh standard` runs in the pre-push
+  # hook, and everything the weekly schedules used to do is in
+  # `tools/verify.sh full`, nudged by the staleness line the hook prints. The
+  # trade is deliberate and worth naming — the gate is now on one machine, and
+  # a push made with `--no-verify` reaches `main` unchecked. Before a
+  # submission, `tools/verify.sh cran` is the backstop.
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-      when: never
-    - if: $CI_COMMIT_TAG
-    - if: $CI_COMMIT_BRANCH
+    # Releases. A `v*` tag is the one moment a second opinion on a clean
+    # checkout is worth paying for.
+    - if: $CI_COMMIT_TAG =~ /^v/
+    # Explicit human intent: Pipelines -> Run pipeline, or a pipeline trigger.
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+    # Schedules stay honoured if any are ever created, but none should exist
+    # while minutes are scarce — see PSLR-ugxanxne.
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - when: never
   auto_cancel:
     on_new_commit: interruptible
 
