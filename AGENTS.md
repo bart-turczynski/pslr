@@ -93,6 +93,12 @@ This hook is no longer a mirror of CI — it **is** the gate. GitLab runner minu
 
 The staleness line is deliberately non-blocking. A hook that refused a push until a fifteen-minute check had run would be met with `--no-verify` within a fortnight, and then neither tier would run.
 
+#### If a hook is killed, unstaged changes can disappear
+
+pre-commit stashes unstaged changes to `~/.cache/pre-commit/patch<timestamp>-<pid>` before running a hook and restores them when it finishes. A hook that *fails* still reaches the restore step; a hook that is **killed** does not, and the working tree silently loses those changes.
+
+This is the expected case here rather than a rare one: the standard tier takes about two minutes, which is exactly where some interactive runners cap. Before concluding the work is gone, look in `~/.cache/pre-commit/` for the orphaned patch and restore it with `git apply`.
+
 ### The tracker is not in git unless it is snapshotted
 
 `.fp/` is gitignored, so the issue tracker is a local database that no commit, no clone and no bundle has ever contained — while `NEWS.md`, the design documents under `docs/` and the test suite all cite `PSLR-*` ids as the reasoning behind what they assert. Regenerate the one copy that is in git with:

@@ -34,7 +34,11 @@ vignettes/*.html
 vignettes/*.pdf
 doc/
 Meta/
-tests/testthat/_snaps/
+
+# tests/testthat/_snaps/ is deliberately NOT ignored. testthat compares output
+# against the committed snapshot, so ignoring it would make every run write a
+# fresh baseline and the assertion could never fail. The scaffold this repo
+# started from ignored it; that was a mistake, not a policy.
 
 # Fiberplane local issue tracking
 .fp/
