@@ -10,7 +10,7 @@
 # loop and the release checklist all call it rather than restating the command.
 #
 # Usage:
-#   tools/verify.sh [standard|full|matrix|cran]
+#   tools/verify.sh [standard|full|matrix|sanitize|cran]
 #   tools/verify.sh --staleness
 #
 #   standard  lint + the test suite.  The per-push gate; what the pre-push hook
@@ -19,7 +19,10 @@
 #             README drift, coverage and both dependency audits.  Replaces the
 #             weekly CI schedules.  Records a timestamp in .verify-stamp.
 #   matrix    R 4.5 / 4.6 / devel via Docker.  Replaces the `full-check` job.
-#   cran      full + matrix + the remote incoming checks.  Pre-submission.
+#   sanitize  the test suite over the C++ matcher under ASAN + UBSAN, then
+#             under valgrind, via Docker.  Replaces the deleted rhub workflow.
+#   cran      full + matrix + sanitize + the remote incoming checks.
+#             Pre-submission.
 #
 # --staleness reports how long it has been since a successful `full` run and
 # always exits 0, so it is safe to call from a hook or an agent without
@@ -50,6 +53,10 @@ stale_after_days=7
 # R versions for the `matrix` tier. Keep `devel` last: it is by far the slowest
 # and the most likely to fail for reasons that are not the package's fault.
 matrix_versions=(4.5 4.6 devel)
+
+# R version for the `sanitize` tier. One release version is enough: the tier
+# exercises the C++ matcher, not R's version surface, and each leg is slow.
+sanitize_version=4.5
 
 # ---------------------------------------------------------------------------
 # Output helpers
@@ -305,6 +312,118 @@ run_matrix() {
   return "$status"
 }
 
+# Copy the tree out of the read-only bind mount, then drop the host's compiled
+# artifacts. src/*.o and src/*.so are gitignored but present in a working tree
+# that has ever been checked, and on this host they are Mach-O; `cp -a` carries
+# them into a Linux container, where pkgload will happily reuse them and fail
+# with "invalid ELF header". `R CMD INSTALL --preclean` below rebuilds them
+# anyway, so this only removes a dependency on that ordering -- but the failure
+# it prevents is one this tier hit for real while being written.
+sanitize_prepare='
+  cp -a /pkg /src && cd /src
+  rm -f src/*.o src/*.so
+  rm -rf check *.Rcheck
+'
+
+# Dependency closure for the sanitize legs. Shared verbatim by both so their
+# libraries hold the same versions; only the compiler flags differ.
+#
+# `R_LIBS`, not `R_LIBS_USER`: rocker's Renviron sets R_LIBS_USER itself, so the
+# container ignores an R_LIBS_USER passed with -e and every run reinstalls the
+# closure into the image's site-library, which --rm then discards.
+sanitize_deps='
+  mkdir -p /rlib
+  Rscript -e "if (!requireNamespace(\"pak\", quietly = TRUE)) install.packages(\"pak\", lib = \"/rlib\")"
+  Rscript -e ".libPaths(\"/rlib\"); pak::local_install_deps(dependencies = TRUE, lib = \"/rlib\")"
+  Rscript -e ".libPaths(\"/rlib\"); pak::pak(\"testthat\", lib = \"/rlib\")"
+'
+
+# Dynamic analysis of the C++ matcher: the coverage that .github/workflows/
+# rhub.yaml used to provide and that no longer exists anywhere (PSLR-avwlybsw).
+#
+# Not R-hub: rhub v2 dispatches to the maintainer's own GitHub Actions runners
+# and needs a GitHub repository, which the suspension removed (PSLR-thcaqtnw).
+# Not the ghcr.io/r-hub/containers images either: they are published amd64-only
+# and this is an arm64 host, so they run under emulation — which is both slow
+# and the wrong architecture to be testing pointer arithmetic on. These legs
+# build with the host's own toolchain instead, natively.
+#
+# The bind mount is read-only and the tree is copied inside the container: an
+# instrumented build writes src/*.o and src/*.so, and those must never land in
+# the working tree where a later `R CMD INSTALL` could pick them up.
+run_sanitize() {
+  need_cmd docker
+  local status=0
+
+  step "ASAN + UBSAN on R ${sanitize_version} (docker)"
+  # -fno-sanitize-recover=all makes UBSAN abort rather than print and continue;
+  # without it undefined behaviour is a line of stderr the exit status ignores.
+  if docker run --rm \
+    -v "$repo_root:/pkg:ro" \
+    -v "pslr-rlib-asan:/rlib" \
+    -e R_LIBS=/rlib \
+    "rocker/r-ver:${sanitize_version}" \
+    bash -c '
+      set -eu
+      '"$sanitize_prepare"'
+      '"$sanitize_deps"'
+      flags="-g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all"
+      flags="$flags -fno-omit-frame-pointer"
+      mkdir -p ~/.R
+      {
+        echo "CFLAGS = $flags"
+        echo "CXXFLAGS = $flags"
+        echo "LDFLAGS = -fsanitize=address,undefined"
+      } > ~/.R/Makevars
+      # --no-test-load: the post-install load test dlopens the instrumented .so
+      # from an R that has no sanitizer runtime loaded, and ASAN refuses that
+      # ("ASan runtime does not come first in initial library list"). The real
+      # load happens below, under LD_PRELOAD.
+      R CMD INSTALL --preclean --no-staged-install --no-test-load -l /rlib .
+      # R itself is not instrumented, so leak detection here would report R own
+      # allocations rather than the package. The valgrind leg covers leaks.
+      LD_PRELOAD="$(gcc -print-file-name=libasan.so)" \
+      ASAN_OPTIONS=detect_leaks=0 \
+      UBSAN_OPTIONS=print_stacktrace=1 \
+        Rscript -e "testthat::test_local(reporter = \"summary\", stop_on_failure = TRUE)"
+    '; then
+    ok "no ASAN or UBSAN findings"
+  else
+    fail "ASAN/UBSAN leg failed"
+    status=1
+  fi
+
+  step "valgrind memcheck on R ${sanitize_version} (docker)"
+  # A separate, uninstrumented build: valgrind cannot run ASAN-instrumented
+  # code, so the two legs cannot share a library.
+  if docker run --rm \
+    -v "$repo_root:/pkg:ro" \
+    -v "pslr-rlib-valgrind:/rlib" \
+    -e R_LIBS=/rlib \
+    "rocker/r-ver:${sanitize_version}" \
+    bash -c '
+      set -eu
+      apt-get update -qq
+      apt-get install -y --no-install-recommends valgrind >/dev/null
+      '"$sanitize_prepare"'
+      '"$sanitize_deps"'
+      R CMD INSTALL --preclean -l /rlib .
+      # --errors-for-leak-kinds=none: R is not valgrind-clean about its own
+      # allocations, so counting leak kinds as errors would fail this leg on
+      # every run whatever the package does. The gate is invalid reads and
+      # writes; the leak summary is printed for a human to read.
+      R -d "valgrind --tool=memcheck --leak-check=summary --errors-for-leak-kinds=none --error-exitcode=1" \
+        --no-save -e "testthat::test_local(reporter = \"summary\", stop_on_failure = TRUE)"
+    '; then
+    ok "no invalid reads or writes"
+  else
+    fail "valgrind leg failed"
+    status=1
+  fi
+
+  return "$status"
+}
+
 # ---------------------------------------------------------------------------
 # Tiers
 # ---------------------------------------------------------------------------
@@ -356,6 +475,11 @@ case "$tier" in
     printf '\n%smatrix verify passed%s\n' "$c_green" "$c_reset"
     ;;
 
+  sanitize)
+    run_sanitize
+    printf '\n%ssanitize verify passed%s\n' "$c_green" "$c_reset"
+    ;;
+
   cran)
     check_toolchain
     if [ -z "${OSSINDEX_TOKEN:-}" ]; then
@@ -380,6 +504,10 @@ case "$tier" in
     run_security
     run_psl_upstream
     run_matrix
+    # CRAN runs its own clang-ASAN/UBSAN and valgrind checks on submission.
+    # Finding a hit from their report rather than from this run is the
+    # expensive ordering, so the tier pays for it here.
+    run_sanitize
     summarise
     write_stamp
     printf '\n%scran tier passed — safe to submit%s\n' "$c_green" "$c_reset"

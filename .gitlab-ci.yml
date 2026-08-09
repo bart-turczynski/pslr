@@ -35,7 +35,10 @@
 #    GitLab equivalent to port. R-hub is unavailable while the account is
 #    suspended; pre-release platform checks move to manual invocation of
 #    `devtools::check_win_devel()` and `devtools::check_mac_release()`, neither
-#    of which involves GitHub.
+#    of which involves GitHub. The dynamic analysis R-hub carried — clang-ASAN,
+#    UBSAN and valgrind over the C++ matcher — is `tools/verify.sh sanitize`,
+#    which runs locally under Docker and is part of the `cran` tier
+#    (PSLR-avwlybsw).
 #
 # 4. SCHEDULES LIVE IN THE PROJECT SETTINGS, NOT IN THIS FILE. Unlike a GitHub
 #    `on: schedule:` block, a GitLab schedule is a project-level object. The

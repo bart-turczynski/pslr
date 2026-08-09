@@ -41,12 +41,43 @@ dev loop and the release checklist all call it rather than restating the command
 tools/verify.sh            # standard: lint + tests (the pre-push gate, ~2 min)
 tools/verify.sh full       # + R CMD check --as-cran, NEWS/version, README, coverage, audits, PSL
 tools/verify.sh matrix     # R 4.5 / 4.6 / devel via Docker
-tools/verify.sh cran       # full + matrix + remote incoming checks; pre-submission
+tools/verify.sh sanitize   # the suite over src/ under ASAN+UBSAN, then valgrind
+tools/verify.sh cran       # full + matrix + sanitize + remote incoming; pre-submission
 ```
 
 `R CMD check --as-cran` sits in `full`, not `standard`, on purpose: at ~5 minutes
 it made the pre-push hook something to be skipped rather than run, and a gate
 that is habitually bypassed protects nothing.
+
+### The sanitize tier
+
+`sanitize` is the dynamic analysis of the C++ matcher that
+`.github/workflows/rhub.yaml` used to provide. R-hub could not be ported: rhub v2
+dispatches to the maintainer's own GitHub Actions runners and needs a GitHub
+repository, which the account suspension removed. It runs two Docker legs, each
+building the package from a copy of the tree so instrumented objects never reach
+the working directory:
+
+1. **ASAN + UBSAN.** `-fsanitize=address,undefined` with
+   `-fno-sanitize-recover=all`, so undefined behaviour aborts instead of printing
+   a line the exit status ignores. `detect_leaks=0` — R itself is not
+   instrumented, so leak detection here would report R's allocations, not the
+   package's.
+2. **valgrind memcheck**, from a separate uninstrumented build, since valgrind
+   cannot run ASAN-instrumented code. The gate is invalid reads and writes;
+   `--errors-for-leak-kinds=none` keeps R's own un-freed allocations from failing
+   the leg on every run, and the leak summary is left for a human to read.
+
+   Baseline for reading that summary: the full suite reports on the order of 25 kB
+   "definitely lost", and none of it is the package's. Re-running restricted to
+   the test files that exercise the matcher (`matcher|query|extract|parser|engine`)
+   reports 0 bytes in 0 blocks. If a future run shows definite loss under that
+   filter, it is the package's and worth chasing.
+
+The legs build with the host's toolchain rather than the
+`ghcr.io/r-hub/containers/*` images, which are published amd64-only and would run
+under emulation on an arm64 host — the wrong architecture on which to be testing
+pointer arithmetic.
 
 ### Pre-push
 

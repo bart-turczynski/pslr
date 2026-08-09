@@ -6,24 +6,22 @@
 latest released version; please upgrade to the most recent release before
 reporting.
 
-| Version                     | Supported          |
-| --------------------------- | ------------------ |
-| Latest CRAN release (1.0.x) | :white_check_mark: |
-| Older releases              | :x:                |
+| Version              | Supported          |
+| -------------------- | ------------------ |
+| Latest CRAN release  | :white_check_mark: |
+| Older releases       | :x:                |
 
 ## Reporting a vulnerability
 
-**Please do not report security vulnerabilities through public GitHub issues.**
+**Please do not report security vulnerabilities through any public issue
+tracker.**
 
-Preferred channel — **GitHub private vulnerability reporting**:
+Email the maintainer at **bartek@turczynski.pl**. Put `pslr security` in the
+subject line so the report is not mistaken for an ordinary bug.
 
-1. Go to the repository's **Security** tab.
-2. Click **Report a vulnerability**.
-
-This opens a private security advisory visible only to the maintainers.
-
-If you cannot use that channel, email the maintainer at
-**bartek@turczynski.pl** instead.
+Email is the only channel guaranteed to reach the maintainer. This policy
+previously named GitHub private vulnerability reporting as the preferred
+route; that channel no longer resolves and must not be used.
 
 ## What to expect
 
