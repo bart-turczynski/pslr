@@ -8,6 +8,27 @@ maintainer (Bart Turczynski, ORCID 0000-0002-8788-7980); the address was
 normalized to drop the per-package plus-tag alias. No change of person or
 organization.
 
+### Expected additional NOTE from the next submission onwards
+
+The URL check will report the `BugReports` field as a 404:
+
+    URL: https://gitlab.com/bart-turczynski/pslr/-/issues
+    From: DESCRIPTION
+    Status: 404
+
+This is a false positive, and not one the package can fix. The page opens
+normally in a browser and accepts bug reports from anyone with a GitLab
+account; GitLab.com serves an HTTP 404 to non-browser clients requesting any
+issue-list path, as an anti-scraping measure. The same request against
+`https://gitlab.com/gitlab-org/gitlab/-/issues` — the issue tracker of GitLab
+itself — returns 404 under `curl` and under R's checker while being plainly
+live, which is how the behaviour was confirmed to be site-wide rather than a
+misconfiguration of this project. The repository root
+(`https://gitlab.com/bart-turczynski/pslr`) and every file path under it return
+200 to the same client.
+
+The project is public and the tracker is open: <https://gitlab.com/bart-turczynski/pslr>.
+
 ## Changes in this version
 
 This is a feature-and-compatibility release (1.0.1 -> 1.1.1). The intervening
