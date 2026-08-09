@@ -16,7 +16,8 @@ Description: A focused implementation of the Public Suffix List (PSL). Bundles a
     package.
 License: MIT + file LICENSE
 Language: en-US
-URL: https://gitlab.com/bart-turczynski/pslr,
+URL: https://bart-turczynski.gitlab.io/pslr/,
+    https://gitlab.com/bart-turczynski/pslr,
     https://CRAN.R-project.org/package=pslr,
     https://bart-turczynski.r-universe.dev
 BugReports: https://gitlab.com/bart-turczynski/pslr/-/issues

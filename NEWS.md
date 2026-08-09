@@ -1,6 +1,6 @@
 # pslr (development version)
 
-* The project's declared homepage and bug tracker moved from GitHub to GitLab: `URL` is now the GitLab repository plus the canonical CRAN and r-universe pages, and `BugReports` is the GitLab issue tracker. The GitHub URLs, including the `github.io` pkgdown site, no longer resolve (PSLR-thcaqtnw).
+* The project's declared homepage and bug tracker moved from GitHub to GitLab: `URL` is now the pkgdown site <https://bart-turczynski.gitlab.io/pslr/> and the GitLab repository, followed by the canonical CRAN and r-universe pages, and `BugReports` is the GitLab issue tracker. The GitLab repository and its documentation site are public, so every declared URL resolves for anyone; the GitHub URLs, including the old `github.io` pkgdown site, no longer do (PSLR-thcaqtnw).
 
 * New `psl_diff(old, new)` reports which rules were added, removed, or changed between two Public Suffix List snapshots that are already available locally. Either side accepts `"bundled"`, `"cache"`, a source-file path, a `psl_engine`, or a `psl_rules()` table; rows are keyed on a rule's canonical labels with any `*.` or `!` marker removed, so a kind change or an ICANN/PRIVATE move is one `changed` row rather than an unrelated removal and addition. It resolves no dates, downloads nothing, and activates neither side (PSLR-aeuaykkf).
 

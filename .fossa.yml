@@ -12,8 +12,16 @@
 #   `rurl` repo: main has no branch protection/rulesets and FOSSA posts no
 #   status check, so it already gates nothing — the red is internal to the
 #   FOSSA dashboard only.)
-#   The path excludes below still apply when the FOSSA CLI is run; the hosted
-#   GitHub-App integration may ignore this file entirely.
+#   The path excludes below still apply when the FOSSA CLI is run.
+#
+# WHY project.id STILL SAYS github.com
+#   It is a FOSSA-internal project locator, not a URL FOSSA fetches. It is the
+#   primary key of the existing project in the FOSSA dashboard and the string
+#   embedded in the two README badges, which resolve today. Repointing it at
+#   gitlab.com would not move the project — it would register a second, empty
+#   one, breaking both badges and abandoning the scan history. The canonical
+#   home of pslr is GitLab (PSLR-thcaqtnw); this line is a legacy identifier and
+#   deliberately not part of that move.
 version: 3
 
 project:

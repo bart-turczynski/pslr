@@ -1,93 +1,93 @@
 {
   "homepage_url_status": "Met",
-  "homepage_url_justification": "Project homepage is the pkgdown site https://bart-turczynski.github.io/pslr/ (also linked from DESCRIPTION URL).",
+  "homepage_url_justification": "Project homepage is the pkgdown site https://bart-turczynski.gitlab.io/pslr/ (also linked from DESCRIPTION URL).",
 
   "sites_https_status": "Met",
-  "sites_https_justification": "All project sites are served over HTTPS: https://github.com/bart-turczynski/pslr , https://bart-turczynski.github.io/pslr/ , and https://CRAN.R-project.org/package=pslr .",
+  "sites_https_justification": "All project sites are served over HTTPS: https://gitlab.com/bart-turczynski/pslr , https://bart-turczynski.gitlab.io/pslr/ , and https://CRAN.R-project.org/package=pslr .",
 
   "description_good_status": "Met",
-  "description_good_justification": "DESCRIPTION and README provide a clear, succinct description of what pslr does: https://github.com/bart-turczynski/pslr#readme",
+  "description_good_justification": "DESCRIPTION and README provide a clear, succinct description of what pslr does: https://gitlab.com/bart-turczynski/pslr#readme",
 
   "interact_status": "Met",
-  "interact_justification": "CONTRIBUTING.md explains how to interact with and contribute to the project: https://github.com/bart-turczynski/pslr/blob/main/CONTRIBUTING.md",
+  "interact_justification": "CONTRIBUTING.md explains how to interact with and contribute to the project: https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
 
   "contribution_status": "Met",
-  "contribution_justification": "Contribution guide at https://github.com/bart-turczynski/pslr/blob/main/CONTRIBUTING.md",
+  "contribution_justification": "Contribution guide at https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
 
   "contribution_requirements_status": "Met",
-  "contribution_requirements_justification": "CONTRIBUTING.md states the requirements for acceptable contributions (tests, passing lint via the .lintr style config, and the verify CI gate): https://github.com/bart-turczynski/pslr/blob/main/CONTRIBUTING.md",
+  "contribution_requirements_justification": "CONTRIBUTING.md states the requirements for acceptable contributions (tests, passing lint via the .lintr style config, and the verify CI gate): https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
 
   "license_location_status": "Met",
-  "license_location_justification": "LICENSE is at the repository top level: https://github.com/bart-turczynski/pslr/blob/main/LICENSE",
+  "license_location_justification": "LICENSE is at the repository top level: https://gitlab.com/bart-turczynski/pslr/-/blob/main/LICENSE",
 
   "floss_license_status": "Met",
-  "floss_license_justification": "Released under the MIT license: https://github.com/bart-turczynski/pslr/blob/main/LICENSE",
+  "floss_license_justification": "Released under the MIT license: https://gitlab.com/bart-turczynski/pslr/-/blob/main/LICENSE",
 
   "floss_license_osi_status": "Met",
   "floss_license_osi_justification": "MIT is an OSI-approved open source license: https://opensource.org/license/mit",
 
   "documentation_basics_status": "Met",
-  "documentation_basics_justification": "Basic documentation in the README and the pkgdown site, plus package vignettes: https://bart-turczynski.github.io/pslr/",
+  "documentation_basics_justification": "Basic documentation in the README and the pkgdown site, plus package vignettes: https://bart-turczynski.gitlab.io/pslr/",
 
   "documentation_interface_status": "Met",
-  "documentation_interface_justification": "Every exported function is documented (roxygen2 man pages) and published on the pkgdown reference index: https://bart-turczynski.github.io/pslr/reference/index.html",
+  "documentation_interface_justification": "Every exported function is documented (roxygen2 man pages) and published on the pkgdown reference index: https://bart-turczynski.gitlab.io/pslr/reference/index.html",
 
   "repo_public_status": "Met",
-  "repo_public_justification": "Public GitHub repository: https://github.com/bart-turczynski/pslr",
+  "repo_public_justification": "Public GitLab repository: https://gitlab.com/bart-turczynski/pslr",
 
   "repo_track_status": "Met",
-  "repo_track_justification": "All changes are tracked in git: https://github.com/bart-turczynski/pslr/commits/main",
+  "repo_track_justification": "All changes are tracked in git: https://gitlab.com/bart-turczynski/pslr/-/commits/main",
 
   "repo_interim_status": "Met",
-  "repo_interim_justification": "Interim development commits are publicly available on GitHub between releases: https://github.com/bart-turczynski/pslr/commits/main",
+  "repo_interim_justification": "Interim development commits are publicly available on GitLab between releases: https://gitlab.com/bart-turczynski/pslr/-/commits/main",
 
   "repo_distributed_status": "Met",
-  "repo_distributed_justification": "Uses git, a distributed version control system: https://github.com/bart-turczynski/pslr",
+  "repo_distributed_justification": "Uses git, a distributed version control system: https://gitlab.com/bart-turczynski/pslr",
 
   "version_unique_status": "Met",
   "version_unique_justification": "Each release carries a unique version (DESCRIPTION Version; CRAN enforces uniqueness): https://CRAN.R-project.org/package=pslr",
 
   "version_semver_status": "Met",
-  "version_semver_justification": "Uses semantic-style x.y.z versioning; releases visible at https://github.com/bart-turczynski/pslr/releases",
+  "version_semver_justification": "Uses semantic-style x.y.z versioning; the released versions are tagged v1.0.0 through v1.1.1 at https://gitlab.com/bart-turczynski/pslr/-/tags",
 
   "version_tags_status": "Met",
-  "version_tags_justification": "Releases are tagged in git and published as GitHub Releases: https://github.com/bart-turczynski/pslr/releases",
+  "version_tags_justification": "Every release is tagged in git as v<version> and the tags are published in the public repository: https://gitlab.com/bart-turczynski/pslr/-/tags",
 
   "release_notes_status": "Met",
-  "release_notes_justification": "NEWS.md documents user-facing changes for each release: https://github.com/bart-turczynski/pslr/blob/main/NEWS.md",
+  "release_notes_justification": "NEWS.md documents user-facing changes for each release: https://gitlab.com/bart-turczynski/pslr/-/blob/main/NEWS.md",
 
   "release_notes_vulns_status": "Met",
-  "release_notes_vulns_justification": "No publicly known vulnerabilities have been fixed to date; NEWS.md records all changes: https://github.com/bart-turczynski/pslr/blob/main/NEWS.md",
+  "release_notes_vulns_justification": "No publicly known vulnerabilities have been fixed to date; NEWS.md records all changes: https://gitlab.com/bart-turczynski/pslr/-/blob/main/NEWS.md",
 
   "report_url_status": "Met",
-  "report_url_justification": "Bug tracker: https://github.com/bart-turczynski/pslr/issues",
+  "report_url_justification": "Bug tracker: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "report_tracker_status": "Met",
-  "report_tracker_justification": "GitHub Issues serve as the bug tracker: https://github.com/bart-turczynski/pslr/issues",
+  "report_tracker_justification": "GitLab Issues serve as the bug tracker: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "report_process_status": "Met",
-  "report_process_justification": "Users submit bug reports through the GitHub issue tracker: https://github.com/bart-turczynski/pslr/issues",
+  "report_process_justification": "Users submit bug reports through the GitLab issue tracker, which DESCRIPTION declares as BugReports: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "report_responses_status": "Met",
-  "report_responses_justification": "Maintainer responds to issue reports on the tracker: https://github.com/bart-turczynski/pslr/issues",
+  "report_responses_justification": "Maintainer responds to issue reports on the tracker: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "enhancement_responses_status": "Met",
-  "enhancement_responses_justification": "Maintainer responds to enhancement requests on the tracker: https://github.com/bart-turczynski/pslr/issues",
+  "enhancement_responses_justification": "Maintainer responds to enhancement requests on the tracker: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "report_archive_status": "Met",
-  "report_archive_justification": "GitHub Issues provide a publicly available, searchable archive of reports and responses: https://github.com/bart-turczynski/pslr/issues?q=is%3Aissue",
+  "report_archive_justification": "GitLab Issues provide a publicly available, searchable archive of reports and responses, open and closed: https://gitlab.com/bart-turczynski/pslr/-/issues?state=all",
 
   "vulnerability_report_process_status": "Met",
-  "vulnerability_report_process_justification": "The vulnerability-reporting process is published in the security policy: https://github.com/bart-turczynski/pslr/security/policy (source: https://github.com/bart-turczynski/pslr/blob/main/SECURITY.md ). Reports go through GitHub private vulnerability reporting, with maintainer email as a documented fallback.",
+  "vulnerability_report_process_justification": "The vulnerability-reporting process is published in the security policy: https://gitlab.com/bart-turczynski/pslr/-/blob/main/SECURITY.md . Reports go to the maintainer by email at bartek@turczynski.pl with 'pslr security' in the subject; the policy states explicitly that vulnerabilities must not be filed on any public issue tracker.",
 
   "vulnerability_report_private_status": "Met",
-  "vulnerability_report_private_justification": "GitHub private vulnerability reporting (private security advisories) is enabled, providing a confidential channel: https://github.com/bart-turczynski/pslr/security/advisories/new",
+  "vulnerability_report_private_justification": "Private reporting is by direct email to the maintainer (bartek@turczynski.pl), documented as the sole confidential channel in SECURITY.md: https://gitlab.com/bart-turczynski/pslr/-/blob/main/SECURITY.md . The project deliberately does not rely on a forge-hosted advisory workflow, so the channel does not depend on the maintainer's account status at any single forge.",
 
   "vulnerability_report_response_status": "Met",
-  "vulnerability_report_response_justification": "SECURITY.md commits to acknowledging reports within 7 days and coordinating a fix and disclosure: https://github.com/bart-turczynski/pslr/blob/main/SECURITY.md",
+  "vulnerability_report_response_justification": "SECURITY.md commits to acknowledging reports within 7 days and coordinating a fix and disclosure: https://gitlab.com/bart-turczynski/pslr/-/blob/main/SECURITY.md",
 
   "build_status": "Met",
-  "build_justification": "Builds with the standard R toolchain (R CMD build / INSTALL, devtools) plus cpp11 for the C++ PSL matcher: https://github.com/bart-turczynski/pslr",
+  "build_justification": "Builds with the standard R toolchain (R CMD build / INSTALL, devtools) plus cpp11 for the C++ PSL matcher: https://gitlab.com/bart-turczynski/pslr",
 
   "build_common_tools_status": "Met",
   "build_common_tools_justification": "Uses the standard, widely available R build tooling with GCC/Clang via cpp11.",
@@ -96,31 +96,31 @@
   "build_floss_tools_justification": "R, GCC/Clang, and the entire build toolchain are free/open source software: https://www.r-project.org/",
 
   "test_status": "Met",
-  "test_justification": "Automated test suite using testthat (edition 3): https://github.com/bart-turczynski/pslr/tree/main/tests/testthat",
+  "test_justification": "Automated test suite using testthat (edition 3): https://gitlab.com/bart-turczynski/pslr/-/tree/main/tests/testthat",
 
   "test_invocation_status": "Met",
   "test_invocation_justification": "Tests run via devtools::test() and as part of R CMD check.",
 
   "test_most_status": "Met",
-  "test_most_justification": "Coverage is measured with covr and reported to Codecov: https://app.codecov.io/gh/bart-turczynski/pslr",
+  "test_most_justification": "Coverage is measured with covr in the `coverage` job of .gitlab-ci.yml, which publishes a Cobertura report and a coverage percentage on every hosted pipeline: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "test_policy_status": "Met",
-  "test_policy_justification": "CONTRIBUTING.md requires tests for new features and bug fixes: https://github.com/bart-turczynski/pslr/blob/main/CONTRIBUTING.md",
+  "test_policy_justification": "CONTRIBUTING.md requires tests for new features and bug fixes: https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
 
   "tests_are_added_status": "Met",
   "tests_are_added_justification": "New functionality ships with tests, enforced in review.",
 
   "tests_documented_added_status": "Met",
-  "tests_documented_added_justification": "The test-addition policy is documented in CONTRIBUTING.md: https://github.com/bart-turczynski/pslr/blob/main/CONTRIBUTING.md",
+  "tests_documented_added_justification": "The test-addition policy is documented in CONTRIBUTING.md: https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
 
   "warnings_status": "Met",
-  "warnings_justification": "Warnings are surfaced via R CMD check and lintr in CI: https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml",
+  "warnings_justification": "Warnings are surfaced via R CMD check and lintr, run by `tools/verify.sh` in the pre-push hook and again in the hosted CI pipeline: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "warnings_fixed_status": "Met",
   "warnings_fixed_justification": "Warnings are treated as errors and fixed; R CMD check is kept clean.",
 
   "warnings_strict_status": "Met",
-  "warnings_strict_justification": "CI sets LINTR_ERROR_ON_LINT=true so any lint fails the build: https://github.com/bart-turczynski/pslr/blob/main/.github/workflows/verify.yml",
+  "warnings_strict_justification": "LINTR_ERROR_ON_LINT=true, so any lint fails the build, and the `check` job runs R CMD check --as-cran with error_on = \"warning\" — a warning is a build failure, not a report: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "know_secure_design_status": "Met",
   "know_secure_design_justification": "The maintainer applies secure design principles; pslr defensively handles untrusted host strings through its C++ PSL matcher, enforcing strict input parsing and trie-based label matching.",
@@ -156,59 +156,59 @@
   "crypto_verification_private_justification": "pslr does not establish network connections.",
 
   "delivery_mitm_status": "Met",
-  "delivery_mitm_justification": "Distributed via CRAN and GitHub over HTTPS; CRAN publishes per-package checksums: https://CRAN.R-project.org/package=pslr",
+  "delivery_mitm_justification": "Distributed via CRAN and GitLab over HTTPS; CRAN publishes per-package checksums: https://CRAN.R-project.org/package=pslr",
 
   "delivery_unsigned_status": "Met",
-  "delivery_unsigned_justification": "All distribution downloads are served over HTTPS (CRAN, GitHub, r-universe): https://CRAN.R-project.org/package=pslr",
+  "delivery_unsigned_justification": "All distribution downloads are served over HTTPS (CRAN, GitLab, r-universe): https://CRAN.R-project.org/package=pslr",
 
   "vulnerabilities_fixed_60_days_status": "Met",
-  "vulnerabilities_fixed_60_days_justification": "No outstanding known vulnerabilities; tracker at https://github.com/bart-turczynski/pslr/issues",
+  "vulnerabilities_fixed_60_days_justification": "No outstanding known vulnerabilities; tracker at https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "vulnerabilities_critical_fixed_status": "Met",
   "vulnerabilities_critical_fixed_justification": "No known unfixed critical vulnerabilities.",
 
   "static_analysis_status": "Met",
-  "static_analysis_justification": "lintr (full-package lint), R CMD check, and goodpractice are run; FOSSA scans dependencies for license and security issues: https://github.com/bart-turczynski/pslr/blob/main/.github/workflows/verify.yml",
+  "static_analysis_justification": "lintr (full-package lint), R CMD check, and goodpractice are run; FOSSA scans dependencies for license and security issues: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "static_analysis_common_vulnerabilities_status": "Met",
-  "static_analysis_common_vulnerabilities_justification": "R CMD check plus lintr cover common defect classes; FOSSA covers dependency vulnerabilities; R CMD check --as-cran flags C/C++ compiler warnings from the PSL matcher: https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml",
+  "static_analysis_common_vulnerabilities_justification": "R CMD check plus lintr cover common defect classes; FOSSA covers dependency vulnerabilities; R CMD check --as-cran flags C/C++ compiler warnings from the PSL matcher: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "static_analysis_fixed_status": "Met",
   "static_analysis_fixed_justification": "Static-analysis findings are addressed before merge.",
 
   "static_analysis_often_status": "Met",
-  "static_analysis_often_justification": "lintr runs on every CI build (each push and pull request): https://github.com/bart-turczynski/pslr/blob/main/.github/workflows/verify.yml",
+  "static_analysis_often_justification": "lintr runs on every change: `tools/verify.sh standard` executes it in the pre-push hook, so no commit reaches the default branch without it, and the `lint` job repeats it in every hosted pipeline: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
 
   "dynamic_analysis_status": "Met",
-  "dynamic_analysis_justification": "Before releases the rhub workflow runs R CMD check — including the testthat suite — on the clang-ASAN/UBSAN and valgrind containers, exercising the C++ PSL matcher: https://github.com/bart-turczynski/pslr/blob/main/.github/workflows/rhub.yaml",
+  "dynamic_analysis_justification": "Before releases, `tools/verify.sh sanitize` runs R CMD check — including the testthat suite — under the clang-ASAN/UBSAN and valgrind containers in Docker, exercising the C++ PSL matcher. It is part of the `cran` verify tier that gates a submission: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
 
   "dynamic_analysis_unsafe_status": "Met",
-  "dynamic_analysis_unsafe_justification": "pslr ships C++ code in src/ (the PSL matcher: cpp11.cpp, matcher.cpp). The rhub workflow runs the package under clang-ASAN/UBSAN (memory errors and undefined behaviour) and valgrind (memory leaks and illegal memory access) before releases: https://github.com/bart-turczynski/pslr/blob/main/.github/workflows/rhub.yaml",
+  "dynamic_analysis_unsafe_justification": "pslr ships C++ code in src/ (the PSL matcher: cpp11.cpp, matcher.cpp). `tools/verify.sh sanitize` runs the package under clang-ASAN/UBSAN (memory errors and undefined behaviour) and valgrind (memory leaks and illegal memory access) before releases: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
 
   "dynamic_analysis_enable_assertions_status": "Met",
-  "dynamic_analysis_enable_assertions_justification": "pslr's automated test suite uses testthat, whose expectations (expect_*) are assertions checked at runtime during dynamic analysis on every CI run: https://github.com/bart-turczynski/pslr/tree/main/tests/testthat . The rhub workflow additionally runs the package under the clang-ASAN/UBSAN and valgrind configurations, enabling runtime memory and undefined-behaviour assertions over the C++ PSL matcher: https://github.com/bart-turczynski/pslr/blob/main/.github/workflows/rhub.yaml",
+  "dynamic_analysis_enable_assertions_justification": "pslr's automated test suite uses testthat, whose expectations (expect_*) are assertions checked at runtime during dynamic analysis on every CI run: https://gitlab.com/bart-turczynski/pslr/-/tree/main/tests/testthat . The `tools/verify.sh sanitize` tier additionally runs the package under the clang-ASAN/UBSAN and valgrind configurations, enabling runtime memory and undefined-behaviour assertions over the C++ PSL matcher: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
 
   "dynamic_analysis_fixed_status": "Met",
   "dynamic_analysis_fixed_justification": "Any issues surfaced by the sanitizer or valgrind runs are fixed before release.",
 
   "test_continuous_integration_status": "Met",
-  "test_continuous_integration_justification": "GitHub Actions (verify.yml) runs lint + R CMD check + coverage on every push and pull request: https://github.com/bart-turczynski/pslr/actions/workflows/verify.yml",
+  "test_continuous_integration_justification": "Every change is built and tested before it lands: `tools/verify.sh standard` (lint, R CMD check, full testthat suite) runs in the pre-push hook on each push. Hosted GitLab CI (.gitlab-ci.yml) adds an independent clean-checkout run — lint, R CMD check --as-cran with error_on='warning', coverage, and an R devel/release/oldrel-1 matrix — on v* release tags, on manually triggered pipelines and on schedules. Hosted runs are gated to those events rather than every push because GitLab.com shared-runner minutes are a metered, paid resource for this project: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "discussion_status": "Met",
-  "discussion_justification": "GitHub Issues provide a public forum for project discussion: https://github.com/bart-turczynski/pslr/issues",
+  "discussion_justification": "GitLab Issues provide a public forum for project discussion: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "no_leaked_credentials_status": "Met",
-  "no_leaked_credentials_justification": "No credentials are committed to the repository; FOSSA scans the repo: https://github.com/bart-turczynski/pslr",
+  "no_leaked_credentials_justification": "No credentials are committed to the repository; FOSSA scans the repo: https://gitlab.com/bart-turczynski/pslr",
 
   "english_status": "Met",
-  "english_justification": "Documentation and issue-tracker interaction are conducted in English (Language: en-US): https://github.com/bart-turczynski/pslr#readme",
+  "english_justification": "Documentation and issue-tracker interaction are conducted in English (Language: en-US): https://gitlab.com/bart-turczynski/pslr#readme",
 
   "hardening_status": "N/A",
   "hardening_justification": "Hardening mechanisms (e.g. HTTP security headers) apply to web applications; pslr is an R library.",
 
   "sites_password_security_status": "N/A",
-  "sites_password_security_justification": "Project sites (GitHub, CRAN) manage their own authentication; pslr operates no site with user passwords.",
+  "sites_password_security_justification": "Project sites (GitLab, CRAN) manage their own authentication; pslr operates no site with user passwords.",
 
   "maintained_status": "Met",
-  "maintained_justification": "Actively maintained: recent CRAN releases, frequent commits, and responsive issue handling: https://github.com/bart-turczynski/pslr/commits/main"
+  "maintained_justification": "Actively maintained: recent CRAN releases, frequent commits, and responsive issue handling: https://gitlab.com/bart-turczynski/pslr/-/commits/main"
 }

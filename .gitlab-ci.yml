@@ -59,8 +59,12 @@
 #      PSL_BOT_TOKEN   project access token, scopes `api` + `write_repository`.
 #                      Used by psl-upstream-check (pushes a branch, opens an MR)
 #                      and codemeta (commits a regenerated codemeta.json).
-#      OSSINDEX_USER   the literal string "x", NOT an email — see the note in
-#      OSSINDEX_TOKEN  .github/workflows/security-audit.yml, which was hard-won.
+#      OSSINDEX_USER   the literal string "x", NOT an email. This was hard-won
+#      OSSINDEX_TOKEN  and is recorded here because the GitHub workflow that
+#                      first documented it is no longer reachable: OSS Index
+#                      authenticates with the API token as the password and
+#                      ignores the username, but rejects the request outright
+#                      if the username looks like an account identifier.
 #    GITLAB_PAT is deliberately NOT in that list. DESCRIPTION pins
 #    `Remotes: gitlab::bart-turczynski/punycoder`, which needed a credential
 #    only while that project was private; it was made public on 2026-08-07, so
@@ -90,9 +94,14 @@ workflow:
     # Releases. A `v*` tag is the one moment a second opinion on a clean
     # checkout is worth paying for.
     - if: $CI_COMMIT_TAG =~ /^v/
-    # Explicit human intent: Pipelines -> Run pipeline, or a pipeline trigger.
+    # Explicit human intent: Pipelines -> Run pipeline, a pipeline trigger, or
+    # `glab ci run` / POST /projects/:id/pipeline, which report source "api".
+    # "api" is here so the documentation site can be redeployed from a terminal
+    # between releases; without it the pages job below could only ever publish
+    # on a `v*` tag.
     - if: $CI_PIPELINE_SOURCE == "web"
     - if: $CI_PIPELINE_SOURCE == "trigger"
+    - if: $CI_PIPELINE_SOURCE == "api"
     # Schedules stay honoured if any are ever created, but none should exist
     # while minutes are scarce — see PSLR-ugxanxne.
     - if: $CI_PIPELINE_SOURCE == "schedule"
@@ -655,14 +664,20 @@ codemeta:
       allow_failure: true
 
 # ---------------------------------------------------------------------------
-# Documentation site — gated, pending the visibility decision
+# Documentation site
 # ---------------------------------------------------------------------------
 
-# _pkgdown.yml already names https://bart-turczynski.gitlab.io/pslr/ and builds
-# into site/, but the project's pages_access_level is 'private', so publishing
-# would produce a URL that DESCRIPTION advertises and visitors cannot open.
-# That decision belongs to PSLR-thcaqtnw, so this job stays inert until the
-# CI/CD variable PKGDOWN_PAGES is set to "true".
+# Live at https://bart-turczynski.gitlab.io/pslr/, which _pkgdown.yml names and
+# DESCRIPTION declares. PSLR-thcaqtnw resolved the visibility question that used
+# to gate this job behind a PKGDOWN_PAGES variable: the project and its Pages
+# are public as of 2026-08-09, so the gate is gone and the job is ordinary.
+#
+# When this actually publishes is decided by the `workflow:` rules at the top of
+# the file, not by the rules below: branch pushes create no pipeline at all, so
+# in practice the site rebuilds on a `v*` release tag or on demand via
+# `glab ci run --branch main`. Between releases the published site therefore
+# documents the last release, which is the right default for a CRAN package —
+# run it by hand after merging documentation worth publishing early.
 pages:
   extends: .r-deps
   stage: deploy
@@ -679,7 +694,5 @@ pages:
     paths:
       - public
   rules:
-    - if: $PKGDOWN_PAGES != "true"
-      when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_COMMIT_TAG =~ /^v/
