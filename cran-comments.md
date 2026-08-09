@@ -49,7 +49,14 @@ package is live on CRAN.
   (`devtools::check_win_devel()`) and mac-builder
   (`devtools::check_mac_release()`).
 * R-hub is not used for this package: `rhub` v2 dispatches its checks to GitHub
-  Actions, and this package is hosted on GitLab.
+  Actions, and this package is hosted on GitLab. The dynamic analysis R-hub
+  provided is run locally instead, as `tools/verify.sh sanitize`: the test suite
+  over the compiled matcher under ASAN and UBSAN
+  (`-fsanitize=address,undefined -fno-sanitize-recover=all`), then under
+  valgrind memcheck. For this release both legs are clean: no ASAN or UBSAN
+  findings, and valgrind reports 0 errors from 0 contexts over the full test
+  suite. Restricted to the test files that exercise the matcher, valgrind also
+  reports no definite or indirect loss.
 
 ## Portability
 

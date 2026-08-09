@@ -46,6 +46,8 @@
 
 ## Internal
 
+* New `tools/verify.sh sanitize` tier runs the test suite over the C++ matcher under ASAN and UBSAN, then under valgrind, restoring the dynamic analysis that `.github/workflows/rhub.yaml` provided until it was deleted. R-hub itself could not be ported — rhub v2 dispatches to the maintainer's own GitHub Actions runners — and the published R-hub containers are amd64-only, so both legs build natively with the host toolchain instead. The tier also runs as part of `cran` (PSLR-avwlybsw).
+
 * The `.github/` tree is removed. The nine workflows had already been replaced by named jobs in `.gitlab-ci.yml` (PSLR-totktvlq) and the GitHub repository now returns 403, so nothing could trigger them; `dependabot.yml` and the issue and pull-request templates are GitHub-only surfaces that GitLab never reads. `data-raw/psl_snapshot_meta.R` named one of the deleted workflows as its consumer and now names the `psl-upstream-check` job that actually calls it (PSLR-bbuuafin).
 
 * Agent instructions are consolidated: `AGENTS.md` now carries only what is true for every task and points at `docs/r-conventions.md` and `docs/git-workflow.md`, and `CLAUDE.md` is the single line `@AGENTS.md`. It had reached 1197 words while `CLAUDE.md` imported `FP_CLAUDE.md` alongside it, so every request loaded that file plus a near-duplicate of `FP_AGENTS.md`. The audit also found `AGENTS.md` claiming TOML validation the hooks did not do and `CONTRIBUTING.md` naming a `features/` directory that does not exist and a hand-run `lintr`/`rcmdcheck` pair that bypasses `tools/verify.sh`; `check-toml` is added, both claims are corrected, `man/`, `NAMESPACE` and the cpp11 glue are marked `linguist-generated`, and `_pkgdown.yml` records why it builds into `site/` (PSLR-yddiszjh).
