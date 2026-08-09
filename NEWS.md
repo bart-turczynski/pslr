@@ -44,6 +44,8 @@
 
 * Loading `pslr` no longer warns `strings not representable in native encoding` under a non-UTF-8 locale, which every dependent package inherited on CRAN's Windows checks and win-builder. Non-ASCII strings in the bundled index now carry explicit UTF-8 marks, as do non-ASCII query results (PSLR-jzdhhugc).
 
+* Security reports now go to the maintainer by email. `SECURITY.md` named GitHub private vulnerability reporting as the preferred channel and told reporters to use the repository's Security tab; that channel stopped resolving with the account suspension, so the documented way to report a vulnerability privately led nowhere (PSLR-cftgnuxo).
+
 ## Internal
 
 * New `tools/verify.sh sanitize` tier runs the test suite over the C++ matcher under ASAN and UBSAN, then under valgrind, restoring the dynamic analysis that `.github/workflows/rhub.yaml` provided until it was deleted. R-hub itself could not be ported — rhub v2 dispatches to the maintainer's own GitHub Actions runners — and the published R-hub containers are amd64-only, so both legs build natively with the host toolchain instead. The tier also runs as part of `cran` (PSLR-avwlybsw).
