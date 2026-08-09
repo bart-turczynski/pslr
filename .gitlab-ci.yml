@@ -685,6 +685,23 @@ pages:
   script:
     - Rscript -e 'pak::pak("pkgdown")'
     - Rscript -e 'pak::local_install(upgrade = FALSE)'
+    # pkgdown renders every root-level .md that is not README/NEWS/LICENSE:
+    # pkgdown:::package_mds() hardcodes that skip list, so _pkgdown.yml has no
+    # setting that can exclude a file. Left alone it publishes AGENTS.html,
+    # CLAUDE.html, FP_AGENTS.html and FP_CLAUDE.html and folds their text into
+    # search.json, where it outranks real documentation on ordinary queries.
+    # Those four are agent tooling contracts, not user documentation.
+    #
+    # Move them out of the source tree rather than deleting the rendered output:
+    # deleting leaves the search index pointing at pages that 404. This runs
+    # after local_install so the installed package is byte-identical to a normal
+    # build, and the CI checkout is disposable, so nothing is restored after.
+    #
+    # This deliberately fails the job if one of the four is renamed or removed —
+    # the list is a claim about the repository, and a silent skip would quietly
+    # start publishing the file again.
+    - mkdir -p /tmp/agent-md
+    - mv AGENTS.md CLAUDE.md FP_AGENTS.md FP_CLAUDE.md /tmp/agent-md/
     - >-
       Rscript -e 'pkgdown::build_site(new_process = FALSE, install = FALSE)'
     # GitLab Pages publishes `public/`; _pkgdown.yml builds into `site/`

@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* The documentation site no longer publishes the repository's agent-instruction files (`AGENTS.md`, `CLAUDE.md`, `FP_AGENTS.md`, `FP_CLAUDE.md`). pkgdown renders every root-level Markdown file it does not otherwise recognize, so all four were reachable on the public site and their text was folded into the site search index, where it outranked the reference documentation on ordinary queries (PSLR-wclmdkju).
+
 * The project's declared homepage and bug tracker moved from GitHub to GitLab: `URL` is now the pkgdown site <https://bart-turczynski.gitlab.io/pslr/> and the GitLab repository, followed by the canonical CRAN and r-universe pages, and `BugReports` is the GitLab issue tracker. The GitLab repository and its documentation site are public, so every declared URL resolves for anyone; the GitHub URLs, including the old `github.io` pkgdown site, no longer do (PSLR-thcaqtnw).
 
 * New `psl_diff(old, new)` reports which rules were added, removed, or changed between two Public Suffix List snapshots that are already available locally. Either side accepts `"bundled"`, `"cache"`, a source-file path, a `psl_engine`, or a `psl_rules()` table; rows are keyed on a rule's canonical labels with any `*.` or `!` marker removed, so a kind change or an ICANN/PRIVATE move is one `changed` row rather than an unrelated removal and addition. It resolves no dates, downloads nothing, and activates neither side (PSLR-aeuaykkf).
