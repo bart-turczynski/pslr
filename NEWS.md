@@ -50,6 +50,8 @@
 
 ## Internal
 
+* The `Remotes:` entry for `punycoder` is now pinned to a commit. It named a repository and no ref, so a source install resolved to whatever punycoder's default branch happened to be that day — which is how pslr silently absorbed punycoder's move from Unicode 16.0.0 to 17.0.0 and the `uts46-nontransitional-std3-v1` → `-v2` profile bump, with nothing recording that the dependency's behavior had changed underneath it. The pin is the full 40-character sha rather than an abbreviation, because an abbreviated sha stops being verifiable as soon as it is no longer some ref's tip. `Remotes:` is development-only and CRAN ignores it; the `Imports:` floor is a separate question and has not moved (PSLR-uxklngwq step 1).
+
 * New `tools/verify.sh sanitize` tier runs the test suite over the C++ matcher under ASAN and UBSAN, then under valgrind, restoring the dynamic analysis that `.github/workflows/rhub.yaml` provided until it was deleted. R-hub itself could not be ported — rhub v2 dispatches to the maintainer's own GitHub Actions runners — and the published R-hub containers are amd64-only, so both legs build natively with the host toolchain instead. The tier also runs as part of `cran` (PSLR-avwlybsw).
 
 * The `.github/` tree is removed. The nine workflows had already been replaced by named jobs in `.gitlab-ci.yml` (PSLR-totktvlq) and the GitHub repository now returns 403, so nothing could trigger them; `dependabot.yml` and the issue and pull-request templates are GitHub-only surfaces that GitLab never reads. `data-raw/psl_snapshot_meta.R` named one of the deleted workflows as its consumer and now names the `psl-upstream-check` job that actually calls it (PSLR-bbuuafin).

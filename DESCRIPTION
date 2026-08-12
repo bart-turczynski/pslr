@@ -42,7 +42,7 @@ Suggests:
     testthat (>= 3.0.0),
     withr
 Remotes:
-    gitlab::bart-turczynski/punycoder
+    gitlab::bart-turczynski/punycoder@ec2643c7783e3aed3067ea85238788501c51b282
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.0.0
