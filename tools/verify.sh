@@ -151,24 +151,58 @@ run_tests() {
   ok "tests passed"
 }
 
+# rcmdcheck summarises whatever 00check.log holds, and a check that aborted
+# early leaves a log with no findings, which reads as a clean pass. Insist the
+# log shows a run that reached the end.
+#
+# This lives in a variable, and both call sites go through run_check, because
+# the `cran` tier once inlined its own rcmdcheck call to enable the remote
+# incoming checks and did not carry the guard with it. On 2026-09-05 a
+# 60-second timeout fetching CRAN's archive.rds halted the check at its first
+# step and the tier reported "0 errors | 0 warnings | 0 notes", then
+# "safe to submit" (PSLR-zibafvbq). The guard was missing from precisely the
+# tier that gates a submission, and from the one form of the check whose
+# network dependency makes an early abort likely.
+check_ran_to_completion='
+  log <- readLines(file.path(chk[["checkdir"]], "00check.log"), warn = FALSE)
+  if (any(grepl("Execution halted", log, fixed = TRUE))) {
+    stop("R CMD check aborted: Execution halted in 00check.log")
+  }
+  if (!any(grepl("^Status:", log))) {
+    stop("R CMD check did not run to completion: no Status line in 00check.log")
+  }
+'
+
+# run_check [remote]
+#
+#   (no argument)  mirrors the `check` job: --no-manual, incoming checks local.
+#   remote         the pre-submission form: builds the manual and enables the
+#                  CRAN incoming checks that talk to CRAN.
 run_check() {
-  step "R CMD check --as-cran"
-  # Mirrors the `check` job: rcmdcheck summarises whatever 00check.log holds,
-  # and a check that aborted early leaves a log with no findings, which reads
-  # as a clean pass. Insist the log shows a run that reached the end.
-  Rscript -e '
-    chk <- rcmdcheck::rcmdcheck(
-      args = c("--no-manual", "--as-cran"), error_on = "warning",
-      check_dir = "check"
-    )
-    log <- readLines(file.path(chk[["checkdir"]], "00check.log"), warn = FALSE)
-    if (any(grepl("Execution halted", log, fixed = TRUE))) {
-      stop("R CMD check aborted: Execution halted in 00check.log")
-    }
-    if (!any(grepl("^Status:", log))) {
-      stop("R CMD check did not run to completion: no Status line in 00check.log")
-    }
-  '
+  if [ "${1:-}" = "remote" ]; then
+    step "R CMD check --as-cran (remote incoming checks enabled)"
+    # R runs the check in a separate process, so the parent's options() do not
+    # reach it; R_DEFAULT_INTERNET_TIMEOUT seeds the child's `timeout` option.
+    # The default 60s is not enough for CRAN's archive.rds on a slow day, which
+    # is what aborted the check in PSLR-zibafvbq.
+    _R_CHECK_CRAN_INCOMING_REMOTE_=true \
+    R_DEFAULT_INTERNET_TIMEOUT=300 \
+    Rscript -e '
+      chk <- rcmdcheck::rcmdcheck(
+        args = "--as-cran", error_on = "warning", check_dir = "check"
+      )
+      '"$check_ran_to_completion"'
+    '
+  else
+    step "R CMD check --as-cran"
+    Rscript -e '
+      chk <- rcmdcheck::rcmdcheck(
+        args = c("--no-manual", "--as-cran"), error_on = "warning",
+        check_dir = "check"
+      )
+      '"$check_ran_to_completion"'
+    '
+  fi
   ok "check complete"
 }
 
@@ -492,11 +526,7 @@ case "$tier" in
     # `repos` at a binary mirror with no src/contrib, so the fetch 404s and
     # aborts the check. Locally `repos` points at CRAN proper, so the remote
     # half both works and is worth running before a submission.
-    step "R CMD check --as-cran (remote incoming checks enabled)"
-    _R_CHECK_CRAN_INCOMING_REMOTE_=true Rscript -e '
-      rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning", check_dir = "check")
-    '
-    ok "check complete"
+    run_check remote
     run_news_version
     run_readme
     run_coverage
