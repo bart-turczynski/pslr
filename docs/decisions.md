@@ -462,3 +462,85 @@ files from the disk cache, while the internal `psl_cache_clear()` resets an
 engine's in-memory match-result cache (D11) and deletes nothing. Ref:
 `R/status.R`, `R/refresh.R`, `R/reminder.R`, `R/snapshots.R`, `R/prune.R`;
 PRD §7.4–7.5. Status: **accepted.**
+
+---
+
+## D21 — `\(x)` is house style; `R (>= 4.1.0)` is the price, knowingly paid
+
+**Decision.** `pslr` standardizes on the `\(x)` lambda shorthand and keeps
+`Depends: R (>= 4.1.0)` as a deliberate, accepted floor. The alternative —
+reverting every `\(x)` to `function(x)` to reclaim `R (>= 4.0.0)` — was
+evaluated and **not adopted**. No code changed under this decision:
+`DESCRIPTION` already declares `R (>= 4.1.0)` and is untouched.
+
+**Context.** PSLR-wqnvvrch (filed 2026-07-19) asked whether the shorthand was
+worth a 4.1.0 floor, counted "7 occurrences" in `R/query.R`, `R/matcher.R` and
+`R/parser.R`, and deferred the call to the next modification of those functions.
+Four things about that framing no longer hold.
+
+The premise that nothing mandated `\()` was already false when the issue was
+filed. [r-conventions.md](./r-conventions.md) §Code style states "`\(x) ...` for
+one-line anonymous functions; `function(x) { ... }` otherwise"; `git log -S`
+dates that sentence to `4998756` (2026-06-28), which wrote it into `AGENTS.md`
+three weeks *before* the issue, and `baf02e2` (2026-08-09) only moved it into
+that document. The rule was house style the whole time.
+
+The same section mandates the base pipe: "Base pipe `|>`, never magrittr `%>%`."
+`|>` is also R 4.1.0+, so a 4.0.0 floor is fiction the moment anyone follows the
+conventions document, independently of the lambda question. `|>` happens to
+appear nowhere in `R/` or `tests/` today, which is the only reason the current
+floor traces to `\()` alone rather than to two rules at once.
+
+The scale has moved by more than an order of magnitude. Measured 2026-09-05:
+`\(` appears **54 times across 15 files in `R/`** and **61 times across 15 files
+in `tests/`** — 115 sites in 30 files. The three files the issue named still
+hold exactly the 7 sites it counted, so the ticket was accurate about its own
+scope and stale about the tree's. A reversion confined to `R/` would advertise a
+4.0.0 floor that the suite proving the package correct — 595 `test_that()`
+blocks, 1,864 `expect_*()` calls, itself written in `\(x)` — had never once been
+run against.
+
+Who the floor excludes is a narrow band. R 4.1.0 shipped 2021-05-18, R 4.0.0 on
+2020-04-24; CRAN checks only r-devel, r-release, r-patched and r-oldrel, all far
+above 4.0.x. Ubuntu 22.04 LTS ships R 4.1.2 (clears the floor), Ubuntu 20.04 LTS
+ships 3.6.3 (fails a 4.0.0 floor too), Debian bookworm ships 4.2.2, current
+EPEL 8 ships 4.5.3. The one concrete population inside `[4.0.0, 4.1.0)` is
+Debian 11 (bullseye) with stock R 4.0.4, whose ordinary LTS ended 2026-08-31.
+
+The sibling asymmetry — `punycoder` at `R (>= 3.5.0)`, `rurl` at
+`R (>= 4.0.0)`, `pslr` at `R (>= 4.1.0)` — is cosmetic in effect: `rurl` imports
+`pslr`, so its *effective* floor already resolves to 4.1.0 transitively. A
+declared floor is a per-package honesty statement about that package's own
+sources, not a portfolio number that must read the same across three
+repositories.
+
+The panel split 3–1, and the dissent is on the record. The dissenting voter
+ruled for reverting all sites and reclaiming 4.0.0, on two grounds. First,
+Debian 11 and ELTS users pinned to R 4.0.4 are a small but *real* beneficiary
+population, and an LTS window that closed last week is a weaker argument than it
+looks against users who do not move on their vendor's schedule. Second, `rurl`
+advertising 4.0.0 while transitively requiring 4.1.0 is substantively
+misleading rather than cosmetic — a reader of `rurl`'s `DESCRIPTION` learns
+something untrue about what they must have installed. The dissent further
+proposed containing the reversion's risk with a replacement-only diff plus an
+`R CMD check` run under R 4.0.
+
+It did not carry because the beneficiary population is bounded by a distro band
+that is now both narrow and out of support, while the cost is a 115-site
+mechanical edit across 30 files plus a standing rule contradicting the
+conventions document — and the `|>` mandate would restore the 4.1.0 floor the
+first time anyone writes a pipe, spending the whole edit for nothing. The `rurl`
+point is granted and is real, but it is `rurl`'s to fix by declaring its own
+effective floor, not `pslr`'s to fix by lowering one it honestly needs.
+
+**Consequences.** `\(x)` stays the house lambda, and
+[r-conventions.md](./r-conventions.md) §Code style now says *why* the floor
+exists instead of leaving it to look incidental. `DESCRIPTION` keeps
+`R (>= 4.1.0)` unchanged. PSLR-wqnvvrch's instruction to defer the call "to the
+NEXT library modification" is **superseded**: it was written for a 7-site
+change, it does not scale to 115, and ruling (a) needs zero code edits, so there
+is nothing left to piggyback on. Reopening this requires a named user on a
+supported platform inside `[4.0.0, 4.1.0)`, not a preference — and any reopening
+must budget for `|>` too, since the two rules imply the same floor. Ref:
+[r-conventions.md](./r-conventions.md) §Code style; `DESCRIPTION` `Depends:`.
+Status: **accepted** (3–1; the dissent is recorded above).
