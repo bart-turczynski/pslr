@@ -20,15 +20,16 @@
 #    has to come from win-builder and mac-builder (see item 3) and must be
 #    described honestly in cran-comments.md.
 #
-# 2. full-check DOES NOT RUN ON EVERY MERGE REQUEST. The GitHub file ran the
-#    matrix on every non-documentation MR and said so explicitly, reasoning that
-#    a public repo gets unlimited free runner minutes on every OS. That premise
-#    is gone: GitLab.com bills shared-runner compute minutes from a monthly
-#    quota. The matrix therefore runs on default-branch pushes, on `v*` tags and
-#    on a weekly schedule. The per-MR gate is the `check` job below, which is
-#    *stricter* than the GitHub per-PR check ever was — it runs the full
-#    `--as-cran` pass with `error_on = "warning"`, exactly the AGENTS.md verify
-#    command, where verify.yml ran a plain `--no-manual` check.
+# 2. NOTHING RUNS PER PUSH OR PER MERGE REQUEST. The GitHub file ran the matrix
+#    on every non-documentation PR and said so explicitly, reasoning that a
+#    public repo gets unlimited free runner minutes on every OS. That premise is
+#    gone: GitLab.com bills shared-runner compute minutes from a monthly quota,
+#    and this project has already exhausted it once. The per-push gate is local
+#    (`tools/verify.sh standard` in the pre-push hook) and the hosted pipeline
+#    only assembles when someone asks for CRAN prep. The `check` job here is
+#    *stricter* than the GitHub per-PR check ever was — the full `--as-cran`
+#    pass with `error_on = "warning"`, where verify.yml ran a plain
+#    `--no-manual` check.
 #
 # 3. NO R-HUB JOB. rhub v2 (`rhub::rhub_check()`) dispatches to the maintainer's
 #    own GitHub Actions runners and requires a GitHub repository. There is no
@@ -40,22 +41,30 @@
 #    which runs locally under Docker and is part of the `cran` tier
 #    (PSLR-avwlybsw).
 #
-# 4. SCHEDULES LIVE IN THE PROJECT SETTINGS, NOT IN THIS FILE. Unlike a GitHub
-#    `on: schedule:` block, a GitLab schedule is a project-level object. The
-#    scheduled jobs below select themselves on a `SCHEDULED_TASK` variable, so
-#    each schedule in Settings > CI/CD > Schedules must set exactly one of:
+# 4. NO SCHEDULES, AND THE `SCHEDULED_TASK` SELECTOR IS GONE. An earlier draft
+#    kept four weekly GitLab schedules mirroring the GitHub crons, each
+#    selecting a job via a `SCHEDULED_TASK` variable. None were ever created,
+#    and recurring hosted pipelines are precisely the spend this project cannot
+#    afford, so the selector has been removed rather than left as dormant
+#    machinery that reads as if it runs. What the four crons did now lives in
+#    `tools/verify.sh full`, run locally and nudged by the staleness line the
+#    pre-push hook prints (PSLR-ugxanxne).
 #
-#      SCHEDULED_TASK=full-check      weekly, was Mon 05:17 UTC
-#      SCHEDULED_TASK=security-audit  weekly, was Mon 04:17 UTC
-#      SCHEDULED_TASK=osv-audit       weekly, was Mon 04:23 UTC
-#      SCHEDULED_TASK=psl-upstream    weekly, was Mon 06:23 UTC
-#
-#    Until those four schedules exist, the weekly coverage is still off — most
-#    consequentially the upstream-PSL watcher (PSLR-wzhnvyiv), whose absence
-#    means the bundled snapshot silently stops being refreshed.
+#    The accepted gap is the upstream-PSL watcher (PSLR-wzhnvyiv): it goes stale
+#    because the world moved, not because this tree changed, so a month away
+#    from the repo triggers no nudge at all. `psl-upstream-check` therefore runs
+#    inside the CRAN-prep gate, where a bundled snapshot behind upstream is
+#    exactly what you want to hear about before submitting. This is not
+#    theoretical — the first `full` run found the snapshot already behind
+#    (PSLR-ucvugmsw).
 #
 # 5. TOKENS. Three jobs need credentials that only a project maintainer can
-#    create; each skips loudly rather than failing when its secret is absent.
+#    create. Each exits non-zero with an explanation when its secret is absent,
+#    and the two that cannot block a submission on a missing credential
+#    (`security-audit`, `psl-upstream-check`) extend `.rules-cran-prep-advisory`
+#    so they report red without vetoing the gate. `codemeta` writes to the
+#    repository and is manual. None of these are set today: the project's CI/CD
+#    variable list is empty, so expect all three to be loud on the first run.
 #      PSL_BOT_TOKEN   project access token, scopes `api` + `write_repository`.
 #                      Used by psl-upstream-check (pushes a branch, opens an MR)
 #                      and codemeta (commits a regenerated codemeta.json).
@@ -79,35 +88,70 @@ stages:
   - deploy
 
 workflow:
-  # Runner minutes are a paid resource and this project ran out of them, so the
-  # hosted pipeline is reserved for the occasions that need a clean-room result
-  # on someone else's machine: a release, and a deliberate manual trigger.
+  # TWO PIPELINES, AND ONLY TWO. Runner minutes are a paid resource on the free
+  # tier and this project has already exhausted them once, so nothing here fires
+  # by itself: not a branch push, not a merge request, not a tag, not a
+  # schedule. A pipeline exists only when a human asks for one by name.
   #
-  # It used to run on every branch push and merge request. That gate has NOT
-  # been dropped, it has moved: `tools/verify.sh standard` runs in the pre-push
-  # hook, and everything the weekly schedules used to do is in
-  # `tools/verify.sh full`, nudged by the staleness line the hook prints. The
-  # trade is deliberate and worth naming — the gate is now on one machine, and
-  # a push made with `--no-verify` reaches `main` unchecked. Before a
-  # submission, `tools/verify.sh cran` is the backstop.
+  #   CRAN_PREP=1     The pre-submission gate. A clean-room second opinion on
+  #                   the things one machine cannot give you: three R versions,
+  #                   a from-scratch dependency resolution, and a check run
+  #                   somewhere the maintainer's ~/.Renviron does not exist.
+  #   DEPLOY_PAGES=1  Republish the documentation site. Nothing else runs.
+  #
+  # Start either one with:
+  #
+  #   glab ci run --branch main --variables CRAN_PREP:1
+  #   glab ci run --branch main --variables DEPLOY_PAGES:1
+  #
+  # or Pipelines -> Run pipeline with that variable set.
+  #
+  # A run with NEITHER variable creates no pipeline at all. That is the intended
+  # behaviour, not a misconfiguration — GitLab will say the pipeline was
+  # filtered out by workflow rules, and the answer is to pass the variable.
+  #
+  # THE EVERYDAY GATE IS LOCAL AND UNCHANGED. `tools/verify.sh standard` runs in
+  # the pre-push hook on every push; `tools/verify.sh full` covers what the
+  # weekly schedules used to, nudged by the staleness line the hook prints; and
+  # `tools/verify.sh sanitize` carries the ASAN/UBSAN/valgrind coverage that has
+  # no hosted equivalent here. This file is the remote half of that pair, not a
+  # replacement for it — see AGENTS.md and PSLR-ugxanxne.
+  #
+  # The source guard matters: it stops a CRAN_PREP defined as a *project* CI/CD
+  # variable from silently re-enabling per-push pipelines, which is exactly the
+  # spend this design exists to prevent.
   rules:
-    # Releases. A `v*` tag is the one moment a second opinion on a clean
-    # checkout is worth paying for.
-    - if: $CI_COMMIT_TAG =~ /^v/
-    # Explicit human intent: Pipelines -> Run pipeline, a pipeline trigger, or
-    # `glab ci run` / POST /projects/:id/pipeline, which report source "api".
-    # "api" is here so the documentation site can be redeployed from a terminal
-    # between releases; without it the pages job below could only ever publish
-    # on a `v*` tag.
-    - if: $CI_PIPELINE_SOURCE == "web"
-    - if: $CI_PIPELINE_SOURCE == "trigger"
-    - if: $CI_PIPELINE_SOURCE == "api"
-    # Schedules stay honoured if any are ever created, but none should exist
-    # while minutes are scarce — see PSLR-ugxanxne.
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CRAN_PREP == "1" && $CI_PIPELINE_SOURCE =~ /^(web|api|trigger)$/
+    - if: $DEPLOY_PAGES == "1" && $CI_PIPELINE_SOURCE =~ /^(web|api|trigger)$/
     - when: never
   auto_cancel:
     on_new_commit: interruptible
+
+# ---------------------------------------------------------------------------
+# Rule sets. `extends` REPLACES a job's own `rules:`, so every job below picks
+# exactly one of these rather than repeating the condition.
+# ---------------------------------------------------------------------------
+
+# Blocking: a failure here means do not submit.
+.rules-cran-prep:
+  rules:
+    - if: $CRAN_PREP == "1"
+
+# Advisory: runs in the gate and is loud, but does not by itself veto a
+# submission — either because it depends on a credential that may be absent, or
+# because the finding needs a maintainer decision rather than a red pipeline.
+.rules-cran-prep-advisory:
+  rules:
+    - if: $CRAN_PREP == "1"
+      allow_failure: true
+
+# Maintainer-initiated inside the gate: writes to the repository, so it never
+# starts on its own.
+.rules-cran-prep-manual:
+  rules:
+    - if: $CRAN_PREP == "1"
+      when: manual
+      allow_failure: true
 
 variables:
   # R release. Bumping this is a deliberate act: the cache key includes it.
@@ -224,7 +268,7 @@ variables:
 # ---------------------------------------------------------------------------
 
 lint:
-  extends: .r-pak
+  extends: [.r-pak, .rules-cran-prep]
   stage: lint
   script:
     - Rscript -e 'pak::pak("lintr")'
@@ -236,6 +280,7 @@ lint:
 # and reports in seconds. GIT_DEPTH: 0 because the released-heading check reads
 # `v*` tags, which a shallow CI clone does not fetch.
 news-version:
+  extends: .rules-cran-prep
   stage: lint
   image:
     # alpine/git declares ENTRYPOINT ["git"], so without this override every
@@ -281,7 +326,7 @@ news-version:
 # hook runs, with `--no-manual` added because the image carries no LaTeX (the
 # PDF manual is built by CRAN's own incoming checks, not here).
 check:
-  extends: .r-deps
+  extends: [.r-deps, .rules-cran-prep]
   stage: check
   needs: [lint]
   script:
@@ -319,7 +364,7 @@ check:
 # README carries a live `library(pslr)` chunk, so build_readme() installs the
 # package first.
 readme:
-  extends: .r-deps
+  extends: [.r-deps, .rules-cran-prep]
   stage: check
   needs: []
   script:
@@ -332,7 +377,7 @@ readme:
       fi
 
 coverage:
-  extends: .r-deps
+  extends: [.r-deps, .rules-cran-prep]
   stage: check
   needs: [check]
   script:
@@ -354,7 +399,7 @@ coverage:
 # ---------------------------------------------------------------------------
 
 full-check:
-  extends: .r-deps
+  extends: [.r-deps, .rules-cran-prep]
   stage: check
   needs: []
   timeout: 1h
@@ -391,14 +436,6 @@ full-check:
       # nothing there, so every failed check uploaded no artifacts at all and
       # logged only "no matching files".
       - "check/"
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "full-check"
-    - if: $CI_COMMIT_TAG =~ /^v/
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - when: manual
-      allow_failure: true
 
 # ---------------------------------------------------------------------------
 # Weekly audits
@@ -410,7 +447,7 @@ full-check:
 # network-dependent tests inside `check`, which must stay offline.
 
 osv-audit:
-  extends: .r-deps
+  extends: [.r-deps, .rules-cran-prep]
   stage: audit
   needs: []
   variables:
@@ -419,20 +456,9 @@ osv-audit:
     - Rscript -e 'pak::pak(c("rosv", "testthat", "decor"))'
     - >-
       Rscript -e 'testthat::test_local(filter = "osv", stop_on_failure = TRUE)'
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "osv-audit"
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - DESCRIPTION
-        - tests/testthat/test-osv.R
-        - .gitlab-ci.yml
-    - when: manual
-      allow_failure: true
 
 security-audit:
-  extends: .r-deps
+  extends: [.r-deps, .rules-cran-prep-advisory]
   stage: audit
   needs: []
   variables:
@@ -447,17 +473,6 @@ security-audit:
     - >-
       Rscript -e 'testthat::test_local(filter = "security",
       stop_on_failure = TRUE)'
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "security-audit"
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - DESCRIPTION
-        - tests/testthat/test-security.R
-        - .gitlab-ci.yml
-    - when: manual
-      allow_failure: true
 
 # ---------------------------------------------------------------------------
 # Upstream PSL watcher — the scheduled job with a data consequence
@@ -474,7 +489,7 @@ security-audit:
 # irrelevant to an unauthenticated read of publicsuffix/list; only pslr's own
 # hosting moved.
 psl-upstream-check:
-  extends: .r-deps
+  extends: [.r-deps, .rules-cran-prep-advisory]
   stage: audit
   needs: []
   timeout: 1h
@@ -612,12 +627,6 @@ psl-upstream-check:
         --data @mr.json \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests" \
         | jq -r '"Opened " + .web_url'
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "psl-upstream"
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: never
-    - when: manual
-      allow_failure: true
 
 # ---------------------------------------------------------------------------
 # Generated metadata
@@ -627,7 +636,7 @@ psl-upstream-check:
 # it needs PSL_BOT_TOKEN; `[skip ci]` in the message stops the push from
 # triggering another pipeline.
 codemeta:
-  extends: .r-deps
+  extends: [.r-deps, .rules-cran-prep-manual]
   stage: deploy
   needs: []
   variables:
@@ -652,16 +661,6 @@ codemeta:
       git add codemeta.json
       git commit -m "chore: refresh codemeta.json [skip ci]"
       git push "https://oauth2:${PSL_BOT_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:refs/heads/${CI_DEFAULT_BRANCH}"
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - DESCRIPTION
-        - inst/CITATION
-        - .gitlab-ci.yml
-    - when: manual
-      allow_failure: true
 
 # ---------------------------------------------------------------------------
 # Documentation site
@@ -711,5 +710,7 @@ pages:
     paths:
       - public
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_COMMIT_TAG =~ /^v/
+    # The docs pipeline, and also refreshed as part of release prep so the
+    # site a CRAN reviewer follows matches the tarball being submitted.
+    - if: $DEPLOY_PAGES == "1"
+    - if: $CRAN_PREP == "1"

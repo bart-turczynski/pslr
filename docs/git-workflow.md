@@ -85,10 +85,10 @@ On `git push`, the `verify` hook runs `tools/verify.sh standard` — lint plus t
 test suite, about two minutes — and then prints a staleness line for the `full`
 tier.
 
-This hook is no longer a mirror of CI — it **is** the gate. GitLab runner minutes
-are a paid resource, so the hosted pipeline runs only on a `v*` tag and on manual
-trigger; nothing checks a branch push server-side. Everything CI used to do
-weekly is in `tools/verify.sh full`, run locally.
+This hook is no longer a mirror of CI — it **is** the everyday gate. GitLab
+runner minutes are a paid resource, so no hosted pipeline is created by a branch
+push, a merge request, a tag or a schedule; nothing checks a push server-side.
+Everything CI used to do weekly is in `tools/verify.sh full`, run locally.
 
 The staleness line is deliberately non-blocking. A hook that refused a push until
 a fifteen-minute check had run would be met with `--no-verify` within a
@@ -105,6 +105,44 @@ Key the decision on that command's output, never on the calendar. A rule like
 "run it on Saturdays" fires repeatedly on a working Saturday and never at all in
 a week you don't open the repo; elapsed time since the last successful run is the
 thing that actually matters.
+
+## The remote pipeline
+
+There are two pipelines and they answer different questions.
+
+**Local** — `tools/verify.sh`, described above. It runs on every push, it is the
+only place the `sanitize` tier (clang-ASAN, UBSAN, valgrind over `src/`) exists,
+and it is the only leg that can check macOS behaviour, because that is the
+machine it runs on.
+
+**Remote** — `.gitlab-ci.yml`, and it assembles only when asked by name:
+
+```sh
+glab ci run --branch main --variables CRAN_PREP:1     # the pre-submission gate
+glab ci run --branch main --variables DEPLOY_PAGES:1  # republish the docs site
+```
+
+A run with neither variable creates no pipeline at all; GitLab reports it as
+filtered out by workflow rules, and the fix is to pass the variable.
+
+`CRAN_PREP=1` runs lint, the NEWS/version guard, `R CMD check --as-cran`, the
+README drift check, coverage, the R 4.5 / 4.6 / devel matrix, and the OSV, OSS
+Index and upstream-PSL audits. Its value is not that it repeats the local check —
+it is that it repeats it *somewhere else*: three R versions, a dependency
+closure resolved from scratch, and a machine where your `~/.Renviron` does not
+exist. That last one catches a check that only passes because of something
+installed locally.
+
+`security-audit` and `psl-upstream-check` are advisory (`allow_failure: true`)
+because they depend on credentials that may be absent; `codemeta` is manual
+because it commits back to `main`. None of the three secrets are set today, so
+expect them loud on the first run.
+
+What the remote leg cannot give you: no macOS, no Windows — GitLab.com shared
+runners are Linux-only — and no sanitizers. Cross-platform assurance before a
+submission comes from `devtools::check_win_devel()` and
+`devtools::check_mac_release()`, and dynamic analysis from `tools/verify.sh
+sanitize`. Neither leg is a superset of the other, which is why both exist.
 
 ### If a hook is killed, unstaged changes can disappear
 
