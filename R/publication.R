@@ -215,11 +215,17 @@ psl_publish_snapshot_bytes <- function(path, checksum = NULL) {
   identity
 }
 
-# Publish the immutable descriptor for already-published bytes.
+# Publish the descriptor for already-published bytes.
 #
-# A descriptor that is already present and valid is kept: identity and
-# provenance of one set of bytes do not change, so re-publication is a no-op
-# rather than a rewrite. Returns the descriptor record.
+# A descriptor that is already present and valid is kept, for two different
+# reasons. Identity and byte provenance -- checksum, size, content date, commit,
+# origin URL -- do not change, so rewriting them would be a no-op. The
+# normalization fields (`parser`, `normalization_profile`, `unicode_version`,
+# `validation_schema`) do change between sessions, and are deliberately NOT
+# refreshed: they record the profile these bytes were first published under.
+# `psl_snapshots()` surfaces that as `first_normalization_profile`; the profile
+# a query actually runs under is reported by `psl_version()`, which reads the
+# runtime normalizer. Returns the descriptor record.
 psl_publish_snapshot_descriptor <- function(
   checksum,
   ...,
