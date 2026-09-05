@@ -685,11 +685,15 @@ codemeta:
 # are public as of 2026-08-09, so the gate is gone and the job is ordinary.
 #
 # When this actually publishes is decided by the `workflow:` rules at the top of
-# the file, not by the rules below: branch pushes create no pipeline at all, so
-# in practice the site rebuilds on a `v*` release tag or on demand via
-# `glab ci run --branch main`. Between releases the published site therefore
-# documents the last release, which is the right default for a CRAN package —
-# run it by hand after merging documentation worth publishing early.
+# the file, not by the rules below: nothing creates a pipeline on its own — not a
+# push, not a merge request, not a tag, not a schedule — so the site rebuilds
+# only on demand, via `glab ci run --branch main --variables DEPLOY_PAGES:1`, or
+# as a side effect of a `CRAN_PREP=1` run. The published site therefore documents
+# whichever commit someone last ran that against: not the last release, and not
+# necessarily `main`. That is a weaker default than it used to be, back when a
+# release tag republished the site — nothing now stops the site falling behind
+# `main` for as long as nobody runs the job. Run it by hand after merging
+# documentation worth publishing.
 pages:
   extends: .r-deps
   stage: deploy

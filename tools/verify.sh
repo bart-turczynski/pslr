@@ -2,12 +2,14 @@
 #
 # The local verify gate.
 #
-# GitLab runner minutes are a paid resource, so the hosted pipeline runs only
-# for releases and manual triggers (see the `workflow:` rules in
-# .gitlab-ci.yml). Everything CI used to do on a schedule is done here instead,
-# on the maintainer's machine, for free. This script is therefore the single
-# definition of "is the tree healthy" — the pre-push hook, the AGENTS.md dev
-# loop and the release checklist all call it rather than restating the command.
+# GitLab runner minutes are a paid resource, so the hosted pipeline assembles
+# only when someone asks for it by name — `CRAN_PREP=1` or `DEPLOY_PAGES=1` on a
+# manual run (see the `workflow:` rules in .gitlab-ci.yml). Nothing fires by
+# itself: not a push, not a merge request, not a tag, not a schedule. Everything
+# CI used to do on a schedule is done here instead, on the maintainer's machine,
+# for free. This script is therefore the single definition of "is the tree
+# healthy" — the pre-push hook, the AGENTS.md dev loop and the release checklist
+# all call it rather than restating the command.
 #
 # Usage:
 #   tools/verify.sh [standard|full|matrix|sanitize|cran]
