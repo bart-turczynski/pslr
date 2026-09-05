@@ -135,14 +135,50 @@ installed locally.
 
 `security-audit` and `psl-upstream-check` are advisory (`allow_failure: true`)
 because they depend on credentials that may be absent; `codemeta` is manual
-because it commits back to `main`. None of the three secrets are set today, so
-expect them loud on the first run.
+because it commits back to `main`. None of the three are set as CI/CD variables
+on the project today, so expect them loud on the first hosted run. Locally the
+OSS Index pair is read from `~/.Renviron` instead — see
+[the verify gate](#the-verify-gate) — so the same audit that skips in CI runs
+for real on this machine.
 
 What the remote leg cannot give you: no macOS, no Windows — GitLab.com shared
 runners are Linux-only — and no sanitizers. Cross-platform assurance before a
 submission comes from `devtools::check_win_devel()` and
 `devtools::check_mac_release()`, and dynamic analysis from `tools/verify.sh
 sanitize`. Neither leg is a superset of the other, which is why both exist.
+
+### Running the hosted pipeline with no compute minutes
+
+The namespace is on the free plan and exhausted its monthly compute minutes on
+2026-08-07, after which every job on a shared runner failed immediately with
+`ci_quota_exceeded`. That is the spend the two named pipelines exist to ration,
+but rationing does not help when the quota is already gone and you need a
+CRAN-prep run today.
+
+The way out is a **project runner**, which is not subject to the namespace quota
+block at all — established by running the full thirteen-job pipeline on one
+while the quota was exhausted, not from the documentation. `pslr` has one
+registered: `54981995`, `pslr-local-docker`, Docker executor,
+`pull_policy = if-not-present`, configured in `~/.gitlab-runner/config.toml` and
+started at login by brew services. So `glab ci run --branch main --variables
+CRAN_PREP:1` works whether or not the namespace has minutes left; it simply runs
+on this machine.
+
+Two things to know before doing that. It is single-concurrency, so the jobs run
+one after another rather than in parallel — a full CRAN-prep run is long. And
+`pages` declares `needs: []`, so it starts without waiting for the check stage;
+if the site is all you want, `DEPLOY_PAGES=1` is the pipeline to raise rather
+than starting `CRAN_PREP=1` and cancelling the rest.
+
+Running the pipeline locally used to need one more step, and no longer does.
+`.gitlab-ci.yml` hardcoded pandoc's `.deb` as `-amd64`, which is correct on
+GitLab.com's x86_64 fleet and fatal here: Docker on Apple Silicon resolves
+`rocker/r-ver` to arm64, the Docker executor cannot request a platform, and
+`dpkg -i` then killed every job that needed pandoc. The workaround was to pin
+each `rocker/r-ver` tag to its amd64 digest by hand before every run. The
+architecture is derived from `dpkg --print-architecture` now (PSLR-wcjcywea), so
+there is nothing to pin — but it is worth knowing that this is the class of
+bug a local runner exposes and the hosted fleet hides.
 
 ### If a hook is killed, unstaged changes can disappear
 
