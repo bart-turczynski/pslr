@@ -73,9 +73,11 @@ The checklist above is the release procedure and stays manual. What it does not
 tell you is *when* it needs running — staleness used to surface only if someone
 remembered to look.
 
-The `psl-upstream-check` job in `.gitlab-ci.yml` is the discovery mechanism for
-that, and a discovery mechanism only — it does not replace any step above. On a
-weekly schedule (and on demand), it compares the latest upstream commit touching
+Two mechanisms cover this, and neither replaces a step above. Locally,
+`tools/verify.sh full` compares the pinned commit against upstream and reports
+the difference; that is the one that runs often, and it is what first caught the
+snapshot already being behind. Remotely, the `psl-upstream-check` job in
+`.gitlab-ci.yml` goes further — it compares the latest upstream commit touching
 `public_suffix_list.dat` against `default_commit` in `data-raw/update_psl.R`. If
 they match it is a no-op. If they differ it runs `data-raw/update_psl.R` on a
 network-enabled runner, advances the pin, and **opens a merge request** with the
@@ -88,11 +90,17 @@ deliberately separate from the `check` and `full-check` jobs, which must stay
 network-free per CRAN policy, and it shells out to `data-raw/update_psl.R`
 rather than reimplementing regeneration, so the two paths cannot drift.
 
-The schedule that fires it is a project-level object in GitLab, not a line in
-`.gitlab-ci.yml`: it must exist under Settings > CI/CD > Schedules with
-`SCHEDULED_TASK=psl-upstream`, and the job needs a `PSL_BOT_TOKEN` project
-access token to push a branch and open the MR. Without both, upstream movement
-goes unnoticed exactly as it did before this mechanism existed.
+There is no schedule firing it. Recurring hosted pipelines are the spend this
+project cannot afford, so the job runs as part of the CRAN-prep pipeline
+(`glab ci run --branch main --variables CRAN_PREP:1`) — the moment a stale
+bundled snapshot most needs catching. It needs a `PSL_BOT_TOKEN` project access
+token to push a branch and open the MR, and is marked `allow_failure: true` so
+its absence reports loudly without vetoing the gate.
+
+Between submissions, `tools/verify.sh full` is what tells you upstream has moved.
+The accepted gap is that it only tells you when you run it: the list goes stale
+because the world changed, not because this tree did, so a long absence from the
+repository triggers no nudge at all.
 
 One review point specific to the automated MR: the regenerated index records
 whichever normalizer the runner resolved, reported as `normalizer_version` in

@@ -1,0 +1,11 @@
+# Canonical authorship for `git log`, `git shortlog` and any tool that reads it.
+#
+# pslr's history predates the move off GitHub (PSLR-thcaqtnw). 152 commits are
+# authored to a GitHub noreply address belonging to an account that is now
+# suspended, and 20 more to a former employer's address. Neither is reachable
+# and neither is the address DESCRIPTION, CITATION.cff or codemeta.json name.
+#
+# This file corrects the reading of that history without rewriting it: the
+# commits are published, so their SHAs stay exactly as they are.
+Bart Turczynski <bartek@turczynski.pl> <142225707+bart-turczynski@users.noreply.github.com>
+Bart Turczynski <bartek@turczynski.pl> <b.turczynski@tidio.net>

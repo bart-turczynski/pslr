@@ -1,5 +1,9 @@
 # pslr (development version)
 
+* GitHub is fully retired from the repository. New commits are authored to <bartek@turczynski.pl> rather than a noreply address on the suspended GitHub account, and a `.mailmap` makes the 172 existing commits read the same way without rewriting published history. The last `.github` reference in `.Rbuildignore` is gone with the directory it ignored. The remaining `github.com` links in the tree are all third-party — pandoc releases, pak, and the upstream Public Suffix List itself (PSLR-thcaqtnw).
+
+* Hosted CI is now two named pipelines and nothing else: `CRAN_PREP=1` runs the pre-submission gate (lint, `--as-cran`, README and NEWS guards, coverage, the R 4.5/4.6/devel matrix and the OSV, OSS Index and upstream-PSL audits), and `DEPLOY_PAGES=1` republishes the documentation site. No pipeline is created by a push, a merge request, a tag or a schedule; the everyday gate is `tools/verify.sh` on the maintainer's machine (PSLR-ugxanxne, PSLR-totktvlq).
+
 * The documentation site no longer publishes the repository's agent-instruction files (`AGENTS.md`, `CLAUDE.md`, `FP_AGENTS.md`, `FP_CLAUDE.md`). pkgdown renders every root-level Markdown file it does not otherwise recognize, so all four were reachable on the public site and their text was folded into the site search index, where it outranked the reference documentation on ordinary queries (PSLR-wclmdkju).
 
 * The project's declared homepage and bug tracker moved from GitHub to GitLab: `URL` is now the pkgdown site <https://bart-turczynski.gitlab.io/pslr/> and the GitLab repository, followed by the canonical CRAN and r-universe pages, and `BugReports` is the GitLab issue tracker. The GitLab repository and its documentation site are public, so every declared URL resolves for anyone; the GitHub URLs, including the old `github.io` pkgdown site, no longer do (PSLR-thcaqtnw).
