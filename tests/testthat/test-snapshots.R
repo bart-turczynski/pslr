@@ -72,7 +72,7 @@ test_that("the inventory has the documented columns, types, and shape", {
       "content_date",
       "first_retrieved_at",
       "origin_url",
-      "normalization_profile",
+      "first_normalization_profile",
       "bundled",
       "selected_cache",
       "active",
@@ -87,7 +87,7 @@ test_that("the inventory has the documented columns, types, and shape", {
   expect_s3_class(snapshots$content_date, "POSIXct")
   expect_s3_class(snapshots$first_retrieved_at, "POSIXct")
   expect_type(snapshots$origin_url, "character")
-  expect_type(snapshots$normalization_profile, "character")
+  expect_type(snapshots$first_normalization_profile, "character")
   expect_type(snapshots$bundled, "logical")
   expect_type(snapshots$selected_cache, "logical")
   expect_type(snapshots$active, "logical")
@@ -108,7 +108,7 @@ test_that("an empty cache still inventories the bundled snapshot", {
   expect_false(is.na(snapshots$content_date))
   expect_identical(snapshots$origin_url, pslr_bundled$meta$url)
   expect_identical(
-    snapshots$normalization_profile,
+    snapshots$first_normalization_profile,
     pslr_bundled$meta$normalization_profile
   )
   expect_identical(snapshots$source_count, 0L)
@@ -181,10 +181,68 @@ test_that("provenance comes from the snapshot descriptor", {
   )
   expect_identical(row$origin_url, "https://example.org/psl.dat")
   expect_identical(
-    row$normalization_profile,
+    row$first_normalization_profile,
     psl_runtime_snapshot_profile()$normalization_profile
   )
   expect_identical(row$size, 13L)
+})
+
+# PSLR-girwpagy. The normalization fields on a descriptor record the normalizer
+# that was installed when the bytes were first published, not the one a later
+# session queries under. The inventory column says so in its name, and the two
+# public provenance APIs are no longer permitted to contradict each other about
+# what they mean.
+test_that("the inventory reports first-publication normalization provenance", {
+  local_pslr_clean()
+  checksum <- publish_inventory_bytes("// published under the old profile\n")
+  published_under <- psl_runtime_snapshot_profile()$normalization_profile
+
+  # A later session with a different normalizer installed.
+  testthat::local_mocked_bindings(
+    runtime_normalizer_meta = function() {
+      list(
+        normalizer = "punycoder",
+        normalizer_version = "9.9.9",
+        normalization_profile = "fake-profile",
+        unicode_version = "0.0.0"
+      )
+    }
+  )
+  psl_use("bundled")
+
+  row <- inventory_row(psl_snapshots(), checksum)
+  expect_identical(row$first_normalization_profile, published_under)
+  expect_identical(psl_version()$normalization_profile, "fake-profile")
+  # Distinct facts, distinctly named: the stale value is never presented as the
+  # profile in use.
+  expect_false(
+    identical(
+      row$first_normalization_profile,
+      psl_version()$normalization_profile
+    )
+  )
+})
+
+# Re-publishing must not rewrite the recorded profile: it is what these bytes
+# were first published under, and that does not become untrue later.
+test_that("republishing under a new profile keeps the first one recorded", {
+  local_pslr_clean()
+  checksum <- publish_inventory_bytes("// stable provenance\n")
+  published_under <- psl_runtime_snapshot_profile()$normalization_profile
+  testthat::local_mocked_bindings(
+    runtime_normalizer_meta = function() {
+      list(
+        normalizer = "punycoder",
+        normalizer_version = "9.9.9",
+        normalization_profile = "fake-profile",
+        unicode_version = "0.0.0"
+      )
+    }
+  )
+  again <- publish_inventory_bytes("// stable provenance\n")
+  expect_identical(again, checksum)
+  row <- inventory_row(psl_snapshots(), checksum)
+  expect_identical(row$first_normalization_profile, published_under)
 })
 
 test_that("absent bytes report integrity missing", {

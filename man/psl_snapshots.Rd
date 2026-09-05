@@ -29,7 +29,10 @@ preferred storage location, \code{NA} when the bytes are not stored), \code{size
 (integer bytes), \code{content_date} (POSIXct upstream provenance date),
 \code{first_retrieved_at} (POSIXct, when these bytes were first received),
 \code{origin_url} (character immutable origin recorded at publication),
-\code{normalization_profile} (character), \code{bundled} (logical, installed with the
+\code{first_normalization_profile} (character, the normalization profile in use
+when these bytes were first published to the preferred location; it is
+first-publication provenance, not the profile this session queries under
+-- for that, see \code{\link[=psl_version]{psl_version()}}), \code{bundled} (logical, installed with the
 package), \code{selected_cache} (logical, the snapshot \code{psl_use("cache")} would
 resolve to), \code{active} (logical, the snapshot active in this session),
 \code{current_for_any_source} (logical, named by at least one source's current

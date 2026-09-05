@@ -34,7 +34,7 @@ psl_snapshots_columns <- c(
   content_date = "time",
   first_retrieved_at = "time",
   origin_url = "character",
-  normalization_profile = "character",
+  first_normalization_profile = "character",
   bundled = "logical",
   selected_cache = "logical",
   active = "logical",
@@ -304,8 +304,13 @@ psl_snapshots_locations <- function(checksum, ctx) {
   locations[order(broken)]
 }
 
-# The first value a location knows for one provenance field. Provenance is
-# immutable, so a value recorded in either location describes the same bytes.
+# The first value a location knows for one provenance field. This is sound
+# only for provenance that genuinely belongs to the bytes -- upstream date,
+# first receipt, origin URL -- where a value recorded in either location
+# describes the same bytes. It is NOT sound for the normalization fields: those
+# record the normalizer installed when each location's descriptor was first
+# written, so two locations holding the same bytes can honestly disagree. They
+# are read from the preferred location instead, never merged across locations.
 psl_snapshots_coalesce <- function(locations, field) {
   for (location in locations) {
     value <- location[[field]]
@@ -340,8 +345,7 @@ psl_snapshots_provenance <- function(locations) {
   fields <- c(
     "content_date",
     "first_retrieved_at",
-    "origin_url",
-    "normalization_profile"
+    "origin_url"
   )
   values <- lapply(fields, \(field) psl_snapshots_coalesce(locations, field))
   names(values) <- fields
@@ -356,7 +360,8 @@ psl_snapshots_row <- function(checksum, ctx) {
       checksum = checksum,
       path = preferred$path,
       size = preferred$size,
-      integrity = preferred$integrity
+      integrity = preferred$integrity,
+      first_normalization_profile = preferred$normalization_profile
     ),
     psl_snapshots_provenance(locations),
     psl_snapshots_flags(checksum, ctx)
@@ -414,7 +419,10 @@ psl_snapshots_row <- function(checksum, ctx) {
 #'   (integer bytes), `content_date` (POSIXct upstream provenance date),
 #'   `first_retrieved_at` (POSIXct, when these bytes were first received),
 #'   `origin_url` (character immutable origin recorded at publication),
-#'   `normalization_profile` (character), `bundled` (logical, installed with the
+#'   `first_normalization_profile` (character, the normalization profile in use
+#'   when these bytes were first published to the preferred location; it is
+#'   first-publication provenance, not the profile this session queries under
+#'   -- for that, see [psl_version()]), `bundled` (logical, installed with the
 #'   package), `selected_cache` (logical, the snapshot `psl_use("cache")` would
 #'   resolve to), `active` (logical, the snapshot active in this session),
 #'   `current_for_any_source` (logical, named by at least one source's current
