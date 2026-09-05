@@ -18,7 +18,7 @@
 # --- configuration ----------------------------------------------------------
 
 # Pinned upstream commit. Override on the command line to bump the snapshot.
-default_commit <- "9186eeeda85cef35b1551d00731464939c765cab"
+default_commit <- "46ae48ceff01716409d78d38c2bbb36489cce68e"
 
 cli_args <- commandArgs(trailingOnly = TRUE)
 commit <- if (length(cli_args) >= 1L && nzchar(cli_args[1])) {
