@@ -6,6 +6,10 @@
 #   * inst/extdata/PSL-LICENSE             - upstream MPL-2.0 license text
 #   * inst/NOTICE                          - bundled-data notice / license split
 #   * R/sysdata.rda                        - internal index + metadata
+#   * README.md                            - only if a renderer is available
+#
+# README.md is on that list because its `psl_status()` block prints the snapshot
+# metadata written above, so it is derived from the same pinned commit.
 #
 # Usage (from the package root):
 #   Rscript data-raw/update_psl.R [<40-char-commit-sha>]
@@ -179,3 +183,116 @@ message(
 )
 message("  vectors:    ", tests_path)
 message("Review the upstream diff before committing the regenerated artifacts.")
+
+# --- README.md --------------------------------------------------------------
+
+# README.md is generated from README.Rmd, whose `freshness` chunk prints live
+# `psl_status()` output -- the checksum, content date and retrieval time this
+# script has just written into R/sysdata.rda. The README is therefore derived
+# from the same pinned commit as the artifacts above, and a snapshot bump that
+# leaves it behind puts the previous snapshot's provenance on the package's
+# front page (PSLR-qjsszyig, after PSLR-ucvugmsw did exactly that). Regenerating
+# it here means it moves in the same working tree as the data it describes.
+#
+# Nothing below may abort. The data artifacts are already written, correct and
+# reported above; turning a rendering problem into a stack trace would bury that
+# report under a failure that has nothing to do with the snapshot. Every path
+# that cannot render says so and exits normally, so the operator is never left
+# to discover the staleness from a CI diff weeks later.
+
+readme_is_stale <- function(reason) {
+  message("")
+  message("WARNING: ", reason)
+  message(
+    "WARNING: ",
+    "README.md is now stale — run devtools::build_readme() and commit it."
+  )
+}
+
+# The pandoc version CI pins, read from .gitlab-ci.yml exactly the way
+# tools/verify.sh's run_readme reads it, so the two cannot drift apart.
+pinned_pandoc_version <- function(path = ".gitlab-ci.yml") {
+  if (!file.exists(path)) {
+    return(NA_character_)
+  }
+  pattern <- '^  PANDOC_VERSION: "(.+)"'
+  hit <- grep(pattern, readLines(path, warn = FALSE), value = TRUE)
+  if (length(hit) == 0L) {
+    return(NA_character_)
+  }
+  sub(pattern, "\\1", hit[1])
+}
+
+# `pandoc --version` opens with `pandoc <version>`; run_readme takes the same
+# second field of the same first line.
+local_pandoc_version <- function() {
+  out <- tryCatch(
+    suppressWarnings(system2("pandoc", "--version", stdout = TRUE)),
+    error = function(e) character()
+  )
+  if (length(out) == 0L || !nzchar(out[1])) {
+    return(NA_character_)
+  }
+  strsplit(trimws(out[1]), "[[:space:]]+")[[1]][2]
+}
+
+# Returns the reason README.md cannot be regenerated here, or NULL to go ahead.
+readme_render_blocker <- function() {
+  # PATH pandoc, not RSTUDIO_PANDOC: this is the version run_readme compares and
+  # the one a plain `Rscript` render picks up, so both halves see one binary.
+  if (!nzchar(Sys.which("pandoc"))) {
+    return("pandoc is not on PATH, so README.Rmd cannot be rendered here.")
+  }
+
+  # devtools drives the render, but rmarkdown and callr are only Suggests of
+  # devtools -- `requireNamespace("devtools")` alone does not prove the renderer
+  # is installed, and build_readme() would abort inside check_installed().
+  needed <- c("devtools", "rmarkdown", "callr")
+  absent <- needed[
+    !vapply(needed, requireNamespace, logical(1), quietly = TRUE)
+  ]
+  if (length(absent) > 0L) {
+    return(sprintf(
+      "%s not installed, so README.Rmd cannot be rendered here.",
+      toString(absent)
+    ))
+  }
+
+  # run_readme only warns on a version skew, because it renders and then diffs.
+  # Here the render lands in the working tree, so a skew blocks it outright:
+  # pandoc versions disagree about pipe-table cell padding, and a
+  # whitespace-only diff that has to be told apart from a real content change by
+  # hand is worse than a message naming the version to install.
+  want <- pinned_pandoc_version()
+  have <- local_pandoc_version()
+  if (!is.na(want) && !is.na(have) && !identical(want, have)) {
+    return(sprintf(
+      paste0(
+        "local pandoc is %s but .gitlab-ci.yml pins %s; not rendering, ",
+        "because a mismatched pandoc reflows the tables."
+      ),
+      have,
+      want
+    ))
+  }
+
+  NULL
+}
+
+readme_blocker <- readme_render_blocker()
+if (is.null(readme_blocker)) {
+  readme_blocker <- tryCatch(
+    {
+      devtools::build_readme()
+      NULL
+    },
+    error = function(e) {
+      paste0("devtools::build_readme() failed: ", conditionMessage(e))
+    }
+  )
+}
+if (is.null(readme_blocker)) {
+  message("  README.md:  regenerated from README.Rmd")
+} else {
+  readme_is_stale(readme_blocker)
+}
