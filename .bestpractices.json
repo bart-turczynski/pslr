@@ -15,7 +15,7 @@
   "contribution_justification": "Contribution guide at https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
 
   "contribution_requirements_status": "Met",
-  "contribution_requirements_justification": "CONTRIBUTING.md states the requirements for acceptable contributions (tests, passing lint via the .lintr style config, and the verify CI gate): https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
+  "contribution_requirements_justification": "CONTRIBUTING.md states the requirements for acceptable contributions (tests, passing lint via the .lintr style config, and a clean `tools/verify.sh` run — the local pre-push gate, not hosted CI): https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
 
   "license_location_status": "Met",
   "license_location_justification": "LICENSE is at the repository top level: https://gitlab.com/bart-turczynski/pslr/-/blob/main/LICENSE",
@@ -102,7 +102,7 @@
   "test_invocation_justification": "Tests run via devtools::test() and as part of R CMD check.",
 
   "test_most_status": "Met",
-  "test_most_justification": "Coverage is measured with covr in the `coverage` job of .gitlab-ci.yml, which publishes a Cobertura report and a coverage percentage on every hosted pipeline: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
+  "test_most_justification": "Coverage is measured with covr in the `coverage` job of .gitlab-ci.yml, which publishes a Cobertura report and a coverage percentage. That job extends `.rules-cran-prep`, so it runs in the CRAN-prep pipeline (`CRAN_PREP=1`) rather than on every hosted pipeline; the same measurement runs locally in `tools/verify.sh full`: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "test_policy_status": "Met",
   "test_policy_justification": "CONTRIBUTING.md requires tests for new features and bug fixes: https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
@@ -114,7 +114,7 @@
   "tests_documented_added_justification": "The test-addition policy is documented in CONTRIBUTING.md: https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
 
   "warnings_status": "Met",
-  "warnings_justification": "Warnings are surfaced via R CMD check and lintr, run by `tools/verify.sh` in the pre-push hook and again in the hosted CI pipeline: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
+  "warnings_justification": "Warnings are surfaced by lintr and by R CMD check. lintr runs on every push, in the `tools/verify.sh standard` tier the local pre-push hook invokes; R CMD check --as-cran is deliberately not in that tier and runs in `tools/verify.sh full` locally and in the `check` job of the CRAN-prep pipeline (`CRAN_PREP=1`), the only hosted pipeline that runs it: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "warnings_fixed_status": "Met",
   "warnings_fixed_justification": "Warnings are treated as errors and fixed; R CMD check is kept clean.",
@@ -177,7 +177,7 @@
   "static_analysis_fixed_justification": "Static-analysis findings are addressed before merge.",
 
   "static_analysis_often_status": "Met",
-  "static_analysis_often_justification": "lintr runs on every change: `tools/verify.sh standard` executes it in the pre-push hook, so no commit reaches the default branch without it, and the `lint` job repeats it in every hosted pipeline: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
+  "static_analysis_often_justification": "lintr runs on every push: `tools/verify.sh standard` executes `lintr::lint_package()` in the local pre-push hook and fails the push on any lint. That hook is local, so a reviewer cannot inspect or verify it, and it is bypassed by `git push --no-verify` or by a clone that never ran `pre-commit install --hook-type pre-push`. The hosted `lint` job repeats the same command, but only in the CRAN-prep pipeline (`CRAN_PREP=1`) — not on pushes, merge requests, tags or schedules: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
 
   "dynamic_analysis_status": "Met",
   "dynamic_analysis_justification": "Before releases, `tools/verify.sh sanitize` runs R CMD check — including the testthat suite — under the clang-ASAN/UBSAN and valgrind containers in Docker, exercising the C++ PSL matcher. It is part of the `cran` verify tier that gates a submission: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
@@ -186,13 +186,13 @@
   "dynamic_analysis_unsafe_justification": "pslr ships C++ code in src/ (the PSL matcher: cpp11.cpp, matcher.cpp). `tools/verify.sh sanitize` runs the package under clang-ASAN/UBSAN (memory errors and undefined behaviour) and valgrind (memory leaks and illegal memory access) before releases: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
 
   "dynamic_analysis_enable_assertions_status": "Met",
-  "dynamic_analysis_enable_assertions_justification": "pslr's automated test suite uses testthat, whose expectations (expect_*) are assertions checked at runtime during dynamic analysis on every CI run: https://gitlab.com/bart-turczynski/pslr/-/tree/main/tests/testthat . The `tools/verify.sh sanitize` tier additionally runs the package under the clang-ASAN/UBSAN and valgrind configurations, enabling runtime memory and undefined-behaviour assertions over the C++ PSL matcher: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
+  "dynamic_analysis_enable_assertions_justification": "pslr's automated test suite uses testthat, whose expectations (expect_*) are assertions checked at runtime; the suite runs on every push in the local `tools/verify.sh standard` tier: https://gitlab.com/bart-turczynski/pslr/-/tree/main/tests/testthat . The `tools/verify.sh sanitize` tier additionally runs that suite under the clang-ASAN/UBSAN and valgrind configurations, enabling runtime memory and undefined-behaviour assertions over the C++ PSL matcher; it is a local Docker tier run before releases, not a hosted CI job: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
 
   "dynamic_analysis_fixed_status": "Met",
   "dynamic_analysis_fixed_justification": "Any issues surfaced by the sanitizer or valgrind runs are fixed before release.",
 
-  "test_continuous_integration_status": "Met",
-  "test_continuous_integration_justification": "Every change is built and tested before it lands: `tools/verify.sh standard` (lint, R CMD check, full testthat suite) runs in the pre-push hook on each push. Hosted GitLab CI (.gitlab-ci.yml) adds an independent clean-checkout run — lint, R CMD check --as-cran with error_on='warning', coverage, and an R devel/release/oldrel-1 matrix — on v* release tags, on manually triggered pipelines and on schedules. Hosted runs are gated to those events rather than every push because GitLab.com shared-runner minutes are a metered, paid resource for this project: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
+  "test_continuous_integration_status": "Unmet",
+  "test_continuous_integration_justification": "Stated as unmet rather than described around. No hosted pipeline runs on integration events: the `workflow:` rules in .gitlab-ci.yml create a pipeline only for `CRAN_PREP=1` or `DEPLOY_PAGES=1` raised from a web, api or trigger source, and `when: never` otherwise — not on a branch push, not on a merge request, not on a tag, not on a schedule. The per-change gate is `tools/verify.sh standard` (lint plus the roughly 2000-test testthat suite; R CMD check is deliberately not in that tier) run by a local pre-push hook, which a reviewer cannot inspect or verify and which `git push --no-verify` bypasses. The hosted `CRAN_PREP=1` pipeline does give an independent clean-checkout run — lint, the NEWS/version guard, R CMD check --as-cran with error_on='warning', the README drift guard, coverage, an R devel / 4.6 / 4.5 matrix and the dependency audits — but only when a maintainer starts it by name before a CRAN submission. Hosted runs are narrowed this way because GitLab.com shared-runner minutes are a metered, paid resource for this project and have been exhausted once: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "discussion_status": "Met",
   "discussion_justification": "GitLab Issues provide a public forum for project discussion: https://gitlab.com/bart-turczynski/pslr/-/issues",
