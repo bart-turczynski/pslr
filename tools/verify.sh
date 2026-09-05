@@ -263,13 +263,82 @@ run_osv() {
   ok "no OSV advisories"
 }
 
+# The path R itself would read the user's environment file from. Hardcoding
+# ~/.Renviron would disagree with R on any machine that redirects it, and the
+# whole point of this helper is that both halves of the audit look in one place.
+# `${HOME:-}` because `set -u` would otherwise abort the whole gate in the one
+# environment that has no HOME at all, which is not this check's business.
+renviron_file() {
+  printf '%s' "${R_ENVIRON_USER:-${HOME:-}/.Renviron}"
+}
+
+# Sets $1 from the R user environment file, but only when the environment does
+# not already define it: an exported variable wins, so CI — which passes real
+# environment variables — is unaffected and the file stays a fallback.
+#
+# `source` is deliberately not used. .Renviron is data, not a shell script, and
+# sourcing it would execute whatever it happens to contain.
+#
+# The value never reaches stdout, stderr or the trace: xtrace is suspended
+# around the assignment, so a future `bash -x tools/verify.sh` cannot print a
+# credential, and no caller ever renders the value — only whether it is there.
+load_from_renviron() {
+  local name="$1" file line value xtrace=0
+  case "$-" in *x*) xtrace=1; set +x ;; esac
+
+  file="$(renviron_file)"
+  if [ -r "$file" ]; then
+    # The anchor rules out comments for free — a `#` before the name never
+    # matches — and the last assignment wins, as a later line would in R.
+    line="$(grep -E "^[[:space:]]*${name}[[:space:]]*=" "$file" 2>/dev/null | tail -n1)" || line=''
+    if [ -n "$line" ]; then
+      # Everything after the FIRST `=`, because a token may contain one, then
+      # at most one layer of matching surrounding quotes.
+      value="${line#*=}"
+      case "$value" in
+        \"*\") value="${value#\"}"; value="${value%\"}" ;;
+        \'*\') value="${value#\'}"; value="${value%\'}" ;;
+      esac
+      printf -v "$name" '%s' "$value"
+      export "${name?}"
+    fi
+  fi
+
+  [ "$xtrace" -eq 0 ] || set -x
+  return 0
+}
+
+# The audit runs inside R, which reads the R environment file; the shell guard
+# in front of it did not, so on a machine with the credentials installed exactly
+# where the old message said to put them the audit was skipped anyway
+# (PSLR-lidgnomk) — PSLR-njeqwltb's vacuous green returning as a vacuous skip.
+# Both gates call this, so both consult the environment and the file alike, and
+# what they resolve is exported for the child R process.
+#
+# `:+set` rather than `:-`: both answer "is it there", but the plain expansion
+# would substitute the credential itself into a traced command line, which is
+# how the first draft of this leaked the value under `bash -x`.
+ossindex_credentials_available() {
+  [ -n "${OSSINDEX_TOKEN:+set}" ] || load_from_renviron OSSINDEX_TOKEN
+  [ -n "${OSSINDEX_USER:+set}" ] || load_from_renviron OSSINDEX_USER
+  [ -n "${OSSINDEX_TOKEN:+set}" ]
+}
+
+# The cran tier's preflight: the same resolution, but fatal. A pre-submission
+# tier that skipped the audit would be asserting something it never checked.
+require_ossindex_credentials() {
+  ossindex_credentials_available && return 0
+  fail "OSSINDEX_TOKEN is set in neither the environment nor $(renviron_file) — the cran tier requires it, a vacuous audit is not a pre-submission check"
+  exit 1
+}
+
 run_security() {
   step "OSS Index dependency audit"
-  if [ -z "${OSSINDEX_TOKEN:-}" ]; then
+  if ! ossindex_credentials_available; then
     # OSS Index rejects anonymous requests with HTTP 401, so without a token
     # this audit is vacuous rather than green. Soft in `full` (the tree is
     # still checked by everything else), hard in `cran`.
-    warn "OSSINDEX_TOKEN not set — skipping. Put OSSINDEX_USER='x' and OSSINDEX_TOKEN in ~/.Renviron (see PSLR-njeqwltb)."
+    warn "OSSINDEX_TOKEN is set in neither the environment nor $(renviron_file) — skipping. Put OSSINDEX_USER='x' (the literal placeholder) and OSSINDEX_TOKEN in either (see PSLR-njeqwltb)."
     soft_warnings+=("OSS Index audit skipped: no token")
     return 0
   fi
@@ -516,10 +585,7 @@ case "$tier" in
 
   cran)
     check_toolchain
-    if [ -z "${OSSINDEX_TOKEN:-}" ]; then
-      fail "OSSINDEX_TOKEN is required for the cran tier — a vacuous audit is not a pre-submission check"
-      exit 1
-    fi
+    require_ossindex_credentials
     run_lint
     run_tests
     # CI disables the remote incoming checks because the rocker image points
