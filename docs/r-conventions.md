@@ -26,6 +26,8 @@ Follow the tidyverse [style guide](https://style.tidyverse.org) and
 
 - Base pipe `|>`, never magrittr `%>%`.
 - `\(x) ...` for one-line anonymous functions; `function(x) { ... }` otherwise.
+  This shorthand is why `DESCRIPTION` declares `R (>= 4.1.0)` — a deliberate
+  floor, not an accident (see [decisions.md](./decisions.md), D21).
 - `snake_case` for functions and arguments; explicit `pkg::fn()` prefixes.
 - Layout is automated by Air (see
   [git-workflow.md](./git-workflow.md#formatting)) — don't restyle code
