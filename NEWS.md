@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* The built pkgdown site is no longer packaged. `_pkgdown.yml` writes to `site/`, which `.Rbuildignore` never learned about when the destination changed, so 3.5 MB of generated documentation was carried into the tarball and every `R CMD check` reported a non-standard top-level directory (PSLR-epkkemop).
+
 * GitHub is fully retired from the repository. New commits are authored to <bartek@turczynski.pl> rather than a noreply address on the suspended GitHub account, and a `.mailmap` makes the 172 existing commits read the same way without rewriting published history. The last `.github` reference in `.Rbuildignore` is gone with the directory it ignored. The remaining `github.com` links in the tree are all third-party — pandoc releases, pak, and the upstream Public Suffix List itself (PSLR-thcaqtnw).
 
 * Hosted CI is now two named pipelines and nothing else: `CRAN_PREP=1` runs the pre-submission gate (lint, `--as-cran`, README and NEWS guards, coverage, the R 4.5/4.6/devel matrix and the OSV, OSS Index and upstream-PSL audits), and `DEPLOY_PAGES=1` republishes the documentation site. No pipeline is created by a push, a merge request, a tag or a schedule; the everyday gate is `tools/verify.sh` on the maintainer's machine (PSLR-ugxanxne, PSLR-totktvlq).
