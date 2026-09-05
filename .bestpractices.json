@@ -120,7 +120,7 @@
   "warnings_fixed_justification": "Warnings are treated as errors and fixed; R CMD check is kept clean.",
 
   "warnings_strict_status": "Met",
-  "warnings_strict_justification": "LINTR_ERROR_ON_LINT=true, so any lint fails the build, and the `check` job runs R CMD check --as-cran with error_on = \"warning\" — a warning is a build failure, not a report: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
+  "warnings_strict_justification": "Any lint fails the build: `tools/verify.sh` and the `lint` job both run `lintr::lint_package()` and exit non-zero if it returns anything. The `check` job runs R CMD check --as-cran with error_on = \"warning\" — a warning is a build failure, not a report: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "know_secure_design_status": "Met",
   "know_secure_design_justification": "The maintainer applies secure design principles; pslr defensively handles untrusted host strings through its C++ PSL matcher, enforcing strict input parsing and trie-based label matching.",
@@ -168,7 +168,7 @@
   "vulnerabilities_critical_fixed_justification": "No known unfixed critical vulnerabilities.",
 
   "static_analysis_status": "Met",
-  "static_analysis_justification": "lintr (full-package lint), R CMD check, and goodpractice are run; FOSSA scans dependencies for license and security issues: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
+  "static_analysis_justification": "lintr (full-package lint, its linter set kept in step with goodpractice's via .lintr) and R CMD check --as-cran are run, by `tools/verify.sh` locally and by the `lint` and `check` jobs in the CRAN-prep pipeline; FOSSA scans dependencies for license and security issues: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "static_analysis_common_vulnerabilities_status": "Met",
   "static_analysis_common_vulnerabilities_justification": "R CMD check plus lintr cover common defect classes; FOSSA covers dependency vulnerabilities; R CMD check --as-cran flags C/C++ compiler warnings from the PSL matcher: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
@@ -180,7 +180,7 @@
   "static_analysis_often_justification": "lintr runs on every push: `tools/verify.sh standard` executes `lintr::lint_package()` in the local pre-push hook and fails the push on any lint. That hook is local, so a reviewer cannot inspect or verify it, and it is bypassed by `git push --no-verify` or by a clone that never ran `pre-commit install --hook-type pre-push`. The hosted `lint` job repeats the same command, but only in the CRAN-prep pipeline (`CRAN_PREP=1`) — not on pushes, merge requests, tags or schedules: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
 
   "dynamic_analysis_status": "Met",
-  "dynamic_analysis_justification": "Before releases, `tools/verify.sh sanitize` runs R CMD check — including the testthat suite — under the clang-ASAN/UBSAN and valgrind containers in Docker, exercising the C++ PSL matcher. It is part of the `cran` verify tier that gates a submission: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
+  "dynamic_analysis_justification": "Before releases, `tools/verify.sh sanitize` installs the package and runs the full testthat suite under the clang-ASAN/UBSAN and valgrind containers in Docker, exercising the C++ PSL matcher. It runs locally under Docker — there is no hosted equivalent — as part of the `cran` verify tier that gates a submission: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
 
   "dynamic_analysis_unsafe_status": "Met",
   "dynamic_analysis_unsafe_justification": "pslr ships C++ code in src/ (the PSL matcher: cpp11.cpp, matcher.cpp). `tools/verify.sh sanitize` runs the package under clang-ASAN/UBSAN (memory errors and undefined behaviour) and valgrind (memory leaks and illegal memory access) before releases: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
