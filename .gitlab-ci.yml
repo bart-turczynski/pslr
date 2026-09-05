@@ -200,9 +200,22 @@ variables:
     - >-
       apt-get install -y --no-install-recommends
       ca-certificates curl git jq qpdf ghostscript
+    # The ARCHITECTURE is derived, never asserted. pandoc ships one .deb per
+    # architecture (3.10 publishes both amd64 and arm64) and `dpkg -i` refuses
+    # a package built for another one, so a hardcoded `-amd64` takes out every
+    # job that inherits this template the moment the runner is not x86_64.
+    # That is not hypothetical: when the shared-runner quota is exhausted the
+    # documented fallback is a local gitlab-runner on Apple Silicon, where
+    # Docker resolves rocker/r-ver to arm64 and the Docker executor has no way
+    # to request a platform. `dpkg --print-architecture` spells the value
+    # exactly as pandoc names its assets. It is command substitution rather
+    # than a variable on purpose: GitLab expands $VAR itself before the shell
+    # ever runs, but leaves $( ) alone, so this is evaluated in the container
+    # it has to describe. Repeated verbatim in the two templates below for the
+    # same `!reference` reason as the apt lines.
     - >-
       curl -fsSL -o /tmp/pandoc.deb
-      "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+      "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-$(dpkg --print-architecture).deb"
     - dpkg -i /tmp/pandoc.deb
 
 # Adds pak and the cached project library, but NOT the package's dependency
@@ -229,7 +242,7 @@ variables:
       ca-certificates curl git jq qpdf ghostscript
     - >-
       curl -fsSL -o /tmp/pandoc.deb
-      "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+      "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-$(dpkg --print-architecture).deb"
     - dpkg -i /tmp/pandoc.deb
     - mkdir -p "$R_LIBS_USER"
     - >-
@@ -253,7 +266,7 @@ variables:
       ca-certificates curl git jq qpdf ghostscript
     - >-
       curl -fsSL -o /tmp/pandoc.deb
-      "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+      "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-$(dpkg --print-architecture).deb"
     - dpkg -i /tmp/pandoc.deb
     - mkdir -p "$R_LIBS_USER"
     - >-
