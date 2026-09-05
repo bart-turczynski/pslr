@@ -104,10 +104,10 @@ psl_status()
 #>   No successful check has confirmed these bytes against the source. Run
 #>   psl_refresh() to check.
 #>   snapshot:     active (bundled)
-#>   checksum:     sha256:54fb5c65a1e2...
+#>   checksum:     sha256:00dda6fa8406...
 #>   source:       https://publicsuffix.org/list/public_suffix_list.dat
-#>   content date: 2026-06-13 21:47 UTC
-#>   retrieved:    2026-07-26 13:00 UTC
+#>   content date: 2026-09-05 14:17 UTC
+#>   retrieved:    2026-09-05 14:40 UTC
 ```
 
 `psl_refresh()` is the only network path. It sends a conditional request when it
