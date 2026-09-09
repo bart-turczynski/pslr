@@ -5,10 +5,24 @@
 # activation must rebuild the index from the bundled source rather than mix
 # profiles. The mismatch is simulated by overriding the runtime identifiers.
 
-test_that("a matching profile uses the shipped index without rebuilding", {
+# Whether the shipped index needs a rebuild is a property of the punycoder that
+# happens to be installed, not of pslr, so the expectation is derived from the
+# same comparison `bundled_snapshot()` makes rather than hardcoded. Asserting
+# FALSE pinned a build-time coincidence -- that the index was generated under
+# the profile the installed punycoder reports -- and failed against any
+# punycoder that had since moved its Unicode pin (PSLR-rnfnzwqu).
+test_that("the shipped index rebuilds exactly on a profile mismatch", {
   local_pslr_clean()
+  bundled <- pslr_bundled$meta
+  runtime <- runtime_normalizer_meta()
+  expected <- !identical(
+    bundled$normalization_profile,
+    runtime$normalization_profile
+  ) ||
+    !identical(bundled$unicode_version, runtime$unicode_version)
+
   psl_use("bundled")
-  expect_false(the_matcher$state$snapshot$rebuilt)
+  expect_identical(the_matcher$state$snapshot$rebuilt, expected)
 })
 
 test_that("a mismatched Unicode version rebuilds from source", {

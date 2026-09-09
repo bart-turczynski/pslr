@@ -6,6 +6,12 @@
 # canonicalization and the cpp11 matcher -- during `expr`, by wrapping the live
 # bindings. Restores them afterwards. Returns list(norm =, match =, value =),
 # where `value` is the result of `expr`.
+#
+# Callers must activate before measuring. These tests are about per-query dedup,
+# not about one-time activation, and an activation that rebuilds the bundled
+# index -- which it does whenever the installed punycoder's profile differs from
+# the one the index was generated under -- normalizes all 10,212 source rules
+# inside the measured region (PSLR-rnfnzwqu).
 count_crossings <- function(expr) {
   counts <- new.env(parent = emptyenv())
   counts$norm <- 0L
@@ -47,6 +53,7 @@ count_crossings <- function(expr) {
 
 test_that("a repeated host is normalized and matched exactly once", {
   local_pslr_clean()
+  psl_use("bundled")
   n <- 1000L
   res <- count_crossings(public_suffix(rep("www.example.co.uk", n)))
 
@@ -58,6 +65,7 @@ test_that("a repeated host is normalized and matched exactly once", {
 
 test_that("dedup collapses to the number of distinct hosts, not inputs", {
   local_pslr_clean()
+  psl_use("bundled")
   hosts <- c("a.example.com", "b.co.uk", "x.kobe.jp")
   res <- count_crossings(public_suffix(rep(hosts, 500L)))
 
@@ -69,6 +77,7 @@ test_that("dedup collapses to the number of distinct hosts, not inputs", {
 
 test_that("distinct inputs that canonicalize equal share one match call", {
   local_pslr_clean()
+  psl_use("bundled")
   # Mixed-case and Unicode/A-label spellings collapse to one canonical host, so
   # the matcher is crossed once even though normalization sees each spelling.
   inputs <- c("EXAMPLE.CO.UK", "example.co.uk", "Example.Co.Uk")
