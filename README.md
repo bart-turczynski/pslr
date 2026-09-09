@@ -107,7 +107,7 @@ psl_status()
 #>   checksum:     sha256:00dda6fa8406...
 #>   source:       https://publicsuffix.org/list/public_suffix_list.dat
 #>   content date: 2026-09-05 14:17 UTC
-#>   retrieved:    2026-09-05 14:40 UTC
+#>   retrieved:    2026-09-09 12:39 UTC
 ```
 
 `psl_refresh()` is the only network path. It sends a conditional request when it

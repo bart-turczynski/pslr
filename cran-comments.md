@@ -1,102 +1,70 @@
 ## R CMD check results
 
-0 errors | 0 warnings | 1 note
-
-The NOTE is an incoming-feasibility maintainer-email change, from
-`bartek+pslr@turczynski.pl` to `bartek@turczynski.pl`. This is the same
-maintainer (Bart Turczynski, ORCID 0000-0002-8788-7980); the address was
-normalized to drop the per-package plus-tag alias. No change of person or
-organization.
-
-### Expected additional NOTE from the next submission onwards
-
-The URL check will report the `BugReports` field as a 404:
-
-    URL: https://gitlab.com/bart-turczynski/pslr/-/issues
-    From: DESCRIPTION
-    Status: 404
-
-This is a false positive, and not one the package can fix. The page opens
-normally in a browser and accepts bug reports from anyone with a GitLab
-account; GitLab.com serves an HTTP 404 to non-browser clients requesting any
-issue-list path, as an anti-scraping measure. The same request against
-`https://gitlab.com/gitlab-org/gitlab/-/issues` — the issue tracker of GitLab
-itself — returns 404 under `curl` and under R's checker while being plainly
-live, which is how the behaviour was confirmed to be site-wide rather than a
-misconfiguration of this project. The repository root
-(`https://gitlab.com/bart-turczynski/pslr`) and every file path under it return
-200 to the same client.
-
-The project is public and the tracker is open: <https://gitlab.com/bart-turczynski/pslr>.
+0 errors | 0 warnings | 0 notes
 
 ## Changes in this version
 
-This is a feature-and-compatibility release (1.0.1 -> 1.1.1). The intervening
-1.0.2 and 1.1.0 versions were tagged during development but never submitted to
-CRAN, so their changes ship here. Highlights:
+This is a feature release (1.1.1 -> 1.2.0). It contains one breaking change and
+one bundled-data update that changes query results; both are detailed below and
+in NEWS.md.
 
-* The core matcher is now a reverse-label trie (one right-to-left label descent
-  per host), roughly halving direct-match time; results are byte-identical.
-* New `psl_engine()` builds a self-contained, process-local PSL engine, and the
-  five query functions gain an optional `engine=` argument to query a specific
-  snapshot without touching session-global state.
-* New offline helpers `psl_cache_prune()` and an `options(pslr.cache = FALSE)`
-  escape hatch.
-* **Dependency floor lowered to `punycoder (>= 1.1.0)`** — the current CRAN
-  `punycoder` release — and the development `Remotes:` field is removed, so
-  `pslr` now resolves entirely from CRAN. `pslr` calls only `punycoder` API
-  present since 1.1.0 and is forward-compatible with the upcoming `punycoder`
-  1.2.x, whose default `host_normalize()` output is byte-identical.
+* Breaking: `psl_snapshots()`'s `normalization_profile` column is renamed
+  `first_normalization_profile` and documented as first-publication provenance.
+  A snapshot descriptor records the normalizer installed when those bytes were
+  first published, but pslr re-parses source bytes under the *runtime*
+  normalizer at every load, so the inventory could report a profile that was no
+  longer in use anywhere, contradicting `psl_version()` about the same active
+  snapshot in the same session. Query results are unaffected.
 
-## Dependencies
+* Data: the bundled Public Suffix List snapshot moves from upstream commit
+  `9186eeed` (2026-06-13) to `46ae48ce` (2026-09-05), a net +140 / -29 rules,
+  10212 to 10323. This changes query results for real domains. The official
+  upstream test vectors are unchanged between the two commits and still pass.
 
-* `pslr` imports `punycoder` for its canonical-host normalization (IDNA/Unicode)
-  layer. The floor is `punycoder (>= 1.1.0)`, the current CRAN release, so the
-  import resolves against CRAN with no development remotes.
+* New: `psl_diff(old, new)` reports rules added, removed or changed between two
+  locally available snapshots. It resolves no dates, downloads nothing, and
+  activates neither side.
 
-**Coordinated submission order.** `pslr`, `punycoder`, and `rurl` are
-co-maintained. This `pslr` release deliberately requires only the current CRAN
-`punycoder`, so it is submitted **first** and installs cleanly today. The sibling
-releases (`punycoder` 1.2.1, then `rurl` 2.7.0) follow, each after the preceding
-package is live on CRAN.
+* The built pkgdown site is no longer packaged. `_pkgdown.yml` writes to
+  `site/`, which `.Rbuildignore` had not learned about, so generated
+  documentation was being carried into the tarball.
 
-## Test environments
+* `URL` and `BugReports` moved from GitHub to GitLab. The GitHub account that
+  hosted this package is suspended, so the previously declared homepage and bug
+  tracker no longer resolve. `URL` is now the pkgdown site
+  <https://bart-turczynski.gitlab.io/pslr/> and the GitLab repository, followed
+  by the canonical CRAN and r-universe pages; `BugReports` is the GitLab issue
+  tracker. All are public and were verified to resolve before submission.
 
-* local: macOS (aarch64), R 4.6.0 — `R CMD check --as-cran`
-* GitLab CI (`.gitlab-ci.yml`, job `full-check`): Ubuntu on R devel, release and
-  oldrel-1, all with `--as-cran`.
-* GitLab's shared runners are Linux-only, so there is no continuous macOS or
-  Windows leg. Those platforms are covered before submission by win-builder
-  (`devtools::check_win_devel()`) and mac-builder
-  (`devtools::check_mac_release()`).
-* R-hub is not used for this package: `rhub` v2 dispatches its checks to GitHub
-  Actions, and this package is hosted on GitLab. The dynamic analysis R-hub
-  provided is run locally instead, as `tools/verify.sh sanitize`: the test suite
-  over the compiled matcher under ASAN and UBSAN
-  (`-fsanitize=address,undefined -fno-sanitize-recover=all`), then under
-  valgrind memcheck. For this release both legs are clean: no ASAN or UBSAN
-  findings, and valgrind reports 0 errors from 0 contexts over the full test
-  suite. Restricted to the test files that exercise the matcher, valgrind also
-  reports no definite or indirect loss.
+  Note for the URL check: GitLab returns HTTP 404 on `/-/issues` for
+  unauthenticated clients across the whole site, not only for this project --
+  <https://gitlab.com/gitlab-org/gitlab/-/issues> behaves identically. The
+  tracker is public and reachable in a browser.
 
-## Portability
+## Platform
 
-* The matcher is compiled with `cpp11` and links no external system library.
-* Host normalization is delegated to `punycoder`. `punycoder` works with or
-  without the optional `libidn2` system library; when `libidn2` is absent it
-  uses a bundled fallback backend. On Windows `punycoder` is built without
-  `libidn2`, so `pslr`'s full normalization and query suite runs against the
-  fallback backend there.
+Tested locally on macOS aarch64 (R release) and on GitLab CI: Ubuntu, R devel /
+release / oldrel-1. Windows and macOS coverage for this submission comes from
+win-builder and the macOS builder rather than from CI, which is Linux-only
+since the project moved off GitHub Actions.
 
-## Network use
+## Reverse dependencies
 
-* No network access occurs during package load, examples, tests, or any query.
-* The only function that accesses the network is `psl_refresh()`, and only when
-  called explicitly. It is HTTPS-only, rejects embedded credentials and
-  downgrade redirects, and enforces a source-size ceiling. Its examples are
-  wrapped in `\dontrun{}` and its tests use an injected downloader, so the check
-  is fully offline.
+The only CRAN reverse dependency is 'rurl', currently 3.0.1 (published
+2026-09-09). It was checked against this submission -- `R CMD check` on
+`rurl_3.0.1.tar.gz` resolved against pslr 1.2.0 and punycoder 1.2.1 returns
+`Status: OK`, no errors, warnings or notes.
 
-## Downstream dependencies
+'rurl' declares `pslr (>= 1.1.1)`, and neither the renamed `psl_snapshots()`
+column nor `psl_diff()` is on any path it uses.
 
-None on CRAN.
+## Note on the 'punycoder' dependency
+
+pslr's bundled index records the normalization profile it was generated under
+and rebuilds in memory if the installed 'punycoder' reports a different one.
+This release ships an index built under the 'punycoder' CRAN currently serves
+(1.2.1), so no rebuild occurs for any user. A future 'punycoder' will move its
+pinned Unicode version, at which point pslr will rebuild on load -- correctly,
+and with a byte-identical rule set -- until a subsequent pslr reships the index.
+The `Imports` floor deliberately stays at `punycoder (>= 1.1.0)`: no behavior
+here requires a newer one.
