@@ -11,7 +11,7 @@
 # FALSE pinned a build-time coincidence -- that the index was generated under
 # the profile the installed punycoder reports -- and failed against any
 # punycoder that had since moved its Unicode pin (PSLR-rnfnzwqu).
-test_that("the shipped index is rebuilt exactly on a runtime profile mismatch", {
+test_that("the shipped index rebuilds exactly on a profile mismatch", {
   local_pslr_clean()
   bundled <- pslr_bundled$meta
   runtime <- runtime_normalizer_meta()
