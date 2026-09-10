@@ -1,6 +1,32 @@
 ## R CMD check results
 
-0 errors | 0 warnings | 0 notes
+0 errors | 0 warnings | 2 notes
+
+Both notes were measured on 2026-09-10 with `R CMD check --as-cran` against the
+submitted tarball, built with `R CMD build` from a clean `git archive` export of
+the release commit `ac68982` -- not from a working tree.
+
+* `checking CRAN incoming feasibility` reports one possibly invalid URL,
+  `https://gitlab.com/bart-turczynski/pslr/-/issues`, the `BugReports:` field,
+  status 404. The tracker is public and open. GitLab has migrated issues to work
+  items and returns 404 on the legacy `/-/issues` path for signed-out clients on
+  every project on the site; the sibling path `/-/work_items` returns 200 to the
+  same anonymous scripted client, as does the repository root. Re-measured
+  2026-09-10 against `gitlab.com/gitlab-org/gitlab` as a control, which answers
+  identically. A browser follows the redirect, which is why the page loads by
+  hand. The address is the one users need and it is not dropped; repointing
+  `BugReports:` at `/-/work_items` is deferred to the next release cycle rather
+  than made at submission time, because GitLab's migration is still in progress.
+
+* `checking examples` reports `psl_diff` at 8.3s elapsed, over the 5s threshold.
+  `psl_diff()` is new in this version, and two of its three example calls diff
+  against the bundled Public Suffix List, whose snapshot this release grows from
+  10212 rules to 10323; parsing that list is the whole of the cost. Measured
+  per call on the submission machine: the two small on-disk lists diff in 0.05s,
+  `psl_diff("bundled", "bundled")` takes 6.3s and the provenance call
+  `psl_diff("bundled", old)` 3.1s. The examples are correct and deliberately
+  left runnable -- this package wraps no example in `\donttest{}` -- so the cost
+  is real work a user's first call also pays, not setup overhead.
 
 ## Changes in this version
 
@@ -36,10 +62,9 @@ in NEWS.md.
   by the canonical CRAN and r-universe pages; `BugReports` is the GitLab issue
   tracker. All are public and were verified to resolve before submission.
 
-  Note for the URL check: GitLab returns HTTP 404 on `/-/issues` for
-  unauthenticated clients across the whole site, not only for this project --
-  <https://gitlab.com/gitlab-org/gitlab/-/issues> behaves identically. The
-  tracker is public and reachable in a browser.
+  Note for the URL check: this is the 404 explained under "R CMD check
+  results" above. It is site-wide legacy-path behavior at GitLab, not a broken
+  address.
 
 ## Platform
 
