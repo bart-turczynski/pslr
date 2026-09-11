@@ -20,7 +20,7 @@ URL: https://bart-turczynski.gitlab.io/pslr/,
     https://gitlab.com/bart-turczynski/pslr,
     https://CRAN.R-project.org/package=pslr,
     https://bart-turczynski.r-universe.dev
-BugReports: https://gitlab.com/bart-turczynski/pslr/-/issues
+BugReports: https://gitlab.com/bart-turczynski/pslr/-/work_items
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Depends:
