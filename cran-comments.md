@@ -1,10 +1,12 @@
 ## R CMD check results
 
-0 errors | 0 warnings | 2 notes
+0 errors | 0 warnings | 1 note
 
-Both notes were measured on 2026-09-10 with `R CMD check --as-cran` against the
-submitted tarball, built with `R CMD build` from a clean `git archive` export of
-the release commit `ac68982` -- not from a working tree.
+The note was measured on 2026-09-11 with `R CMD check --as-cran` against the
+submitted tarball, built from a clean `git archive` export of `main` -- not from
+a working tree -- with 'punycoder' 1.2.1, the version CRAN serves, resolved from
+an isolated library. `cran-comments.md` is in `.Rbuildignore`, so revisions to
+this file do not change the tarball the measurement describes.
 
 * `checking CRAN incoming feasibility` reports one possibly invalid URL,
   `https://gitlab.com/bart-turczynski/pslr/-/issues`, the `BugReports:` field,
@@ -17,16 +19,6 @@ the release commit `ac68982` -- not from a working tree.
   hand. The address is the one users need and it is not dropped; repointing
   `BugReports:` at `/-/work_items` is deferred to the next release cycle rather
   than made at submission time, because GitLab's migration is still in progress.
-
-* `checking examples` reports `psl_diff` at 8.3s elapsed, over the 5s threshold.
-  `psl_diff()` is new in this version, and two of its three example calls diff
-  against the bundled Public Suffix List, whose snapshot this release grows from
-  10212 rules to 10323; parsing that list is the whole of the cost. Measured
-  per call on the submission machine: the two small on-disk lists diff in 0.05s,
-  `psl_diff("bundled", "bundled")` takes 6.3s and the provenance call
-  `psl_diff("bundled", old)` 3.1s. The examples are correct and deliberately
-  left runnable -- this package wraps no example in `\donttest{}` -- so the cost
-  is real work a user's first call also pays, not setup overhead.
 
 ## Changes in this version
 
@@ -88,8 +80,17 @@ column nor `psl_diff()` is on any path it uses.
 pslr's bundled index records the normalization profile it was generated under
 and rebuilds in memory if the installed 'punycoder' reports a different one.
 This release ships an index built under the 'punycoder' CRAN currently serves
-(1.2.1), so no rebuild occurs for any user. A future 'punycoder' will move its
-pinned Unicode version, at which point pslr will rebuild on load -- correctly,
-and with a byte-identical rule set -- until a subsequent pslr reships the index.
+(1.2.1), so no rebuild occurs for any user, and the examples run in well under a
+second in total.
+
+A future 'punycoder' will move its pinned Unicode version, at which point pslr
+will rebuild on load -- correctly, and with a byte-identical rule set -- until a
+subsequent pslr reships the index. Disclosed so it is not a surprise: measured
+against that unreleased 'punycoder', the rebuild puts the `psl_diff` example at
+roughly 8.5s, over the 5s threshold, so this package may begin drawing an
+examples-timing NOTE on CRAN's machines once that 'punycoder' is published,
+without pslr itself changing. A pslr release reshipping the index under the new
+pin is already prepared for that point.
+
 The `Imports` floor deliberately stays at `punycoder (>= 1.1.0)`: no behavior
 here requires a newer one.
