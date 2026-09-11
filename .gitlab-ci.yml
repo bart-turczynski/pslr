@@ -335,6 +335,19 @@ news-version:
       done
       exit "$missing"
 
+# CITATION.cff and .zenodo.json each duplicate the version and the project
+# URLs out of DESCRIPTION, and nothing asserts either copy is right. Offline,
+# stdlib-only Python, so it runs in seconds without the R image — same shape
+# as news-version above. The rule is `design/adr/0001-citation-metadata-names-the-release.md`
+# in seor (ported here unmodified in scripts/check-citation.py).
+citation-version:
+  extends: .rules-cran-prep
+  stage: lint
+  image: python:3.13-alpine
+  script:
+    - python3 scripts/check-citation.py --self-test
+    - python3 scripts/check-citation.py
+
 # THE gate. This is the AGENTS.md verify command, the same one the pre-push
 # hook runs, with `--no-manual` added because the image carries no LaTeX (the
 # PDF manual is built by CRAN's own incoming checks, not here).
