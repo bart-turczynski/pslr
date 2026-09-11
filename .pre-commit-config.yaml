@@ -51,3 +51,15 @@ repos:
         always_run: true
         stages: [pre-push]
         verbose: true
+      # CITATION.cff and .zenodo.json duplicate the version and the project
+      # URLs out of DESCRIPTION, and nothing asserted either copy. Offline,
+      # stdlib-only and instant. The rule it enforces is
+      # https://gitlab.com/bart-turczynski/seor's
+      # design/adr/0001-citation-metadata-names-the-release.md.
+      - id: check-citation
+        name: citation metadata vs DESCRIPTION
+        entry: python3 scripts/check-citation.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
