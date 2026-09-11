@@ -50,3 +50,7 @@
 ^\.DS_Store$
 ^ACKNOWLEDGMENTS\.md$
 ^\.bestpractices\.json$
+# The citation gate ported from seor (design/adr/0002 there). Not part
+# of the installable package; without this, --as-cran reports it as a
+# non-standard top-level directory.
+^scripts$
