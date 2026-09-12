@@ -2,10 +2,15 @@
 
 0 errors | 0 warnings | 1 note
 
-Measured on 2026-09-12 with `R CMD check --as-cran` on macOS aarch64 (R 4.6.0),
-with 'punycoder' 1.2.1 -- the version CRAN serves -- resolved from an isolated
-library, so the measurement is not taken against a development build installed
-locally. `cran-comments.md` is in `.Rbuildignore`, so revisions to this file do
+Measured on 2026-09-12 with `R CMD check --as-cran` on macOS aarch64 (R 4.6.0)
+against this tarball, except that its `NEWS.md` bullet still gave the tracker
+address as a link, so the 404 was listed from both `DESCRIPTION` and `NEWS.md`;
+a URL scan of the final sources lists it from `DESCRIPTION` only. That library
+held the development
+'punycoder' 1.2.1.9000 rather than the 1.2.1 CRAN serves. CRAN's own pretest of
+the first 1.2.1 upload, whose code is identical, resolved CRAN's 'punycoder' on
+r-devel Windows and Debian and reported only the `BugReports:` NOTE addressed
+below. `cran-comments.md` is in `.Rbuildignore`, so revisions to this file do
 not change the tarball the measurement describes.
 
 * `checking CRAN incoming feasibility` is expected to report the `BugReports:`
@@ -34,7 +39,9 @@ not change the tarball the measurement describes.
 
 A first upload of 1.2.1 on 2026-09-12 was archived at the incoming pretest for a
 single NOTE asking that `BugReports:` use `/-/issues` rather than `/-/work_items`;
-that is done, as discussed above. No other file changed.
+that is done, as discussed above. The tarball differs from that upload only in
+the `BugReports:` line and its `NEWS.md` bullet, which gives the address as code
+rather than a link so the 404 is reported once, from `DESCRIPTION`.
 
 1.2.0 was archived at the incoming pretest on 2026-09-11 for two findings. Both
 are addressed.
@@ -47,13 +54,11 @@ are addressed.
   them on every rule. The writes are now in place, with byte-identical output
   and no behavior change.
 
-  Measured on one machine, same isolated library, archived tarball versus this
-  one: `checking tests` falls from `[105s/114s]` to `[21s/34s]`, and the whole
-  check from 2m 19.7s to 1m 16.8s. That is a 5x reduction in the tests step
-  rather than a hardware difference, so the 495s step should fall to roughly
-  100-150s on CRAN's machines and the overall checktime well under the limit.
-  No test was deleted, shortened or made conditional: the suite still runs
-  2034 passing expectations.
+  CRAN's own pretest of the first 1.2.1 upload, whose code is identical to
+  this tarball's, measured `checking tests` at 60s on r-devel-windows-x86_64
+  (495s for 1.2.0) and `[34s/34s]` on r-devel-linux-x86_64-debian-gcc. No test
+  was deleted, shortened or made conditional: the suite runs 2035 passing
+  expectations.
 
 * **`https://gitlab.com/bart-turczynski/pslr/-/issues`, status 404**, in
   `DESCRIPTION`. Unavoidable for a gitlab.com tracker, discussed above.
