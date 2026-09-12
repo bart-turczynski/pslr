@@ -2,7 +2,7 @@
 
 * **Parsing the Public Suffix List is roughly 7x faster.** `parse_psl_lines()` preallocated its rule columns but then wrote each row through a helper function, which made the columns referenced twice and copied all of them on every rule -- quadratic in the number of rules, defeating the preallocation it was paired with. The writes are now in place. On the bundled list (10,323 rules) `read_psl_file()` drops from 11.97s to 1.69s with byte-identical output, and the package's own test suite drops from 486s to 201s. No behavior changes (PSLR-ufhllfer).
 
-* `BugReports` now points at <https://gitlab.com/bart-turczynski/pslr/-/work_items>. GitLab has migrated issues to work items and returns 404 on the legacy `/-/issues` path for signed-out clients on every project on the site, so the work-items address is the one that resolves for a reader who is not logged in (PSLR-cmkufiww).
+* `BugReports` points at <https://gitlab.com/bart-turczynski/pslr/-/issues>, the form R's CRAN incoming check requires for a gitlab.com tracker. GitLab now serves issues as work items: a browser following that link is redirected to `/-/work_items`, while a signed-out non-browser client gets a 404, on every project on the site (PSLR-cmkufiww).
 
 # pslr 1.2.0
 

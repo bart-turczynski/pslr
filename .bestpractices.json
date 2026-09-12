@@ -60,22 +60,22 @@
   "release_notes_vulns_justification": "No publicly known vulnerabilities have been fixed to date; NEWS.md records all changes: https://gitlab.com/bart-turczynski/pslr/-/blob/main/NEWS.md",
 
   "report_url_status": "Met",
-  "report_url_justification": "Bug tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items",
+  "report_url_justification": "Bug tracker: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "report_tracker_status": "Met",
-  "report_tracker_justification": "GitLab Issues serve as the bug tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items",
+  "report_tracker_justification": "GitLab Issues serve as the bug tracker: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "report_process_status": "Met",
-  "report_process_justification": "Users submit bug reports through the GitLab issue tracker, which DESCRIPTION declares as BugReports: https://gitlab.com/bart-turczynski/pslr/-/work_items",
+  "report_process_justification": "Users submit bug reports through the GitLab issue tracker, which DESCRIPTION declares as BugReports: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "report_responses_status": "Met",
-  "report_responses_justification": "Maintainer responds to issue reports on the tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items",
+  "report_responses_justification": "Maintainer responds to issue reports on the tracker: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "enhancement_responses_status": "Met",
-  "enhancement_responses_justification": "Maintainer responds to enhancement requests on the tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items",
+  "enhancement_responses_justification": "Maintainer responds to enhancement requests on the tracker: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "report_archive_status": "Met",
-  "report_archive_justification": "GitLab Issues provide a publicly available, searchable archive of reports and responses, open and closed: https://gitlab.com/bart-turczynski/pslr/-/work_items?state=all",
+  "report_archive_justification": "GitLab Issues provide a publicly available, searchable archive of reports and responses, open and closed: https://gitlab.com/bart-turczynski/pslr/-/issues?state=all",
 
   "vulnerability_report_process_status": "Met",
   "vulnerability_report_process_justification": "The vulnerability-reporting process is published in the security policy: https://gitlab.com/bart-turczynski/pslr/-/blob/main/SECURITY.md . Reports go to the maintainer by email at bartek@turczynski.pl with 'pslr security' in the subject; the policy states explicitly that vulnerabilities must not be filed on any public issue tracker.",
@@ -162,7 +162,7 @@
   "delivery_unsigned_justification": "All distribution downloads are served over HTTPS (CRAN, GitLab, r-universe): https://CRAN.R-project.org/package=pslr",
 
   "vulnerabilities_fixed_60_days_status": "Met",
-  "vulnerabilities_fixed_60_days_justification": "No outstanding known vulnerabilities; tracker at https://gitlab.com/bart-turczynski/pslr/-/work_items",
+  "vulnerabilities_fixed_60_days_justification": "No outstanding known vulnerabilities; tracker at https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "vulnerabilities_critical_fixed_status": "Met",
   "vulnerabilities_critical_fixed_justification": "No known unfixed critical vulnerabilities.",
@@ -195,7 +195,7 @@
   "test_continuous_integration_justification": "Stated as unmet rather than described around. No hosted pipeline runs on integration events: the `workflow:` rules in .gitlab-ci.yml create a pipeline only for `CRAN_PREP=1` or `DEPLOY_PAGES=1` raised from a web, api or trigger source, and `when: never` otherwise — not on a branch push, not on a merge request, not on a tag, not on a schedule. The per-change gate is `tools/verify.sh standard` (lint plus the roughly 2000-test testthat suite; R CMD check is deliberately not in that tier) run by a local pre-push hook, which a reviewer cannot inspect or verify and which `git push --no-verify` bypasses. The hosted `CRAN_PREP=1` pipeline does give an independent clean-checkout run — lint, the NEWS/version guard, R CMD check --as-cran with error_on='warning', the README drift guard, coverage, an R devel / 4.6 / 4.5 matrix and the dependency audits — but only when a maintainer starts it by name before a CRAN submission. Hosted runs are narrowed this way because GitLab.com shared-runner minutes are a metered, paid resource for this project and have been exhausted once: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "discussion_status": "Met",
-  "discussion_justification": "GitLab Issues provide a public forum for project discussion: https://gitlab.com/bart-turczynski/pslr/-/work_items",
+  "discussion_justification": "GitLab Issues provide a public forum for project discussion: https://gitlab.com/bart-turczynski/pslr/-/issues",
 
   "no_leaked_credentials_status": "Met",
   "no_leaked_credentials_justification": "No credentials are committed to the repository; FOSSA scans the repo: https://gitlab.com/bart-turczynski/pslr",

@@ -8,34 +8,33 @@ library, so the measurement is not taken against a development build installed
 locally. `cran-comments.md` is in `.Rbuildignore`, so revisions to this file do
 not change the tarball the measurement describes.
 
-* `checking CRAN incoming feasibility` reports the `BugReports:` field:
+* `checking CRAN incoming feasibility` is expected to report the `BugReports:`
+  address as a 404:
 
-      The BugReports field in DESCRIPTION has
-        https://gitlab.com/bart-turczynski/pslr/-/work_items
-      which should likely be
-        https://gitlab.com/bart-turczynski/pslr/-/work_items/issues
-      instead.
+      Found the following (possibly) invalid URLs:
+        URL: https://gitlab.com/bart-turczynski/pslr/-/issues
+          From: DESCRIPTION
+          Status: 404
 
-  The suggested address does not exist. `tools:::.check_package_CRAN_incoming()`
-  notes any `BugReports:` on a gitlab.com or github.com host whose path does not
-  end in `/issues`, and appends `/issues` to whatever it was given.
+  This is the address the incoming check itself asks for. GitLab has migrated
+  issues to work items and answers `/-/issues` with 404 to any signed-out,
+  non-browser client, on every project on the site: GitLab's own tracker,
+  `https://gitlab.com/gitlab-org/gitlab/-/issues`, answers 404 identically. A
+  browser is redirected (302) to `/-/work_items`, so the link works for a
+  reader.
 
-  GitLab has migrated issues to work items. The legacy `/-/issues` path returns
-  404 to signed-out clients on every project on the site -- re-measured for this
-  submission with R's own `curlGetHeaders()` against
-  `https://gitlab.com/gitlab-org/gitlab/-/issues` as a control, which answers
-  404 identically. `/-/work_items` returns 200 to the same anonymous client. A
-  browser follows the redirect, which is why the legacy page still loads by
-  hand.
-
-  So the two addresses trade one note for the other: `/-/issues` satisfies this
-  check but is then reported as a 404 by the URL check, and `/-/work_items`
-  passes the URL check and is reported here. There is no gitlab.com address that
-  satisfies both: `/pslr/issues` is a 301 to the 404, and `/-/issues/new`
-  redirects to a sign-in page. The declared address is the one that resolves for
-  a reader who is not logged in, which is the fact the field is for.
+  No gitlab.com address clears both checks. The first 1.2.1 upload declared
+  `/-/work_items`, which returns 200, and was archived at the pretest because
+  `tools:::.check_package_CRAN_incoming()` accepts a gitlab.com `BugReports:`
+  only when its path ends in `/-/issues`, and suggested that form. Every such
+  path, with or without a query string, is the 404 above. The field now follows
+  the check's suggestion, as the reverse dependency 'rurl' 3.0.1 does on CRAN.
 
 ## This is a resubmission
+
+A first upload of 1.2.1 on 2026-09-12 was archived at the incoming pretest for a
+single NOTE asking that `BugReports:` use `/-/issues` rather than `/-/work_items`;
+that is done, as discussed above. No other file changed.
 
 1.2.0 was archived at the incoming pretest on 2026-09-11 for two findings. Both
 are addressed.
@@ -57,7 +56,7 @@ are addressed.
   2034 passing expectations.
 
 * **`https://gitlab.com/bart-turczynski/pslr/-/issues`, status 404**, in
-  `DESCRIPTION`. `BugReports:` now points at `/-/work_items`, discussed above.
+  `DESCRIPTION`. Unavoidable for a gitlab.com tracker, discussed above.
 
 1.2.0 was never published, so this release reaches users as 1.1.1 -> 1.2.1 and
 carries the whole 1.2.0 changelog. Both sections are kept in `NEWS.md`.
