@@ -2,29 +2,70 @@
 
 0 errors | 0 warnings | 1 note
 
-The note was measured on 2026-09-11 with `R CMD check --as-cran` against the
-submitted tarball, built from a clean `git archive` export of `main` -- not from
-a working tree -- with 'punycoder' 1.2.1, the version CRAN serves, resolved from
-an isolated library. `cran-comments.md` is in `.Rbuildignore`, so revisions to
-this file do not change the tarball the measurement describes.
+Measured on 2026-09-12 with `R CMD check --as-cran` on macOS aarch64 (R 4.6.0),
+with 'punycoder' 1.2.1 -- the version CRAN serves -- resolved from an isolated
+library, so the measurement is not taken against a development build installed
+locally. `cran-comments.md` is in `.Rbuildignore`, so revisions to this file do
+not change the tarball the measurement describes.
 
-* `checking CRAN incoming feasibility` reports one possibly invalid URL,
-  `https://gitlab.com/bart-turczynski/pslr/-/issues`, the `BugReports:` field,
-  status 404. The tracker is public and open. GitLab has migrated issues to work
-  items and returns 404 on the legacy `/-/issues` path for signed-out clients on
-  every project on the site; the sibling path `/-/work_items` returns 200 to the
-  same anonymous scripted client, as does the repository root. Re-measured
-  2026-09-10 against `gitlab.com/gitlab-org/gitlab` as a control, which answers
-  identically. A browser follows the redirect, which is why the page loads by
-  hand. The address is the one users need and it is not dropped; repointing
-  `BugReports:` at `/-/work_items` is deferred to the next release cycle rather
-  than made at submission time, because GitLab's migration is still in progress.
+* `checking CRAN incoming feasibility` reports the `BugReports:` field:
+
+      The BugReports field in DESCRIPTION has
+        https://gitlab.com/bart-turczynski/pslr/-/work_items
+      which should likely be
+        https://gitlab.com/bart-turczynski/pslr/-/work_items/issues
+      instead.
+
+  The suggested address does not exist. `tools:::.check_package_CRAN_incoming()`
+  notes any `BugReports:` on a gitlab.com or github.com host whose path does not
+  end in `/issues`, and appends `/issues` to whatever it was given.
+
+  GitLab has migrated issues to work items. The legacy `/-/issues` path returns
+  404 to signed-out clients on every project on the site -- re-measured for this
+  submission with R's own `curlGetHeaders()` against
+  `https://gitlab.com/gitlab-org/gitlab/-/issues` as a control, which answers
+  404 identically. `/-/work_items` returns 200 to the same anonymous client. A
+  browser follows the redirect, which is why the legacy page still loads by
+  hand.
+
+  So the two addresses trade one note for the other: `/-/issues` satisfies this
+  check but is then reported as a 404 by the URL check, and `/-/work_items`
+  passes the URL check and is reported here. There is no gitlab.com address that
+  satisfies both: `/pslr/issues` is a 301 to the 404, and `/-/issues/new`
+  redirects to a sign-in page. The declared address is the one that resolves for
+  a reader who is not logged in, which is the fact the field is for.
+
+## This is a resubmission
+
+1.2.0 was archived at the incoming pretest on 2026-09-11 for two findings. Both
+are addressed.
+
+* **Overall checktime 11 min > 10 min**, mainly `checking tests ... [495s]`.
+
+  The cause was a quadratic write pattern in the PSL parser, not test volume:
+  `parse_psl_lines()` preallocated its rule columns and then wrote each row
+  through a helper, which made the columns referenced twice and copied all of
+  them on every rule. The writes are now in place, with byte-identical output
+  and no behavior change.
+
+  Measured on one machine, same isolated library, archived tarball versus this
+  one: `checking tests` falls from `[105s/114s]` to `[21s/34s]`, and the whole
+  check from 2m 19.7s to 1m 16.8s. That is a 5x reduction in the tests step
+  rather than a hardware difference, so the 495s step should fall to roughly
+  100-150s on CRAN's machines and the overall checktime well under the limit.
+  No test was deleted, shortened or made conditional: the suite still runs
+  2034 passing expectations.
+
+* **`https://gitlab.com/bart-turczynski/pslr/-/issues`, status 404**, in
+  `DESCRIPTION`. `BugReports:` now points at `/-/work_items`, discussed above.
+
+1.2.0 was never published, so this release reaches users as 1.1.1 -> 1.2.1 and
+carries the whole 1.2.0 changelog. Both sections are kept in `NEWS.md`.
 
 ## Changes in this version
 
-This is a feature release (1.1.1 -> 1.2.0). It contains one breaking change and
-one bundled-data update that changes query results; both are detailed below and
-in NEWS.md.
+This is a feature release. It contains one breaking change and one bundled-data
+update that changes query results; both are detailed below and in NEWS.md.
 
 * Breaking: `psl_snapshots()`'s `normalization_profile` column is renamed
   `first_normalization_profile` and documented as first-publication provenance.
@@ -43,6 +84,9 @@ in NEWS.md.
   locally available snapshots. It resolves no dates, downloads nothing, and
   activates neither side.
 
+* Performance: parsing the Public Suffix List is roughly 7x faster;
+  `read_psl_file()` drops from 11.97s to 1.69s on the bundled list.
+
 * The built pkgdown site is no longer packaged. `_pkgdown.yml` writes to
   `site/`, which `.Rbuildignore` had not learned about, so generated
   documentation was being carried into the tarball.
@@ -51,12 +95,8 @@ in NEWS.md.
   hosted this package is suspended, so the previously declared homepage and bug
   tracker no longer resolve. `URL` is now the pkgdown site
   <https://bart-turczynski.gitlab.io/pslr/> and the GitLab repository, followed
-  by the canonical CRAN and r-universe pages; `BugReports` is the GitLab issue
-  tracker. All are public and were verified to resolve before submission.
-
-  Note for the URL check: this is the 404 explained under "R CMD check
-  results" above. It is site-wide legacy-path behavior at GitLab, not a broken
-  address.
+  by the canonical CRAN and r-universe pages. All are public and were verified
+  to resolve before submission.
 
 ## Platform
 
@@ -68,9 +108,9 @@ since the project moved off GitHub Actions.
 ## Reverse dependencies
 
 The only CRAN reverse dependency is 'rurl', currently 3.0.1 (published
-2026-09-09). It was checked against this submission -- `R CMD check` on
-`rurl_3.0.1.tar.gz` resolved against pslr 1.2.0 and punycoder 1.2.1 returns
-`Status: OK`, no errors, warnings or notes.
+2026-09-09). It was checked against this submission -- `R CMD check --as-cran`
+on `rurl_3.0.1.tar.gz` resolved against this pslr and 'punycoder' 1.2.1 returns
+0 errors and no test failures.
 
 'rurl' declares `pslr (>= 1.1.1)`, and neither the renamed `psl_snapshots()`
 column nor `psl_diff()` is on any path it uses.
