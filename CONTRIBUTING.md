@@ -1,5 +1,9 @@
 # Contributing
 
+Development happens on [GitLab](https://gitlab.com/bart-turczynski/pslr):
+open issues and merge requests there. The GitHub repository is a read-only
+mirror, and pull requests opened on it are not reviewed.
+
 Install dependencies:
 
 ```sh
