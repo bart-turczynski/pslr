@@ -1,3 +1,7 @@
+# pslr (development version)
+
+* The release checklist in `CONTRIBUTING.md` now covers archiving a release on Zenodo. The Zenodo archive is produced by a **GitHub Release** on the read-only mirror, not by the tag: a `v*` tag only reaches GitHub if the GitLab project has a `v*` protected-tag rule, and only a published GitHub Release fires the Zenodo webhook. The step stays manual, because automating it from the tag pipeline would need a second GitHub credential with Contents write and the push mirror is meant to be the only writer (SEOR-bzqbjxxo).
+
 # pslr 1.2.1
 
 * **Parsing the Public Suffix List is roughly 7x faster.** `parse_psl_lines()` preallocated its rule columns but then wrote each row through a helper function, which made the columns referenced twice and copied all of them on every rule -- quadratic in the number of rules, defeating the preallocation it was paired with. The writes are now in place. On the bundled list (10,323 rules) `read_psl_file()` drops from 11.97s to 1.69s with byte-identical output, and the package's own test suite drops from 486s to 201s. No behavior changes (PSLR-ufhllfer).

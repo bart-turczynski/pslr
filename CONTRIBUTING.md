@@ -118,3 +118,61 @@ and it is useful by hand for the same reason:
 ```sh
 Rscript data-raw/psl_snapshot_meta.R
 ```
+
+### Archiving the release on Zenodo
+
+Each release is archived on Zenodo under the concept DOI
+[10.5281/zenodo.20973660](https://doi.org/10.5281/zenodo.20973660), which always
+resolves to the newest version. The archive is **not** produced by the tag. It is
+produced by a **GitHub Release** on the read-only mirror at
+`github.com/bart-turczynski/pslr`, which fires a Zenodo webhook. A tag alone
+deposits nothing.
+
+This step stays **manual**, and deliberately so. Automating it from the GitLab
+tag pipeline would need a second GitHub credential with Contents write, which is
+exactly what the mirror policy forbids — the push mirror is the only thing
+allowed to write to GitHub. Releases happen a few times a year; a job that runs
+that rarely, holding a token that powerful, is a worse trade than one command.
+
+After the tag is pushed to GitLab and the mirror has synced it:
+
+1. **Check the tag reached GitHub with the same object id.** The mirror only
+   carries protected tags, so a repository without a `v*` protected-tag rule
+   never delivers release tags at all:
+
+   ```sh
+   git ls-remote --tags origin 'refs/tags/v*'
+   git ls-remote --tags https://github.com/bart-turczynski/pslr.git 'refs/tags/v*'
+   ```
+
+2. **Create the release from that existing tag**, never letting GitHub create
+   one. `--verify-tag` is what enforces that:
+
+   ```sh
+   gh release create v<version> -R bart-turczynski/pslr --verify-tag \
+     --title "pslr <version>" --notes-file <notes>
+   ```
+
+3. **Confirm the deposit.** A new version should appear under the concept DOI,
+   labeled with the version from `.zenodo.json`:
+
+   ```sh
+   curl -sSL -H 'Accept: application/json' \
+     'https://zenodo.org/api/records?q=conceptrecid:20973660&all_versions=true'
+   ```
+
+   Zenodo takes `version` from the `.zenodo.json` in the tag's tarball, not from
+   `DESCRIPTION` and not from the tag name. The citation gate
+   (`scripts/check-citation.py`, pre-push and the `citation-version` CI job) is
+   what keeps those in step — before it existed, v1.1.0 and v1.1.1 both deposited
+   under the previous release's version number, which is why two Zenodo records
+   read `1.0.2`.
+
+4. **Record the new version DOI** in `CITATION.cff` under `identifiers`. The
+   concept DOI and the README badge never change.
+
+One quirk worth knowing: publishing a non-prerelease fires three `release`
+webhook deliveries (`created`, `published`, `released`). Zenodo acts on one and
+rejects the other two — a 500 and a 409 next to a 202 in the delivery log are
+expected and do not mean the deposit failed. Judge it by step 3, not by the
+delivery log.
