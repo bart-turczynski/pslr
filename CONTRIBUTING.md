@@ -171,8 +171,18 @@ After the tag is pushed to GitLab and the mirror has synced it:
 4. **Record the new version DOI** in `CITATION.cff` under `identifiers`. The
    concept DOI and the README badge never change.
 
-One quirk worth knowing: publishing a non-prerelease fires three `release`
-webhook deliveries (`created`, `published`, `released`). Zenodo acts on one and
-rejects the other two — a 500 and a 409 next to a 202 in the delivery log are
-expected and do not mean the deposit failed. Judge it by step 3, not by the
-delivery log.
+Two things measured on the 1.2.1 deposit, so you don't misread them as failures:
+
+* **The deposit is not instant.** It took 6.5 minutes from the release
+  (10:36:31Z) to the record appearing (10:42:54Z). Polling for one minute and
+  concluding it broke is the wrong call.
+* **The webhook delivery log looks alarming and isn't.** Publishing a
+  non-prerelease fires three `release` deliveries — `created`, `published` and
+  `released` — and Zenodo answered them 202, 500 and 409 respectively while
+  still depositing correctly. Judge the outcome by step 3, not by the delivery
+  log.
+
+Reading a delivery's response body needs the `admin:repo_hook` scope, which a
+default `gh` login does not have (`gh auth refresh -h github.com -s
+admin:repo_hook`). Worth doing only if step 3 turns up nothing after ~15
+minutes, when redelivering the `published` event is the usual remedy.
