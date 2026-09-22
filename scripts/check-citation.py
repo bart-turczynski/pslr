@@ -32,9 +32,12 @@ WHAT IT CHECKS.
 
 WHAT IT DOES NOT CHECK, ON PURPOSE.
 
-* `codemeta.json` carries the same stale URL and is deliberately left alone:
-  it is generated, it is known stale, and regenerating it while `Remotes:` is
-  still in `DESCRIPTION` would make it worse (SEOR-tzxuisnf).
+* `codemeta.json` is deliberately left alone: it is generated, and it is not
+  one of the two files whose duplicated facts this gate exists to assert. Its
+  `issueTracker` is also NOT expected to equal `DESCRIPTION`'s `BugReports:` -
+  the former is the address a human clicks (`/-/work_items`), the latter the
+  form R's CRAN incoming check demands (`/-/issues`), so a check asserting the
+  two agree would be wrong (PSLR-kjkmhrok, formerly SEOR-tzxuisnf).
 * Nothing here touches the network. Whether a declared URL resolves is a fact
   about the rest of the world; `R CMD check --as-cran` already fetches declared
   URLs, and wiring a network call into a pre-push gate makes every push fail on

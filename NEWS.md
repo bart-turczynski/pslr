@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* The human-facing tracker metadata now points at `https://gitlab.com/bart-turczynski/pslr/-/work_items`, the address GitLab actually serves: `.bestpractices.json`, `codemeta.json` and the GitHub pull-request template. `DESCRIPTION`'s `BugReports:` deliberately stays on `https://gitlab.com/bart-turczynski/pslr/-/issues` -- R's CRAN incoming check inspects that field alone and demands that form, and declaring `/-/work_items` there is what got the first pslr 1.2.1 upload archived at the pretest on 2026-09-12 (PSLR-kjkmhrok).
+
 * The release checklist in `CONTRIBUTING.md` now covers archiving a release on Zenodo. The Zenodo archive is produced by a **GitHub Release** on the read-only mirror, not by the tag: a `v*` tag only reaches GitHub if the GitLab project has a `v*` protected-tag rule, and only a published GitHub Release fires the Zenodo webhook. The step stays manual, because automating it from the tag pipeline would need a second GitHub credential with Contents write and the push mirror is meant to be the only writer (SEOR-bzqbjxxo).
 
 * `CITATION.cff` names the version DOI of the release it describes. It still carried the 1.0.2 version DOI at version 1.2.1, and a `date-released` of 2026-07-11 rather than the 2026-09-14 CRAN publication. pslr 1.2.1 is archived at [10.5281/zenodo.22857031](https://doi.org/10.5281/zenodo.22857031); the concept DOI and the README badge are unchanged, as they always resolve to the newest version (SEOR-bzqbjxxo).
