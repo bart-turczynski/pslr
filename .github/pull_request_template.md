@@ -6,5 +6,5 @@ reviewed or merged.
 Please open a merge request on GitLab instead:
 https://gitlab.com/bart-turczynski/pslr/-/merge_requests
 
-Bug reports go to https://gitlab.com/bart-turczynski/pslr/-/issues
+Bug reports go to https://gitlab.com/bart-turczynski/pslr/-/work_items
 -->
