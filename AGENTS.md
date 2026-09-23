@@ -27,4 +27,16 @@ For pre-commit, verify tiers and the tracker snapshot, see docs/git-workflow.md.
 For the normative contract, see docs/PRD.md; the code map is
 docs/architecture.md and the rationale log is docs/decisions.md.
 
+## A red gate on an untouched tree
+
+Toolchain drift makes the verify gate go red on a tree nobody changed, and it
+looks exactly like a defect in the change being made. `scripts/check-toolchain.R`
+runs ahead of the expensive step and names it in one line: roxygen2's installed
+version against this package's `Config/roxygen2/version`, and any installed
+package built under a newer R than the one running. Both have happened, and both
+cost an afternoon (SEOR-tcytizic).
+
+If that check passes and the gate is still red on a tree you have not touched,
+say so and keep the evidence rather than assuming your change caused it.
+
 @FP_AGENTS.md
