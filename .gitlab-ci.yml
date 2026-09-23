@@ -736,22 +736,46 @@ pages:
     - Rscript -e 'pak::pak("pkgdown")'
     - Rscript -e 'pak::local_install(upgrade = FALSE)'
     # pkgdown renders every root-level .md that is not README/NEWS/LICENSE:
-    # pkgdown:::package_mds() hardcodes that skip list, so _pkgdown.yml has no
-    # setting that can exclude a file. Left alone it publishes AGENTS.html,
-    # CLAUDE.html, FP_AGENTS.html and FP_CLAUDE.html and folds their text into
+    # pkgdown:::package_mds() hardcodes that skip list (cran-comments.md too,
+    # as no_render), so _pkgdown.yml has no setting that can exclude a file.
+    # Left alone it publishes agent tooling contracts -- AGENTS.md, CLAUDE.md,
+    # FP_AGENTS.md, FP_CLAUDE.md today -- as HTML and folds their text into
     # search.json, where it outranks real documentation on ordinary queries.
-    # Those four are agent tooling contracts, not user documentation.
+    #
+    # KEEP-LIST, not a deny-list: naming today's four agent files means a new
+    # family (GEMINI.md, CODEX.md, ...) would publish with nothing noticing --
+    # a stray unlisted file is structurally invisible to a name-the-bad-ones
+    # filter. Every root .md NOT on the keep-list is moved, named or not, so a
+    # new family needs no repo change to be caught. The keep-list itself is
+    # human-facing documentation this project actually ships:
+    # README/NEWS/LICENSE (pkgdown's own skip list), CONTRIBUTING, SECURITY,
+    # CODE_OF_CONDUCT, THIRD_PARTY_NOTICES, ACKNOWLEDGMENTS and cran-comments
+    # (already no_render, listed for clarity). Confirmed 2026-09-23: every
+    # page pslr currently publishes (ACKNOWLEDGMENTS, CODE_OF_CONDUCT,
+    # CONTRIBUTING, LICENSE, SECURITY) is on this list, so nothing that is
+    # live today stops publishing.
     #
     # Move them out of the source tree rather than deleting the rendered output:
     # deleting leaves the search index pointing at pages that 404. This runs
     # after local_install so the installed package is byte-identical to a normal
     # build, and the CI checkout is disposable, so nothing is restored after.
     #
-    # This deliberately fails the job if one of the four is renamed or removed —
-    # the list is a claim about the repository, and a silent skip would quietly
-    # start publishing the file again.
+    # Failure is loud by construction rather than by naming names: the runner's
+    # default `set -e` aborts the job on the first `mv` that fails, and every
+    # run re-derives the move set from the actual directory listing, so drift
+    # (a rename, a new file) is caught by the filter itself, not by an
+    # out-of-date assertion.
     - mkdir -p /tmp/agent-md
-    - mv AGENTS.md CLAUDE.md FP_AGENTS.md FP_CLAUDE.md /tmp/agent-md/
+    - >-
+      for f in *.md; do
+      case "$f" in
+      README.md|NEWS.md|LICENSE.md|CONTRIBUTING.md|SECURITY.md|CODE_OF_CONDUCT.md|THIRD_PARTY_NOTICES.md|ACKNOWLEDGMENTS.md|cran-comments.md)
+      ;;
+      *)
+      mv "$f" /tmp/agent-md/
+      ;;
+      esac
+      done
     - >-
       Rscript -e 'pkgdown::build_site(new_process = FALSE, install = FALSE)'
     # GitLab Pages publishes `public/`; _pkgdown.yml builds into `site/`
