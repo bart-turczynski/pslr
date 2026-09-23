@@ -245,6 +245,20 @@ variables:
       "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-$(dpkg --print-architecture).deb"
     - dpkg -i /tmp/pandoc.deb
     - mkdir -p "$R_LIBS_USER"
+    # R_LIBS_USER alone is NOT sufficient: rocker/r-ver's Renviron.site puts
+    # /usr/local/lib/R/site-library FIRST in .libPaths() and R_LIBS_USER third,
+    # so R installs into the first writable entry -- the image's own
+    # site-library -- and the cached .rlib is carried empty, downloads only,
+    # every pipeline. R_LIBS_SITE does not help either: Renviron.site is read
+    # later and wins over it. Rprofile.site is read later still, so prepending
+    # the cached dir there is what actually moves the install target. Verified
+    # in rocker/r-ver:4.5.1: .libPaths() goes from
+    # site-library, library, $R_LIBS_USER to $R_LIBS_USER, site-library,
+    # library, and install.packages() lands in $R_LIBS_USER with site-library
+    # (docopt, littler) still visible behind it.
+    - >-
+      echo '.libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))'
+      >> "${R_HOME}/etc/Rprofile.site"
     - >-
       Rscript -e 'if (!requireNamespace("pak", quietly = TRUE))
       install.packages("pak", repos = sprintf(
@@ -269,6 +283,13 @@ variables:
       "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-$(dpkg --print-architecture).deb"
     - dpkg -i /tmp/pandoc.deb
     - mkdir -p "$R_LIBS_USER"
+    # See the matching comment in .r-pak: R_LIBS_USER alone does not move the
+    # install target, because rocker/r-ver's Renviron.site puts site-library
+    # first in .libPaths(). Duplicated here (not inherited) for the same
+    # !reference-tag reason as the apt lines above.
+    - >-
+      echo '.libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))'
+      >> "${R_HOME}/etc/Rprofile.site"
     - >-
       Rscript -e 'if (!requireNamespace("pak", quietly = TRUE))
       install.packages("pak", repos = sprintf(
