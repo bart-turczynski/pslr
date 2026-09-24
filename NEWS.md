@@ -12,7 +12,7 @@
 
 * `scripts/check-bugreports.py`, ported from pagerankr, keeps the tracker-link split from drifting back: `DESCRIPTION`'s `BugReports:` must stay on the `/-/issues` form CRAN's incoming check requires, `codemeta.json`, `.bestpractices.json` and the GitHub pull-request template must name `/-/work_items`, and no other human-facing file may link `/-/issues`. It runs as its own pre-push hook and in the `citation-version` CI job (`SEOR-ocbtrrnl`).
 
-* The `osv-audit` and `security-audit` CI jobs left the `CRAN_PREP` pipeline and now run only from a pipeline schedule on `main` that sets `SCHEDULE_KIND=dependency-audit`, and never otherwise; the `workflow:` rules admit that schedule and nothing else new. A scheduled run is blocking. The pre-submission audit is still `tools/verify.sh full` (`SEOR-fftbjnpl`).
+* The `osv-audit` and `security-audit` CI jobs now also run from a pipeline schedule on `main` that sets `SCHEDULE_KIND=dependency-audit`, where both are blocking; the `workflow:` rules admit that schedule and nothing else new. They still run in the `CRAN_PREP` pipeline exactly as before, and nowhere else (`SEOR-fftbjnpl`).
 
 # pslr 1.2.1
 

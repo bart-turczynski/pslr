@@ -128,27 +128,27 @@ A run with neither variable creates no pipeline at all; GitLab reports it as
 filtered out by workflow rules, and the fix is to pass the variable.
 
 `CRAN_PREP=1` runs lint, the NEWS/version guard, `R CMD check --as-cran`, the
-README drift check, coverage, the R 4.5 / 4.6 / devel matrix, and the
-upstream-PSL audit. Its value is not that it repeats the local check —
+README drift check, coverage, the R 4.5 / 4.6 / devel matrix, and the OSV, OSS
+Index and upstream-PSL audits. Its value is not that it repeats the local check —
 it is that it repeats it *somewhere else*: three R versions, a dependency
 closure resolved from scratch, and a machine where your `~/.Renviron` does not
 exist. That last one catches a check that only passes because of something
 installed locally.
 
-`psl-upstream-check` is advisory (`allow_failure: true`) because it depends on
-a credential that may be absent; `codemeta` is manual because it commits back to
-`main`. `PSL_BOT_TOKEN` is not set as a CI/CD variable on the project today, so
-expect both loud on the first hosted run.
+`security-audit` and `psl-upstream-check` are advisory (`allow_failure: true`)
+because they depend on credentials that may be absent; `codemeta` is manual
+because it commits back to `main`. None of the three are set as CI/CD variables
+on the project today, so expect them loud on the first hosted run. Locally the
+OSS Index pair is read from `~/.Renviron` instead — see
+[the verify gate](#the-verify-gate) — so the same audit that skips in CI runs
+for real on this machine.
 
-The OSV and OSS Index dependency audits (`osv-audit`, `security-audit`) are not
-in the `CRAN_PREP` pipeline. They run only from a pipeline schedule on `main`
-whose variables include `SCHEDULE_KIND=dependency-audit` (Build > Pipeline
-schedules; an owner step), and never otherwise. A scheduled run is blocking, and
-`security-audit` sets `OSSINDEX_AUDIT_REQUIRED=true`, so a missing
-`OSSINDEX_USER`/`OSSINDEX_TOKEN` pair is a red job rather than a vacuous green
-one. Before a submission the same two audits run locally in
-`tools/verify.sh full`, which reads the OSS Index pair from `~/.Renviron` — see
-[the verify gate](#the-verify-gate).
+The OSV and OSS Index audits (`osv-audit`, `security-audit`) also run, and only
+they run, from a pipeline schedule on `main` whose variables include
+`SCHEDULE_KIND=dependency-audit` (Build > Pipeline schedules; an owner step).
+There a run is blocking for both, and `security-audit` sets
+`OSSINDEX_AUDIT_REQUIRED=true`, so a missing `OSSINDEX_USER`/`OSSINDEX_TOKEN`
+pair is a red job rather than a vacuous green one.
 
 What the remote leg cannot give you: no macOS, no Windows — GitLab.com shared
 runners are Linux-only — and no sanitizers. Cross-platform assurance before a

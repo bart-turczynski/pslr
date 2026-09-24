@@ -53,8 +53,8 @@
 #    The one exception is the fleet's dependency-audit schedule (SEOR-fftbjnpl):
 #    a pipeline schedule on the default branch carrying the schedule variable
 #    `SCHEDULE_KIND=dependency-audit` runs `osv-audit` and `security-audit` and
-#    nothing else. Both jobs run ONLY there -- not in CRAN_PREP, not on a push,
-#    not by hand -- so the hosted audits cannot be spent by accident. A schedule
+#    nothing else. Those two jobs run there and in a CRAN_PREP pipeline, never
+#    otherwise, so the hosted audits cannot be spent by accident. A schedule
 #    without that variable creates no pipeline at all. The schedule itself lives
 #    in Build > Pipeline schedules, not in this file, and is an owner step.
 #
@@ -68,10 +68,11 @@
 #
 # 5. TOKENS. Three jobs need credentials that only a project maintainer can
 #    create. Each exits non-zero with an explanation when its secret is absent.
-#    `psl-upstream-check` cannot block a submission on a missing credential, so
-#    it extends `.rules-cran-prep-advisory` and reports red without vetoing the
-#    gate; `security-audit` runs only on the dependency-audit schedule (item 4),
-#    where a missing credential is exactly the red it should report.
+#    The two that cannot block a submission on a missing credential
+#    (`security-audit`, `psl-upstream-check`) are advisory in the CRAN_PREP
+#    gate, so they report red without vetoing it. On the dependency-audit
+#    schedule (item 4) `security-audit` is blocking: there a missing credential
+#    is exactly the red it should report.
 #    `codemeta` writes to the repository and is manual. None of these are set
 #    today: the project's CI/CD variable list is empty, so expect all three to
 #    be loud on the first run.
@@ -509,16 +510,22 @@ full-check:
 # Dependency audits -- the dependency-audit schedule only
 # ---------------------------------------------------------------------------
 
-# Both jobs run ONLY in a scheduled pipeline carrying
-# SCHEDULE_KIND=dependency-audit (header item 4, SEOR-fftbjnpl), and never
-# otherwise: they are not part of the CRAN_PREP gate any more. The pre-
-# submission audit is `tools/verify.sh full`/`cran` on the maintainer's machine,
-# which runs both audits with OSSINDEX_AUDIT_REQUIRED set; the schedule is the
-# unattended half that fires even in a month nobody opens the repository. A
-# scheduled run is BLOCKING (no allow_failure): these are vulnerability
-# detectors, and a schedule that reports success when the detector fired is the
-# one outcome that makes them worthless. The two are independent jobs, so a red
-# leg neither stops the other nor hides its result.
+# Both jobs run in exactly two places, and never otherwise (SEOR-fftbjnpl):
+#
+#   1. A scheduled pipeline carrying SCHEDULE_KIND=dependency-audit (header
+#      item 4): the unattended half, which fires even in a month nobody opens
+#      the repository. BLOCKING for both (no allow_failure): these are
+#      vulnerability detectors, and a schedule that reports success when the
+#      detector fired is the one outcome that makes them worthless.
+#   2. The CRAN_PREP gate, unchanged from before the schedule existed:
+#      osv-audit blocking (as `.rules-cran-prep`), security-audit advisory (as
+#      `.rules-cran-prep-advisory`), because a missing OSS Index credential
+#      should report red without vetoing a submission.
+#
+# The rules are spelled out per job rather than extended from those templates,
+# because `extends` replaces `rules:` wholesale and each job needs both paths.
+# The two are independent jobs, so a red leg neither stops the other nor hides
+# its result.
 #
 # Both set NOT_CRAN, and only these jobs do. It is belt and braces so
 # skip_on_cran() in the audit tests cannot skip the audit silently, and it is
@@ -531,6 +538,7 @@ osv-audit:
   needs: []
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "dependency-audit"
+    - if: $CRAN_PREP == "1"
     - when: never
   variables:
     NOT_CRAN: "true"
@@ -545,6 +553,8 @@ security-audit:
   needs: []
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "dependency-audit"
+    - if: $CRAN_PREP == "1"
+      allow_failure: true
     - when: never
   variables:
     NOT_CRAN: "true"
