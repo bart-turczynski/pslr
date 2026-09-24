@@ -147,9 +147,14 @@ run_lint() {
 
 run_tests() {
   step "tests (testthat)"
-  # NOT_CRAN is deliberately unset: the suite must stay offline here, exactly as
-  # it does inside `R CMD check`. The audit tiers set it for their own filters.
-  Rscript -e 'testthat::test_local(reporter = "check", stop_on_failure = TRUE)'
+  # test_local() sets NOT_CRAN=true itself (testthat 3.3.2, measured
+  # 2026-09-24), so skip_on_cran() does not fire here and leaving NOT_CRAN
+  # unset in the shell changes nothing. The two network dependency audits,
+  # test-security.R (OSS Index) and test-osv.R (OSV), are therefore excluded by
+  # name: with credentials in ~/.Renviron they otherwise ran live on every push
+  # and blocked a merge on 2026-09-09. run_osv and run_security run them
+  # deliberately in the `full` and `cran` tiers (SEOR-fftbjnpl).
+  Rscript -e 'testthat::test_local(reporter = "check", stop_on_failure = TRUE, filter = "^(security|osv)$", invert = TRUE)'
   ok "tests passed"
 }
 
@@ -344,7 +349,12 @@ run_security() {
     soft_warnings+=("OSS Index audit skipped: no token")
     return 0
   fi
-  NOT_CRAN=true Rscript -e 'testthat::test_local(filter = "security", stop_on_failure = TRUE)'
+  # OSSINDEX_AUDIT_REQUIRED turns the test's in-R preconditions (oysteR
+  # missing, no network, nothing resolved) from skips into failures. This tier
+  # replaced the weekly CI schedules, so it is the audit that actually recurs,
+  # and a skip here would be the same vacuous green the CI job guards against.
+  # The missing-token case is handled above, softly in `full`, before R starts.
+  NOT_CRAN=true OSSINDEX_AUDIT_REQUIRED=true Rscript -e 'testthat::test_local(filter = "security", stop_on_failure = TRUE)'
   ok "no OSS Index advisories"
 }
 

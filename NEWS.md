@@ -6,6 +6,10 @@
 
 * `CITATION.cff` names the version DOI of the release it describes. It still carried the 1.0.2 version DOI at version 1.2.1, and a `date-released` of 2026-07-11 rather than the 2026-09-14 CRAN publication. pslr 1.2.1 is archived at [10.5281/zenodo.22857031](https://doi.org/10.5281/zenodo.22857031); the concept DOI and the README badge are unchanged, as they always resolve to the newest version (SEOR-bzqbjxxo).
 
+## Internal
+
+* The OSS Index audit in `tests/testthat/test-security.R` now requires every reported advisory to have an explicit disposition in an allow-list (`helper-security.R`, empty today because the audit reports none) and fails on stale rows. The `security-audit` CI job and the `full` tier of `tools/verify.sh` set `OSSINDEX_AUDIT_REQUIRED=true`, so a missing credential, missing `oysteR`, no network or an empty audit fails there instead of skipping. The pre-push `standard` tier no longer runs the OSS Index and OSV audits: `testthat::test_local()` sets `NOT_CRAN=true` itself, so they had been running live on every push (`SEOR-fftbjnpl`).
+
 # pslr 1.2.1
 
 * **Parsing the Public Suffix List is roughly 7x faster.** `parse_psl_lines()` preallocated its rule columns but then wrote each row through a helper function, which made the columns referenced twice and copied all of them on every rule -- quadratic in the number of rules, defeating the preallocation it was paired with. The writes are now in place. On the bundled list (10,323 rules) `read_psl_file()` drops from 11.97s to 1.69s with byte-identical output, and the package's own test suite drops from 486s to 201s. No behavior changes (PSLR-ufhllfer).

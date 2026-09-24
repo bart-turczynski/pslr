@@ -510,6 +510,11 @@ security-audit:
   needs: []
   variables:
     NOT_CRAN: "true"
+    # The shell guard below fails loudly on a missing token. This flag makes
+    # the test's in-R preconditions (oysteR missing, no network, nothing
+    # resolved) hard failures too, so the job can never report success having
+    # audited nothing (SEOR-fftbjnpl).
+    OSSINDEX_AUDIT_REQUIRED: "true"
   script:
     - |
       if [ -z "${OSSINDEX_TOKEN:-}" ]; then
