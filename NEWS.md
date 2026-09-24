@@ -10,6 +10,10 @@
 
 * The OSS Index audit in `tests/testthat/test-security.R` now requires every reported advisory to have an explicit disposition in an allow-list (`helper-security.R`, empty today because the audit reports none) and fails on stale rows. The `security-audit` CI job and the `full` tier of `tools/verify.sh` set `OSSINDEX_AUDIT_REQUIRED=true`, so a missing credential, missing `oysteR`, no network or an empty audit fails there instead of skipping. The pre-push `standard` tier no longer runs the OSS Index and OSV audits: `testthat::test_local()` sets `NOT_CRAN=true` itself, so they had been running live on every push (`SEOR-fftbjnpl`).
 
+* `scripts/check-bugreports.py`, ported from pagerankr, keeps the tracker-link split from drifting back: `DESCRIPTION`'s `BugReports:` must stay on the `/-/issues` form CRAN's incoming check requires, `codemeta.json`, `.bestpractices.json` and the GitHub pull-request template must name `/-/work_items`, and no other human-facing file may link `/-/issues`. It runs as its own pre-push hook and in the `citation-version` CI job (`SEOR-ocbtrrnl`).
+
+* The `osv-audit` and `security-audit` CI jobs left the `CRAN_PREP` pipeline and now run only from a pipeline schedule on `main` that sets `SCHEDULE_KIND=dependency-audit`, and never otherwise; the `workflow:` rules admit that schedule and nothing else new. A scheduled run is blocking. The pre-submission audit is still `tools/verify.sh full` (`SEOR-fftbjnpl`).
+
 # pslr 1.2.1
 
 * **Parsing the Public Suffix List is roughly 7x faster.** `parse_psl_lines()` preallocated its rule columns but then wrote each row through a helper function, which made the columns referenced twice and copied all of them on every rule -- quadratic in the number of rules, defeating the preallocation it was paired with. The writes are now in place. On the bundled list (10,323 rules) `read_psl_file()` drops from 11.97s to 1.69s with byte-identical output, and the package's own test suite drops from 486s to 201s. No behavior changes (PSLR-ufhllfer).
