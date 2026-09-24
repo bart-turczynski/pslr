@@ -5,7 +5,8 @@
 # GitLab runner minutes are a paid resource, so the hosted pipeline assembles
 # only when someone asks for it by name — `CRAN_PREP=1` or `DEPLOY_PAGES=1` on a
 # manual run (see the `workflow:` rules in .gitlab-ci.yml). Nothing fires by
-# itself: not a push, not a merge request, not a tag, not a schedule. Everything
+# itself: not a push, not a merge request, not a tag. The one exception is the
+# dependency-audit schedule, which runs only the two audit jobs. Everything else
 # CI used to do on a schedule is done here instead, on the maintainer's machine,
 # for free. This script is therefore the single definition of "is the tree
 # healthy" — the pre-push hook, the AGENTS.md dev loop and the release checklist

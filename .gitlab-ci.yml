@@ -41,14 +41,22 @@
 #    which runs locally under Docker and is part of the `cran` tier
 #    (PSLR-avwlybsw).
 #
-# 4. NO SCHEDULES, AND THE `SCHEDULED_TASK` SELECTOR IS GONE. An earlier draft
-#    kept four weekly GitLab schedules mirroring the GitHub crons, each
-#    selecting a job via a `SCHEDULED_TASK` variable. None were ever created,
-#    and recurring hosted pipelines are precisely the spend this project cannot
-#    afford, so the selector has been removed rather than left as dormant
-#    machinery that reads as if it runs. What the four crons did now lives in
-#    `tools/verify.sh full`, run locally and nudged by the staleness line the
-#    pre-push hook prints (PSLR-ugxanxne).
+# 4. ONE SCHEDULE AT MOST, AND THE `SCHEDULED_TASK` SELECTOR IS GONE. An
+#    earlier draft kept four weekly GitLab schedules mirroring the GitHub crons,
+#    each selecting a job via a `SCHEDULED_TASK` variable. None were ever
+#    created, and recurring hosted pipelines are precisely the spend this
+#    project cannot afford, so the selector has been removed rather than left as
+#    dormant machinery that reads as if it runs. What the four crons did now
+#    lives in `tools/verify.sh full`, run locally and nudged by the staleness
+#    line the pre-push hook prints (PSLR-ugxanxne).
+#
+#    The one exception is the fleet's dependency-audit schedule (SEOR-fftbjnpl):
+#    a pipeline schedule on the default branch carrying the schedule variable
+#    `SCHEDULE_KIND=dependency-audit` runs `osv-audit` and `security-audit` and
+#    nothing else. Both jobs run ONLY there -- not in CRAN_PREP, not on a push,
+#    not by hand -- so the hosted audits cannot be spent by accident. A schedule
+#    without that variable creates no pipeline at all. The schedule itself lives
+#    in Build > Pipeline schedules, not in this file, and is an owner step.
 #
 #    The accepted gap is the upstream-PSL watcher (PSLR-wzhnvyiv): it goes stale
 #    because the world moved, not because this tree changed, so a month away
@@ -59,12 +67,14 @@
 #    (PSLR-ucvugmsw).
 #
 # 5. TOKENS. Three jobs need credentials that only a project maintainer can
-#    create. Each exits non-zero with an explanation when its secret is absent,
-#    and the two that cannot block a submission on a missing credential
-#    (`security-audit`, `psl-upstream-check`) extend `.rules-cran-prep-advisory`
-#    so they report red without vetoing the gate. `codemeta` writes to the
-#    repository and is manual. None of these are set today: the project's CI/CD
-#    variable list is empty, so expect all three to be loud on the first run.
+#    create. Each exits non-zero with an explanation when its secret is absent.
+#    `psl-upstream-check` cannot block a submission on a missing credential, so
+#    it extends `.rules-cran-prep-advisory` and reports red without vetoing the
+#    gate; `security-audit` runs only on the dependency-audit schedule (item 4),
+#    where a missing credential is exactly the red it should report.
+#    `codemeta` writes to the repository and is manual. None of these are set
+#    today: the project's CI/CD variable list is empty, so expect all three to
+#    be loud on the first run.
 #      PSL_BOT_TOKEN   project access token, scopes `api` + `write_repository`.
 #                      Used by psl-upstream-check (pushes a branch, opens an MR)
 #                      and codemeta (commits a regenerated codemeta.json).
@@ -88,16 +98,20 @@ stages:
   - deploy
 
 workflow:
-  # TWO PIPELINES, AND ONLY TWO. Runner minutes are a paid resource on the free
-  # tier and this project has already exhausted them once, so nothing here fires
-  # by itself: not a branch push, not a merge request, not a tag, not a
-  # schedule. A pipeline exists only when a human asks for one by name.
+  # TWO ON-DEMAND PIPELINES AND ONE SCHEDULE. Runner minutes are a paid
+  # resource on the free tier and this project has already exhausted them once,
+  # so nothing here fires on a branch push, a merge request or a tag. A pipeline
+  # exists only when a human asks for one by name, or when the dependency-audit
+  # schedule (header item 4) fires on the default branch:
   #
   #   CRAN_PREP=1     The pre-submission gate. A clean-room second opinion on
   #                   the things one machine cannot give you: three R versions,
   #                   a from-scratch dependency resolution, and a check run
   #                   somewhere the maintainer's ~/.Renviron does not exist.
   #   DEPLOY_PAGES=1  Republish the documentation site. Nothing else runs.
+  #   SCHEDULE_KIND=dependency-audit
+  #                   Set on a pipeline schedule, never passed by hand. Runs
+  #                   `osv-audit` and `security-audit` only.
   #
   # Start either one with:
   #
@@ -123,6 +137,7 @@ workflow:
   rules:
     - if: $CRAN_PREP == "1" && $CI_PIPELINE_SOURCE =~ /^(web|api|trigger)$/
     - if: $DEPLOY_PAGES == "1" && $CI_PIPELINE_SOURCE =~ /^(web|api|trigger)$/
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "dependency-audit" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - when: never
   auto_cancel:
     on_new_commit: interruptible
@@ -491,18 +506,32 @@ full-check:
       - "check/"
 
 # ---------------------------------------------------------------------------
-# Weekly audits
+# Dependency audits -- the dependency-audit schedule only
 # ---------------------------------------------------------------------------
 
-# Both audit jobs set NOT_CRAN, and only these jobs do: testthat::test_local()
-# does not set it, so skip_on_cran() in the audit tests would skip the audit
-# silently. It is deliberately NOT set globally — that would also un-skip
-# network-dependent tests inside `check`, which must stay offline.
+# Both jobs run ONLY in a scheduled pipeline carrying
+# SCHEDULE_KIND=dependency-audit (header item 4, SEOR-fftbjnpl), and never
+# otherwise: they are not part of the CRAN_PREP gate any more. The pre-
+# submission audit is `tools/verify.sh full`/`cran` on the maintainer's machine,
+# which runs both audits with OSSINDEX_AUDIT_REQUIRED set; the schedule is the
+# unattended half that fires even in a month nobody opens the repository. A
+# scheduled run is BLOCKING (no allow_failure): these are vulnerability
+# detectors, and a schedule that reports success when the detector fired is the
+# one outcome that makes them worthless. The two are independent jobs, so a red
+# leg neither stops the other nor hides its result.
+#
+# Both set NOT_CRAN, and only these jobs do. It is belt and braces so
+# skip_on_cran() in the audit tests cannot skip the audit silently, and it is
+# deliberately NOT set globally -- that would also un-skip network-dependent
+# tests inside `check`, which must stay offline.
 
 osv-audit:
-  extends: [.r-deps, .rules-cran-prep]
+  extends: .r-deps
   stage: audit
   needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "dependency-audit"
+    - when: never
   variables:
     NOT_CRAN: "true"
   script:
@@ -511,9 +540,12 @@ osv-audit:
       Rscript -e 'testthat::test_local(filter = "osv", stop_on_failure = TRUE)'
 
 security-audit:
-  extends: [.r-deps, .rules-cran-prep-advisory]
+  extends: .r-deps
   stage: audit
   needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "dependency-audit"
+    - when: never
   variables:
     NOT_CRAN: "true"
     # The shell guard below fails loudly on a missing token. This flag makes
