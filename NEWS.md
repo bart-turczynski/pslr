@@ -12,6 +12,8 @@
 
 * `scripts/check-bugreports.py`, ported from pagerankr, keeps the tracker-link split from drifting back: `DESCRIPTION`'s `BugReports:` must stay on the `/-/issues` form CRAN's incoming check requires, `codemeta.json`, `.bestpractices.json` and the GitHub pull-request template must name `/-/work_items`, and no other human-facing file may link `/-/issues`. It runs as its own pre-push hook and in the `citation-version` CI job (`SEOR-ocbtrrnl`).
 
+* The manual `codemeta` CI job is gone, and with it the only use of `PSL_BOT_TOKEN` besides `psl-upstream-check`. `codemetar` rewrites `issueTracker` to `BugReports`' `/-/issues` form and drops hand-set fields, so running it would have undone the tracker split `check-bugreports.py` enforces; `codemeta.json` is maintained by hand (`SEOR-tzxuisnf`).
+
 * The `osv-audit` and `security-audit` CI jobs now also run from a pipeline schedule on `main` that sets `SCHEDULE_KIND=dependency-audit`, where both are blocking; the `workflow:` rules admit that schedule and nothing else new. They still run in the `CRAN_PREP` pipeline exactly as before, and nowhere else (`SEOR-fftbjnpl`).
 
 # pslr 1.2.1

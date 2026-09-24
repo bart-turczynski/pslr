@@ -66,19 +66,20 @@
 #    theoretical — the first `full` run found the snapshot already behind
 #    (PSLR-ucvugmsw).
 #
-# 5. TOKENS. Three jobs need credentials that only a project maintainer can
+# 5. TOKENS. Two jobs need credentials that only a project maintainer can
 #    create. Each exits non-zero with an explanation when its secret is absent.
 #    The two that cannot block a submission on a missing credential
 #    (`security-audit`, `psl-upstream-check`) are advisory in the CRAN_PREP
 #    gate, so they report red without vetoing it. On the dependency-audit
 #    schedule (item 4) `security-audit` is blocking: there a missing credential
 #    is exactly the red it should report.
-#    `codemeta` writes to the repository and is manual. None of these are set
-#    today: the project's CI/CD variable list is empty, so expect all three to
-#    be loud on the first run.
+#    OSSINDEX_USER and OSSINDEX_TOKEN are set (2026-09-24); PSL_BOT_TOKEN is
+#    not, so `psl-upstream-check` stays loud until it is. The `codemeta` job
+#    that also used it was removed on 2026-09-24 (SEOR-tzxuisnf): codemetar
+#    rewrites `issueTracker` to BugReports' `/-/issues` and drops hand-set
+#    fields, so codemeta.json is hand-maintained.
 #      PSL_BOT_TOKEN   project access token, scopes `api` + `write_repository`.
-#                      Used by psl-upstream-check (pushes a branch, opens an MR)
-#                      and codemeta (commits a regenerated codemeta.json).
+#                      Used by psl-upstream-check (pushes a branch, opens an MR).
 #      OSSINDEX_USER   the literal string "x", NOT an email. This was hard-won
 #      OSSINDEX_TOKEN  and is recorded here because the GitHub workflow that
 #                      first documented it is no longer reachable: OSS Index
@@ -159,14 +160,6 @@ workflow:
 .rules-cran-prep-advisory:
   rules:
     - if: $CRAN_PREP == "1"
-      allow_failure: true
-
-# Maintainer-initiated inside the gate: writes to the repository, so it never
-# starts on its own.
-.rules-cran-prep-manual:
-  rules:
-    - if: $CRAN_PREP == "1"
-      when: manual
       allow_failure: true
 
 variables:
@@ -727,40 +720,6 @@ psl-upstream-check:
         --data @mr.json \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests" \
         | jq -r '"Opened " + .web_url'
-
-# ---------------------------------------------------------------------------
-# Generated metadata
-# ---------------------------------------------------------------------------
-
-# Was .github/workflows/codemeta.yaml. Commits back to the default branch, so
-# it needs PSL_BOT_TOKEN; `[skip ci]` in the message stops the push from
-# triggering another pipeline.
-codemeta:
-  extends: [.r-deps, .rules-cran-prep-manual]
-  stage: deploy
-  needs: []
-  variables:
-    GIT_STRATEGY: clone
-  script:
-    - |
-      set -eu
-      if [ -z "${PSL_BOT_TOKEN:-}" ]; then
-        echo "PSL_BOT_TOKEN is not set; cannot commit a regenerated codemeta.json."
-        exit 1
-      fi
-    - Rscript -e 'pak::pak("codemetar")'
-    - Rscript -e 'codemetar::write_codemeta(".")'
-    - |
-      set -eu
-      if [ -z "$(git status --porcelain codemeta.json)" ]; then
-        echo "codemeta.json unchanged."
-        exit 0
-      fi
-      git config user.name "pslr CI"
-      git config user.email "bartek@turczynski.pl"
-      git add codemeta.json
-      git commit -m "chore: refresh codemeta.json [skip ci]"
-      git push "https://oauth2:${PSL_BOT_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:refs/heads/${CI_DEFAULT_BRANCH}"
 
 # ---------------------------------------------------------------------------
 # Documentation site
