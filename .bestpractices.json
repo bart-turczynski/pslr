@@ -1,7 +1,4 @@
 {
-  "homepage_url_status": "Met",
-  "homepage_url_justification": "Project homepage is the pkgdown site https://bart-turczynski.gitlab.io/pslr/ (also linked from DESCRIPTION URL).",
-
   "sites_https_status": "Met",
   "sites_https_justification": "All project sites are served over HTTPS: https://gitlab.com/bart-turczynski/pslr , https://bart-turczynski.gitlab.io/pslr/ , and https://CRAN.R-project.org/package=pslr .",
 
@@ -15,7 +12,7 @@
   "contribution_justification": "Contribution guide at https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
 
   "contribution_requirements_status": "Met",
-  "contribution_requirements_justification": "CONTRIBUTING.md states the requirements for acceptable contributions (tests, passing lint via the .lintr style config, and a clean `tools/verify.sh` run — the local pre-push gate, not hosted CI): https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
+  "contribution_requirements_justification": "CONTRIBUTING.md states the requirements for acceptable contributions: Air formatting and a clean `tools/verify.sh` run (lint plus the test suite), the local pre-push gate rather than hosted CI: https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md . The coding, testing and documentation rules it builds on, including that new code requires tests, are in https://gitlab.com/bart-turczynski/pslr/-/blob/main/docs/r-conventions.md",
 
   "license_location_status": "Met",
   "license_location_justification": "LICENSE is at the repository top level: https://gitlab.com/bart-turczynski/pslr/-/blob/main/LICENSE",
@@ -48,7 +45,7 @@
   "version_unique_justification": "Each release carries a unique version (DESCRIPTION Version; CRAN enforces uniqueness): https://CRAN.R-project.org/package=pslr",
 
   "version_semver_status": "Met",
-  "version_semver_justification": "Uses semantic-style x.y.z versioning; the released versions are tagged v1.0.0 through v1.1.1 at https://gitlab.com/bart-turczynski/pslr/-/tags",
+  "version_semver_justification": "Uses semantic-style x.y.z versioning; the published releases are tagged v1.0.0 through v1.2.1 at https://gitlab.com/bart-turczynski/pslr/-/tags",
 
   "version_tags_status": "Met",
   "version_tags_justification": "Every release is tagged in git as v<version> and the tags are published in the public repository: https://gitlab.com/bart-turczynski/pslr/-/tags",
@@ -59,14 +56,11 @@
   "release_notes_vulns_status": "Met",
   "release_notes_vulns_justification": "No publicly known vulnerabilities have been fixed to date; NEWS.md records all changes: https://gitlab.com/bart-turczynski/pslr/-/blob/main/NEWS.md",
 
-  "report_url_status": "Met",
-  "report_url_justification": "Bug tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items",
-
   "report_tracker_status": "Met",
-  "report_tracker_justification": "GitLab Issues serve as the bug tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items",
+  "report_tracker_justification": "GitLab work items serve as the public issue tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items",
 
   "report_process_status": "Met",
-  "report_process_justification": "Users submit bug reports through the GitLab issue tracker, which DESCRIPTION declares as BugReports: https://gitlab.com/bart-turczynski/pslr/-/work_items",
+  "report_process_justification": "Users submit bug reports through the GitLab issue tracker (GitLab work items), which DESCRIPTION declares as BugReports: https://gitlab.com/bart-turczynski/pslr/-/work_items",
 
   "report_responses_status": "Met",
   "report_responses_justification": "Maintainer responds to issue reports on the tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items",
@@ -75,7 +69,7 @@
   "enhancement_responses_justification": "Maintainer responds to enhancement requests on the tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items",
 
   "report_archive_status": "Met",
-  "report_archive_justification": "GitLab Issues provide a publicly available, searchable archive of reports and responses, open and closed: https://gitlab.com/bart-turczynski/pslr/-/work_items?state=all",
+  "report_archive_justification": "GitLab work items provide a publicly available, searchable archive of reports and responses, open and closed: https://gitlab.com/bart-turczynski/pslr/-/work_items",
 
   "vulnerability_report_process_status": "Met",
   "vulnerability_report_process_justification": "The vulnerability-reporting process is published in the security policy: https://gitlab.com/bart-turczynski/pslr/-/blob/main/SECURITY.md . Reports go to the maintainer by email at bartek@turczynski.pl with 'pslr security' in the subject; the policy states explicitly that vulnerabilities must not be filed on any public issue tracker.",
@@ -102,16 +96,16 @@
   "test_invocation_justification": "Tests run via devtools::test() and as part of R CMD check.",
 
   "test_most_status": "Met",
-  "test_most_justification": "Coverage is measured with covr in the `coverage` job of .gitlab-ci.yml, which publishes a Cobertura report and a coverage percentage. That job extends `.rules-cran-prep`, so it runs in the CRAN-prep pipeline (`CRAN_PREP=1`) rather than on every hosted pipeline; the same measurement runs locally in `tools/verify.sh full`: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
+  "test_most_justification": "Coverage is measured with covr in the `coverage` job of .gitlab-ci.yml, which publishes a Cobertura report and a coverage percentage (95.27% on the last CRAN-prep pipeline, 2026-08-09). That job runs only in the CRAN-prep pipeline a maintainer starts by hand (`CRAN_PREP=1`); the same measurement runs locally in `tools/verify.sh full`: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "test_policy_status": "Met",
-  "test_policy_justification": "CONTRIBUTING.md requires tests for new features and bug fixes: https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
+  "test_policy_justification": "The project's coding conventions require tests for new code, and for each new user-facing function: https://gitlab.com/bart-turczynski/pslr/-/blob/main/docs/r-conventions.md",
 
   "tests_are_added_status": "Met",
-  "tests_are_added_justification": "New functionality ships with tests, enforced in review.",
+  "tests_are_added_justification": "New functionality ships with tests, as docs/r-conventions.md requires (https://gitlab.com/bart-turczynski/pslr/-/blob/main/docs/r-conventions.md); `R/foo.R` is tested by `tests/testthat/test-foo.R`: https://gitlab.com/bart-turczynski/pslr/-/tree/main/tests/testthat",
 
   "tests_documented_added_status": "Met",
-  "tests_documented_added_justification": "The test-addition policy is documented in CONTRIBUTING.md: https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md",
+  "tests_documented_added_justification": "The test-addition policy (\"New code requires tests.\") is documented in docs/r-conventions.md, reached from CONTRIBUTING.md through docs/git-workflow.md and named in AGENTS.md: https://gitlab.com/bart-turczynski/pslr/-/blob/main/docs/r-conventions.md",
 
   "warnings_status": "Met",
   "warnings_justification": "Warnings are surfaced by lintr and by R CMD check. lintr runs on every push, in the `tools/verify.sh standard` tier the local pre-push hook invokes; R CMD check --as-cran is deliberately not in that tier and runs in `tools/verify.sh full` locally and in the `check` job of the CRAN-prep pipeline (`CRAN_PREP=1`), the only hosted pipeline that runs it: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
@@ -159,7 +153,7 @@
   "delivery_mitm_justification": "Distributed via CRAN and GitLab over HTTPS; CRAN publishes per-package checksums: https://CRAN.R-project.org/package=pslr",
 
   "delivery_unsigned_status": "Met",
-  "delivery_unsigned_justification": "All distribution downloads are served over HTTPS (CRAN, GitLab, r-universe): https://CRAN.R-project.org/package=pslr",
+  "delivery_unsigned_justification": "All distribution downloads are served over HTTPS (CRAN, GitLab, r-universe); no hash is retrieved over plain HTTP: https://CRAN.R-project.org/package=pslr",
 
   "vulnerabilities_fixed_60_days_status": "Met",
   "vulnerabilities_fixed_60_days_justification": "No outstanding known vulnerabilities; tracker at https://gitlab.com/bart-turczynski/pslr/-/work_items",
@@ -168,10 +162,10 @@
   "vulnerabilities_critical_fixed_justification": "No known unfixed critical vulnerabilities.",
 
   "static_analysis_status": "Met",
-  "static_analysis_justification": "lintr (full-package lint, its linter set kept in step with goodpractice's via .lintr) and R CMD check --as-cran are run, by `tools/verify.sh` locally and by the `lint` and `check` jobs in the CRAN-prep pipeline; FOSSA scans dependencies for license and security issues: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
+  "static_analysis_justification": "lintr (full-package lint, its linter set kept in step with goodpractice's via .lintr) runs on every push in `tools/verify.sh standard`, the local pre-push gate; R CMD check --as-cran runs in `tools/verify.sh full` locally and in the `lint` and `check` jobs of the CRAN-prep pipeline: https://gitlab.com/bart-turczynski/pslr/-/blob/main/tools/verify.sh",
 
-  "static_analysis_common_vulnerabilities_status": "Met",
-  "static_analysis_common_vulnerabilities_justification": "R CMD check plus lintr cover common defect classes; FOSSA covers dependency vulnerabilities; R CMD check --as-cran flags C/C++ compiler warnings from the PSL matcher: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
+  "static_analysis_common_vulnerabilities_status": "Unmet",
+  "static_analysis_common_vulnerabilities_justification": "lintr and R CMD check --as-cran (including C++ compiler warnings from the PSL matcher) find defects but are not vulnerability scanners, and no vulnerability-focused analyzer such as cppcheck, clang-tidy or flawfinder runs over src/. The osv-audit and security-audit jobs check dependencies against OSV and OSS Index, but that is SCA, not static analysis of pslr's code, and they run only in `tools/verify.sh full` and the hand-started CRAN-prep pipeline: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "static_analysis_fixed_status": "Met",
   "static_analysis_fixed_justification": "Static-analysis findings are addressed before merge.",
@@ -192,13 +186,13 @@
   "dynamic_analysis_fixed_justification": "Any issues surfaced by the sanitizer or valgrind runs are fixed before release.",
 
   "test_continuous_integration_status": "Unmet",
-  "test_continuous_integration_justification": "Stated as unmet rather than described around. No hosted pipeline runs on integration events: the `workflow:` rules in .gitlab-ci.yml create a pipeline only for `CRAN_PREP=1` or `DEPLOY_PAGES=1` raised from a web, api or trigger source, and `when: never` otherwise — not on a branch push, not on a merge request, not on a tag, not on a schedule. The per-change gate is `tools/verify.sh standard` (lint plus the roughly 2000-test testthat suite; R CMD check is deliberately not in that tier) run by a local pre-push hook, which a reviewer cannot inspect or verify and which `git push --no-verify` bypasses. The hosted `CRAN_PREP=1` pipeline does give an independent clean-checkout run — lint, the NEWS/version guard, R CMD check --as-cran with error_on='warning', the README drift guard, coverage, an R devel / 4.6 / 4.5 matrix and the dependency audits — but only when a maintainer starts it by name before a CRAN submission. Hosted runs are narrowed this way because GitLab.com shared-runner minutes are a metered, paid resource for this project and have been exhausted once: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
+  "test_continuous_integration_justification": "Stated as unmet rather than described around. No pipeline runs on integration events: the `workflow:` rules in .gitlab-ci.yml create a pipeline only for `CRAN_PREP=1` or `DEPLOY_PAGES=1` started from a web, api or trigger source, and `when: never` otherwise, so not on a push to main, a branch push, a merge request, a tag or a schedule. The per-change gate is `tools/verify.sh standard` (lint plus the roughly 2000-test testthat suite; R CMD check is deliberately not in that tier) run by a local pre-push hook, which a reviewer cannot inspect and which `git push --no-verify` bypasses. The `CRAN_PREP=1` pipeline, on the maintainer's self-hosted GitLab runner, gives an independent clean-checkout run (lint, the NEWS/version guard, R CMD check --as-cran with error_on='warning', the README drift guard, coverage, an R devel / 4.6 / 4.5 matrix and the dependency audits), but only when a maintainer starts it by name before a CRAN submission: https://gitlab.com/bart-turczynski/pslr/-/blob/main/.gitlab-ci.yml",
 
   "discussion_status": "Met",
-  "discussion_justification": "GitLab Issues provide a public forum for project discussion: https://gitlab.com/bart-turczynski/pslr/-/work_items",
+  "discussion_justification": "Discussion happens on GitLab work items and merge requests, which are public, searchable and addressable by URL, and need no proprietary client software: https://gitlab.com/bart-turczynski/pslr/-/work_items",
 
   "no_leaked_credentials_status": "Met",
-  "no_leaked_credentials_justification": "No credentials are committed to the repository; FOSSA scans the repo: https://gitlab.com/bart-turczynski/pslr",
+  "no_leaked_credentials_justification": "No credentials are committed. A gitleaks scan of the full git history (306 commits across all refs, 2026-09-26) found no leaks: https://gitlab.com/bart-turczynski/pslr",
 
   "english_status": "Met",
   "english_justification": "Documentation and issue-tracker interaction are conducted in English (Language: en-US): https://gitlab.com/bart-turczynski/pslr#readme",
