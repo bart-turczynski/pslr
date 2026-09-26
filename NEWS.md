@@ -8,6 +8,8 @@
 
 ## Internal
 
+* `scripts/bestpractices-url.py` is vendored from seor, with a pre-push hook that runs its offline self-test when the script changes. bestpractices.dev never imports `.bestpractices.json` from a GitLab repository, so the script turns the file into edit links the maintainer opens and saves, and `--check` compares the live entry with the file. `.bestpractices.json` now names GitLab throughout and describes today's CI: the hosted pipeline runs only when started by hand, `static_analysis_common_vulnerabilities` is answered Unmet, the leaked-credentials answer cites a gitleaks scan rather than FOSSA, and the retired `homepage_url` and `report_url` fields are gone (SEOR-grrcptww).
+
 * The OSS Index audit in `tests/testthat/test-security.R` now requires every reported advisory to have an explicit disposition in an allow-list (`helper-security.R`, empty today because the audit reports none) and fails on stale rows. The `security-audit` CI job and the `full` tier of `tools/verify.sh` set `OSSINDEX_AUDIT_REQUIRED=true`, so a missing credential, missing `oysteR`, no network or an empty audit fails there instead of skipping. The pre-push `standard` tier no longer runs the OSS Index and OSV audits: `testthat::test_local()` sets `NOT_CRAN=true` itself, so they had been running live on every push (`SEOR-fftbjnpl`).
 
 # pslr 1.2.1
