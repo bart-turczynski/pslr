@@ -8,6 +8,8 @@
 
 ## Internal
 
+* `AGENTS.md` points at the house `agent-workflow` and `fp` skills for the git workflow (SEOR-ipwcbcov).
+
 * The fp-generated agent files `FP_AGENTS.md` and `FP_CLAUDE.md` are gone, along with the `@FP_AGENTS.md` import in `AGENTS.md`. They loaded on every agent request and carried tracker guidance the maintainer's fp skills now replace; `.Rbuildignore` still lists both names, so a regenerated copy stays out of the tarball (PSLR-yqrdpnpk).
 
 * `.bestpractices.json` no longer claims pslr makes no network connections. `psl_refresh()` downloads the list over https, so the silver answers `crypto_used_network`, `crypto_tls12`, `crypto_certificate_verification` and `crypto_verification_private` are now Met, each describing what the refresh path does and what it leaves to libcurl's defaults. `hardening` is Unmet rather than N/A: the C++ matcher is built with the R installation's flags, and pslr adds none of its own (PSLR-sswcufbk).

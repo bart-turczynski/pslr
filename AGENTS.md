@@ -21,6 +21,9 @@ parentheses.
 Scratch and planning notes live in `_scratch/`. Never commit `_scratch/` or
 `.fp/`.
 
+Git follows the house `agent-workflow` skill. fp status changes stay decoupled
+from git (the `fp` skill's `references/decoupling.md`).
+
 For R style, tests, roxygen and new-function requirements, see
 docs/r-conventions.md.
 For pre-commit, verify tiers and the tracker snapshot, see docs/git-workflow.md.
