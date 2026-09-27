@@ -8,6 +8,8 @@
 
 ## Internal
 
+* `.bestpractices.json` no longer claims pslr makes no network connections. `psl_refresh()` downloads the list over https, so the silver answers `crypto_used_network`, `crypto_tls12`, `crypto_certificate_verification` and `crypto_verification_private` are now Met, each describing what the refresh path does and what it leaves to libcurl's defaults. `hardening` is Unmet rather than N/A: the C++ matcher is built with the R installation's flags, and pslr adds none of its own (PSLR-sswcufbk).
+
 * CI's `readme` job ignores blank-line-only differences in `README.md`. pandoc versions disagree about the blank line after the badges marker, so a README rendered with a newer local pandoc passed the pre-push gate and then failed CI, as it did in seor (SEOR-kaqtnovh).
 
 * `scripts/bestpractices-url.py` is vendored from seor, with a pre-push hook that runs its offline self-test when the script changes. bestpractices.dev never imports `.bestpractices.json` from a GitLab repository, so the script turns the file into edit links the maintainer opens and saves, and `--check` compares the live entry with the file. `.bestpractices.json` now names GitLab throughout and describes today's CI: the hosted pipeline runs only when started by hand, `static_analysis_common_vulnerabilities` is answered Unmet, the leaked-credentials answer cites a gitleaks scan rather than FOSSA, and the retired `homepage_url` and `report_url` fields are gone (SEOR-grrcptww).
