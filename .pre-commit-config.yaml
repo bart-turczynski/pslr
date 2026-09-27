@@ -77,6 +77,22 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-push]
+      # DESCRIPTION's BugReports: keeps the /-/issues form CRAN's incoming
+      # check string-tests for (the first 1.2.1 upload was archived for
+      # declaring /-/work_items there); every human-facing tracker link
+      # (codemeta.json, .bestpractices.json, the GitHub PR template) names
+      # /-/work_items, and no other human-facing surface may carry a /-/issues
+      # link (SEOR-ocbtrrnl, PSLR-kjkmhrok). Ported from pagerankr's
+      # scripts/check-bugreports.py; stdlib-only and offline, wired exactly
+      # like check-citation above. The script's docstring says why the two
+      # forms must differ.
+      - id: check-bugreports
+        name: BugReports split (DESCRIPTION vs human-facing tracker links)
+        entry: python3 scripts/check-bugreports.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
       # bestpractices-url.py is a maintainer tool that reads the network, so the
       # hook runs only its offline self-test, and only when the script changes.
       - id: bestpractices-url-self-test

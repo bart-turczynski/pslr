@@ -87,8 +87,10 @@ tier.
 
 This hook is no longer a mirror of CI — it **is** the everyday gate. GitLab
 runner minutes are a paid resource, so no hosted pipeline is created by a branch
-push, a merge request, a tag or a schedule; nothing checks a push server-side.
-Everything CI used to do weekly is in `tools/verify.sh full`, run locally.
+push, a merge request or a tag; nothing checks a push server-side. Everything CI
+used to do weekly is in `tools/verify.sh full`, run locally. The one recurring
+hosted pipeline is the dependency-audit schedule described under
+[the remote pipeline](#the-remote-pipeline).
 
 The staleness line is deliberately non-blocking. A hook that refused a push until
 a fifteen-minute check had run would be met with `--no-verify` within a
@@ -140,6 +142,13 @@ on the project today, so expect them loud on the first hosted run. Locally the
 OSS Index pair is read from `~/.Renviron` instead — see
 [the verify gate](#the-verify-gate) — so the same audit that skips in CI runs
 for real on this machine.
+
+The OSV and OSS Index audits (`osv-audit`, `security-audit`) also run, and only
+they run, from a pipeline schedule on `main` whose variables include
+`SCHEDULE_KIND=dependency-audit` (Build > Pipeline schedules; an owner step).
+There a run is blocking for both, and `security-audit` sets
+`OSSINDEX_AUDIT_REQUIRED=true`, so a missing `OSSINDEX_USER`/`OSSINDEX_TOKEN`
+pair is a red job rather than a vacuous green one.
 
 What the remote leg cannot give you: no macOS, no Windows — GitLab.com shared
 runners are Linux-only — and no sanitizers. Cross-platform assurance before a

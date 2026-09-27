@@ -60,7 +60,7 @@
   "report_tracker_justification": "GitLab work items serve as the public issue tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items",
 
   "report_process_status": "Met",
-  "report_process_justification": "Users submit bug reports through the GitLab issue tracker (GitLab work items), which DESCRIPTION declares as BugReports: https://gitlab.com/bart-turczynski/pslr/-/work_items",
+  "report_process_justification": "Users submit bug reports through the GitLab issue tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items. DESCRIPTION's BugReports: field names the same tracker in the /-/issues form that CRAN's incoming check requires.",
 
   "report_responses_status": "Met",
   "report_responses_justification": "Maintainer responds to issue reports on the tracker: https://gitlab.com/bart-turczynski/pslr/-/work_items",
