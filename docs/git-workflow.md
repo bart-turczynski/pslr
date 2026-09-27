@@ -30,7 +30,8 @@ even after deletion).
 R sources are formatted with [Air](https://posit-dev.github.io/air/)
 (`air.toml`), which runs as a per-commit hook and auto-fixes layout. Air owns
 formatting; lintr (in the verify gate) owns logic and best-practice lints. Don't
-reformat code unrelated to your change.
+reformat code unrelated to your change. The linter set and its deviations are in
+[r-conventions.md](./r-conventions.md#the-linter-set).
 
 ## The verify gate
 
