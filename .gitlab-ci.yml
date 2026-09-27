@@ -750,11 +750,11 @@ pages:
     # pkgdown renders every root-level .md that is not README/NEWS/LICENSE:
     # pkgdown:::package_mds() hardcodes that skip list (cran-comments.md too,
     # as no_render), so _pkgdown.yml has no setting that can exclude a file.
-    # Left alone it publishes agent tooling contracts -- AGENTS.md, CLAUDE.md,
-    # FP_AGENTS.md, FP_CLAUDE.md today -- as HTML and folds their text into
-    # search.json, where it outranks real documentation on ordinary queries.
+    # Left alone it publishes agent tooling contracts -- AGENTS.md and CLAUDE.md
+    # today -- as HTML and folds their text into search.json, where it
+    # outranks real documentation on ordinary queries.
     #
-    # KEEP-LIST, not a deny-list: naming today's four agent files means a new
+    # KEEP-LIST, not a deny-list: naming today's agent files means a new
     # family (GEMINI.md, CODEX.md, ...) would publish with nothing noticing --
     # a stray unlisted file is structurally invisible to a name-the-bad-ones
     # filter. Every root .md NOT on the keep-list is moved, named or not, so a
