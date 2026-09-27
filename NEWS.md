@@ -8,6 +8,14 @@
 
 ## Internal
 
+* The fp-generated agent files `FP_AGENTS.md` and `FP_CLAUDE.md` are gone, along with the `@FP_AGENTS.md` import in `AGENTS.md`. They loaded on every agent request and carried tracker guidance the maintainer's fp skills now replace; `.Rbuildignore` still lists both names, so a regenerated copy stays out of the tarball (PSLR-yqrdpnpk).
+
+* `.bestpractices.json` no longer claims pslr makes no network connections. `psl_refresh()` downloads the list over https, so the silver answers `crypto_used_network`, `crypto_tls12`, `crypto_certificate_verification` and `crypto_verification_private` are now Met, each describing what the refresh path does and what it leaves to libcurl's defaults. `hardening` is Unmet rather than N/A: the C++ matcher is built with the R installation's flags, and pslr adds none of its own (PSLR-sswcufbk).
+
+* CI's `readme` job ignores blank-line-only differences in `README.md`. pandoc versions disagree about the blank line after the badges marker, so a README rendered with a newer local pandoc passed the pre-push gate and then failed CI, as it did in seor (SEOR-kaqtnovh).
+
+* `scripts/bestpractices-url.py` is vendored from seor, with a pre-push hook that runs its offline self-test when the script changes. bestpractices.dev never imports `.bestpractices.json` from a GitLab repository, so the script turns the file into edit links the maintainer opens and saves, and `--check` compares the live entry with the file. `.bestpractices.json` now names GitLab throughout and describes today's CI: the hosted pipeline runs only when started by hand, `static_analysis_common_vulnerabilities` is answered Unmet, the leaked-credentials answer cites a gitleaks scan rather than FOSSA, and the retired `homepage_url` and `report_url` fields are gone (SEOR-grrcptww).
+
 * The OSS Index audit in `tests/testthat/test-security.R` now requires every reported advisory to have an explicit disposition in an allow-list (`helper-security.R`, empty today because the audit reports none) and fails on stale rows. The `security-audit` CI job and the `full` tier of `tools/verify.sh` set `OSSINDEX_AUDIT_REQUIRED=true`, so a missing credential, missing `oysteR`, no network or an empty audit fails there instead of skipping. The pre-push `standard` tier no longer runs the OSS Index and OSV audits: `testthat::test_local()` sets `NOT_CRAN=true` itself, so they had been running live on every push (`SEOR-fftbjnpl`).
 
 * `scripts/check-bugreports.py`, ported from pagerankr, keeps the tracker-link split from drifting back: `DESCRIPTION`'s `BugReports:` must stay on the `/-/issues` form CRAN's incoming check requires, `codemeta.json`, `.bestpractices.json` and the GitHub pull-request template must name `/-/work_items`, and no other human-facing file may link `/-/issues`. It runs as its own pre-push hook and in the `citation-version` CI job (`SEOR-ocbtrrnl`).
