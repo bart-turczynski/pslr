@@ -6,6 +6,8 @@
 
 * `CITATION.cff` names the version DOI of the release it describes. It still carried the 1.0.2 version DOI at version 1.2.1, and a `date-released` of 2026-07-11 rather than the 2026-09-14 CRAN publication. pslr 1.2.1 is archived at [10.5281/zenodo.22857031](https://doi.org/10.5281/zenodo.22857031); the concept DOI and the README badge are unchanged, as they always resolve to the newest version (SEOR-bzqbjxxo).
 
+* The README and `NEWS.md` are spelled in US English throughout, matching `Language: en-US`, and the British spellings are gone from `inst/WORDLIST`, so the spelling check now rejects them (SEOR-kfiqpymb).
+
 ## Internal
 
 * `AGENTS.md` points at the house `agent-workflow` and `fp` skills for the git workflow (SEOR-ipwcbcov).
@@ -40,7 +42,7 @@
 
 * The built pkgdown site is no longer packaged. `_pkgdown.yml` writes to `site/`, which `.Rbuildignore` never learned about when the destination changed, so 3.5 MB of generated documentation was carried into the tarball and every `R CMD check` reported a non-standard top-level directory (PSLR-epkkemop).
 
-* `tools/verify.sh` no longer reports a passing `cran` tier for an `R CMD check` that aborted. The tier inlined its own `rcmdcheck()` call to enable the CRAN incoming checks and did not carry over the `00check.log` guard that `run_check()` exists to apply, so a timeout fetching CRAN's `archive.rds` halted the check at its first step and was summarised as "0 errors | 0 warnings | 0 notes". Both tiers now go through `run_check`, and the remote form raises the child process's download timeout past R's 60-second default (PSLR-zibafvbq).
+* `tools/verify.sh` no longer reports a passing `cran` tier for an `R CMD check` that aborted. The tier inlined its own `rcmdcheck()` call to enable the CRAN incoming checks and did not carry over the `00check.log` guard that `run_check()` exists to apply, so a timeout fetching CRAN's `archive.rds` halted the check at its first step and was summarized as "0 errors | 0 warnings | 0 notes". Both tiers now go through `run_check`, and the remote form raises the child process's download timeout past R's 60-second default (PSLR-zibafvbq).
 
 * GitHub is fully retired from the repository. New commits are authored to <bartek@turczynski.pl> rather than a noreply address on the suspended GitHub account, and a `.mailmap` makes the 172 existing commits read the same way without rewriting published history. The last `.github` reference in `.Rbuildignore` is gone with the directory it ignored. The remaining `github.com` links in the tree are all third-party — pandoc releases, pak, and the upstream Public Suffix List itself (PSLR-thcaqtnw).
 
@@ -173,7 +175,7 @@
 
 ## Internal
 
-* The core C++ matcher hardened its construction: `psl_build_matcher()` now validates that its `keys`/`kinds`/`sections` columns share a length and that each section (0/1) and kind (`normal`/`wildcard`/`exception`) is in range -- an unknown kind now errors instead of being silently bucketed as an exception -- exact-reserves the six rule sets from a counting pass to avoid rehashing, and builds via a `std::unique_ptr` released only after the R external pointer is registered; `psl_match()` rejects a NULL external pointer before dereferencing. Behaviour on valid input is byte-identical (PSLR-sfppglqs).
+* The core C++ matcher hardened its construction: `psl_build_matcher()` now validates that its `keys`/`kinds`/`sections` columns share a length and that each section (0/1) and kind (`normal`/`wildcard`/`exception`) is in range -- an unknown kind now errors instead of being silently bucketed as an exception -- exact-reserves the six rule sets from a counting pass to avoid rehashing, and builds via a `std::unique_ptr` released only after the R external pointer is registered; `psl_match()` rejects a NULL external pointer before dereferencing. Behavior on valid input is byte-identical (PSLR-sfppglqs).
 
 * `psl_use()` now uses a scalar formal default validated by `check_choice()`, matching the query functions, and the sole-purpose `match_opt()` helper is removed; argument handling and every result/error are unchanged (PSLR-vmwsipkm).
 
@@ -183,11 +185,11 @@
 
 * The session result cache now stores only compact integer structural columns (public-suffix depth, the three byte offsets, and the `kind`/`section` enum codes) rather than the derived strings; the user-facing `public_suffix`/`registrable_domain`/`rule`/`kind`/`rule_section` columns are reconstructed on read by a new `psl_derive_strings()` after cache assembly, splitting the result schema (`psl_result_cols`) from the compact cache schema (`psl_cache_cols`). Results are byte-identical (differential oracle and cache-on/off identity unchanged) (PSLR-muyzxbpl).
 
-* The global query functions now resolve a single process-wide default engine via `psl_default_engine()` and thread it explicitly through the internal match/cache path (`psl_query_cols` -> `psl_resolve_cores` -> `psl_match_records`), replacing the implicit global-state fetch; `psl_use()` and the refresh activation paths replace that default engine. Public signatures and behaviour are byte-identical (PSLR-cchcomkk).
+* The global query functions now resolve a single process-wide default engine via `psl_default_engine()` and thread it explicitly through the internal match/cache path (`psl_query_cols` -> `psl_resolve_cores` -> `psl_match_records`), replacing the implicit global-state fetch; `psl_use()` and the refresh activation paths replace that default engine. Public signatures and behavior are byte-identical (PSLR-cchcomkk).
 
-* Moved result-cache ownership into the `psl_engine`: each engine mints its own `new_psl_cache()`, so activating a list swaps the whole engine (starting cold) instead of clearing a shared global, and the cache key drops the now-redundant list-identity prefix (keyed on section + canonical host); public behaviour is byte-identical, with new engine-cache isolation tests (PSLR-bcgedhmy).
+* Moved result-cache ownership into the `psl_engine`: each engine mints its own `new_psl_cache()`, so activating a list swaps the whole engine (starting cold) instead of clearing a shared global, and the cache key drops the now-redundant list-identity prefix (keyed on section + canonical host); public behavior is byte-identical, with new engine-cache isolation tests (PSLR-bcgedhmy).
 
-* Modelled the active-list state as internal `psl_snapshot` (rules + metadata + source identity) and process-local `psl_engine` (snapshot + compiled matcher) objects, and unified the two cache-activation paths onto a shared `psl_load_cached_snapshot()` loader behind a single `psl_activate_snapshot()` choke-point; internal only, public behaviour byte-identical (PSLR-fvotbdti).
+* Modeled the active-list state as internal `psl_snapshot` (rules + metadata + source identity) and process-local `psl_engine` (snapshot + compiled matcher) objects, and unified the two cache-activation paths onto a shared `psl_load_cached_snapshot()` loader behind a single `psl_activate_snapshot()` choke-point; internal only, public behavior byte-identical (PSLR-fvotbdti).
 
 * The five public query functions and `psl_rules()` now carry scalar formal defaults validated by an internal `check_choice()`, dropping the `missing()`-based supplied-flag bookkeeping; argument handling and every result and error are unchanged (PSLR-adsnjbjg).
 
@@ -195,7 +197,7 @@
 
 * Consolidated the two overlapping benchmark scripts into a single authoritative harness under `bench/` (shared fixtures/timing in `bench/helpers.R`), removed the unreferenced `inst/bench/match-bench.R`, and fixed two integrity defects: the "unique" corpus is now deterministic and exactly-n distinct (via the internal, unit-tested `psl_bench_unique_hosts()`), and every scenario resets its intended cache state inside each timed rep so a cold measurement is no longer contaminated by the previous rep's warm cache (PSLR-cefytpjr).
 
-* Raised test coverage from 96% to 100% by exercising the previously-uncovered error and fallback branches across `refresh.R`, `matcher.R`, `cache.R`, `canonicalize.R`, `duplicates.R`, and `parser.R` (mocked downloader/`digest`/`curl`/`system.file` seams, crafted inputs); the one unreachable C++ epilogue brace in `matcher.cpp` is excluded with a `# nocov` marker. No behaviour change; the differential oracle is unchanged (#66).
+* Raised test coverage from 96% to 100% by exercising the previously-uncovered error and fallback branches across `refresh.R`, `matcher.R`, `cache.R`, `canonicalize.R`, `duplicates.R`, and `parser.R` (mocked downloader/`digest`/`curl`/`system.file` seams, crafted inputs); the one unreachable C++ epilogue brace in `matcher.cpp` is excluded with a `# nocov` marker. No behavior change; the differential oracle is unchanged (#66).
 
 * Collapsed the repeated `section`/`unknown`/`invalid` option-validation preamble across the five exported query functions into a shared `resolve_common_opts()` helper, factored `suffix_extract()`'s byte-offset slicing into `psl_slice_registrant()`, and drove `psl_query_cols()`'s eight match columns off the shared schema (reusing `psl_match_alloc()`, now `NA`-filled). Clears the remaining `goodpractice` function-length findings for `R/query.R`; results are byte-identical (oracle unchanged) (#65).
 
@@ -244,7 +246,7 @@
 ## Internal
 
 * Dropped the redundant `strict = TRUE` argument from `punycoder::host_normalize()`
-  calls. `punycoder` removed the inert `strict` flag in favour of explicit
+  calls. `punycoder` removed the inert `strict` flag in favor of explicit
   UTS #46 flags (all defaulting to the strict profile), so the bare call is
   behavior-preserving and forward-compatible with that release. No user-visible
   change; this keeps `pslr` installable against the upcoming `punycoder` release.

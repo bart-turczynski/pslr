@@ -208,7 +208,7 @@ Run the same verification CI runs (lint + `R CMD check --as-cran`):
 Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }' && Rscript -e 'rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning")'
 ```
 
-`R CMD check` runs the testthat and cucumber specs, so the behaviour specs are
+`R CMD check` runs the testthat and cucumber specs, so the behavior specs are
 verified as part of the check. A non-CRAN performance benchmark and its release
 gate live in [`bench/benchmark.R`](https://gitlab.com/bart-turczynski/pslr/-/blob/main/bench/benchmark.R); recorded reference
 results are in [`docs/benchmarks.md`](https://gitlab.com/bart-turczynski/pslr/-/blob/main/docs/benchmarks.md).
