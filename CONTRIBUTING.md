@@ -13,7 +13,7 @@ Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
 Run verification:
 
 ```sh
-tools/verify.sh            # standard: lint + tests (the pre-push gate, ~2 min)
+tools/verify.sh            # standard: lint + spelling + tests (the pre-push gate, ~2 min)
 tools/verify.sh full       # + R CMD check --as-cran and the release audits
 ```
 
