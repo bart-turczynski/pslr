@@ -16,8 +16,9 @@
 #   tools/verify.sh [standard|full|matrix|sanitize|cran]
 #   tools/verify.sh --staleness
 #
-#   standard  lint + the test suite.  The per-push gate; what the pre-push hook
-#             runs.  About two minutes, most of it the 2000-odd tests.
+#   standard  lint + spelling + the test suite.  The per-push gate; what the
+#             pre-push hook runs.  About two minutes, most of it the 2000-odd
+#             tests.
 #   full      standard + R CMD check --as-cran, NEWS/version consistency,
 #             README drift, coverage and both dependency audits.  Replaces the
 #             weekly CI schedules.  Records a timestamp in .verify-stamp.
@@ -144,6 +145,17 @@ run_lint() {
   step "lint (lintr)"
   Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }'
   ok "no lints"
+}
+
+# `R CMD check` skips its DESCRIPTION spelling check on a machine without an
+# English aspell or hunspell dictionary, which is this one, so a typo there
+# first surfaced as a win-builder NOTE (SEOR-mtbzfroz). spelling bundles its own
+# dictionaries and also covers man/, vignettes, README and NEWS.md. A genuine
+# term goes into inst/WORDLIST; a typo gets fixed at its source.
+run_spelling() {
+  step "spelling (spelling::spell_check_package)"
+  Rscript -e 'bad <- spelling::spell_check_package(); if (nrow(bad)) { print(bad); quit(status = 1) }'
+  ok "no misspelled words"
 }
 
 run_tests() {
@@ -562,6 +574,7 @@ case "$tier" in
   standard)
     need_cmd Rscript
     run_lint
+    run_spelling
     run_tests
     summarise
     printf '\n%sstandard verify passed%s\n' "$c_green" "$c_reset"
@@ -573,6 +586,7 @@ case "$tier" in
   full)
     check_toolchain
     run_lint
+    run_spelling
     run_tests
     run_check
     run_news_version
@@ -600,6 +614,7 @@ case "$tier" in
     check_toolchain
     require_ossindex_credentials
     run_lint
+    run_spelling
     run_tests
     # CI disables the remote incoming checks because the rocker image points
     # `repos` at a binary mirror with no src/contrib, so the fetch 404s and

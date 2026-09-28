@@ -46,3 +46,6 @@ Meta/
 # Timestamp of the last successful `tools/verify.sh full`. Local state about
 # one machine's checkout, not a property of the source.
 .verify-stamp
+
+# Logs and build output (fleet convention); .Rbuildignore keeps it out of the tarball.
+tmp/
