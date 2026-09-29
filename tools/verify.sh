@@ -171,7 +171,7 @@ run_tests() {
   ok "tests passed"
 }
 
-# rcmdcheck summarises whatever 00check.log holds, and a check that aborted
+# rcmdcheck summarizes whatever 00check.log holds, and a check that aborted
 # early leaves a log with no findings, which reads as a clean pass. Insist the
 # log shows a run that reached the end.
 #
@@ -485,7 +485,7 @@ run_sanitize() {
 
   step "ASAN + UBSAN on R ${sanitize_version} (docker)"
   # -fno-sanitize-recover=all makes UBSAN abort rather than print and continue;
-  # without it undefined behaviour is a line of stderr the exit status ignores.
+  # without it undefined behavior is a line of stderr the exit status ignores.
   if docker run --rm \
     -v "$repo_root:/pkg:ro" \
     -v "pslr-rlib-asan:/rlib" \
@@ -556,7 +556,7 @@ run_sanitize() {
 # Tiers
 # ---------------------------------------------------------------------------
 
-summarise() {
+summarize() {
   if [ "${#soft_warnings[@]}" -gt 0 ]; then
     printf '\n%s%d warning(s):%s\n' "$c_yellow" "${#soft_warnings[@]}" "$c_reset"
     printf '  - %s\n' "${soft_warnings[@]}"
@@ -576,7 +576,7 @@ case "$tier" in
     run_lint
     run_spelling
     run_tests
-    summarise
+    summarize
     printf '\n%sstandard verify passed%s\n' "$c_green" "$c_reset"
     # Deliberately does not touch .verify-stamp: only the full tier clears the
     # staleness nudge, or pushing often would silence a check that never ran.
@@ -595,7 +595,7 @@ case "$tier" in
     run_osv
     run_security
     run_psl_upstream
-    summarise
+    summarize
     write_stamp
     printf '\n%sfull verify passed%s\n' "$c_green" "$c_reset"
     ;;
@@ -632,7 +632,7 @@ case "$tier" in
     # Finding a hit from their report rather than from this run is the
     # expensive ordering, so the tier pays for it here.
     run_sanitize
-    summarise
+    summarize
     write_stamp
     printf '\n%scran tier passed — safe to submit%s\n' "$c_green" "$c_reset"
     ;;
