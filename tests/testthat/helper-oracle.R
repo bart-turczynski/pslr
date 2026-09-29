@@ -6,12 +6,12 @@
 # Keeping the corpus and the runner here — deterministic, ASCII-authored via
 # intToUtf8() for non-ASCII hosts — means regeneration is byte-stable and the
 # test compares the *values* the current code produces against the pinned RDS.
-# To regenerate after a *sanctioned* behaviour change: load the package, then
+# To regenerate after a *sanctioned* behavior change: load the package, then
 #   saveRDS(oracle_run(oracle_corpus()),
 #           testthat::test_path("fixtures", "oracle-baseline.rds"))
 #
 # The oracle pins whatever the code does TODAY. It must be GREEN on current
-# main; P2-P5 (columnar rewrite) prove they did not change behaviour by keeping
+# main; P2-P5 (columnar rewrite) prove they did not change behavior by keeping
 # this suite green. Do NOT "improve" any pinned output.
 
 # Non-ASCII host fragments, built from code points so this file stays ASCII

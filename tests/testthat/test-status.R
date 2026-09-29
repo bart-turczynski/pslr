@@ -208,7 +208,7 @@ test_that("an elapsed interval is check_due and never reads as an update", {
   expect_identical(status$message, NA_character_)
 })
 
-test_that("check_due honours a retained reminder interval", {
+test_that("check_due honors a retained reminder interval", {
   local_pslr_clean()
   psl_store_append(
     psl_reminder_stream_dir(),

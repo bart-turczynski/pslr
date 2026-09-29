@@ -75,13 +75,13 @@ test_that("wildcard Table-2 entries put the boundary below the entry", {
   )
 
   # ... but any single label below it is (the wildcard expansion).
-  labelled <- paste0("reg.", freshness_wildcard)
+  labeled <- paste0("reg.", freshness_wildcard)
   expect_identical(
-    is_public_suffix(labelled),
+    is_public_suffix(labeled),
     rep(TRUE, length(freshness_wildcard))
   )
 
-  tenant <- paste0("tenant.", labelled)
-  expect_identical(public_suffix(tenant), labelled)
+  tenant <- paste0("tenant.", labeled)
+  expect_identical(public_suffix(tenant), labeled)
   expect_identical(registrable_domain(tenant), tenant)
 })

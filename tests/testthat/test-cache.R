@@ -105,10 +105,10 @@ test_that("psl_cache_clear empties the table", {
   expect_identical(active_cache()$n, 0L)
 })
 
-test_that("psl_cache_ensure lazily initialises an uninitialised store", {
+test_that("psl_cache_ensure lazily initializes an uninitialized store", {
   cache <- active_cache()
   on.exit(psl_cache_clear(cache))
-  # Simulate a never-initialised store (fresh session, before first use).
+  # Simulate a never-initialized store (fresh session, before first use).
   cache$idx <- NULL
   psl_cache_ensure(cache)
   expect_false(is.null(cache$idx))
