@@ -363,7 +363,7 @@ evidence; the retired prototype (both matchers side by side, and the deleted
 ## D19 — Cache policy: keep the flat bound + full-flush; decline auto-bypass and generational eviction
 
 **Decision.** The bounded columnar cache (D11) keeps its flat capacity and
-whole-table eviction. Two behaviour-changing ideas floated in the refactoring
+whole-table eviction. Two behavior-changing ideas floated in the refactoring
 audit (§2.5) were evaluated against the benchmark harness and **not adopted**: a
 `pslr.cache = "auto"` mode that would bypass the *store* on large mostly-unique
 calls, and a two-generation eviction policy replacing the full flush. One

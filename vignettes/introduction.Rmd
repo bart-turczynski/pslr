@@ -144,7 +144,7 @@ suffix_extract("blog.user.github.io")
 public_suffix_rule(c("www.ck", "a.b.kobe.jp", "example.madeuptld"))
 ```
 
-All query functions are vectorised, length- and name-preserving, and NA-safe.
+All query functions are vectorized, length- and name-preserving, and NA-safe.
 Invalid input (URLs, IPv6, empty labels, dotted-decimal IPv4 literals, ...) is
 `NA` by default; pass `invalid = "error"` to abort on the first invalid element.
 

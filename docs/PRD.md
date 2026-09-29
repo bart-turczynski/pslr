@@ -17,7 +17,7 @@
 1. a reproducible PSL snapshot;
 2. parsing and validation of PSL-format data;
 3. the official prevailing-rule algorithm; and
-4. vectorised APIs for public suffix and registrable-domain queries.
+4. vectorized APIs for public suffix and registrable-domain queries.
 
 It answers:
 
@@ -50,7 +50,7 @@ trustworthy.
   and implicit default rules.
 - Preserve the distinction between ICANN and PRIVATE rules.
 - Normalize host input and list rules to one canonical comparison form.
-- Be vectorised, deterministic, NA-safe, and suitable as a package dependency.
+- Be vectorized, deterministic, NA-safe, and suitable as a package dependency.
 - Work offline using a bundled, pinned list.
 - Offer an explicit, validated refresh path without automatic network access.
 - Ship complete API documentation, official test-vector coverage, regression
