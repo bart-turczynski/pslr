@@ -154,7 +154,7 @@ psl_prune_references <- function() {
 }
 
 # The snapshot this process is matching against, or nothing when the active
-# list is not a cached snapshot. Reading it lazily initialises the bundled
+# list is not a cached snapshot. Reading it lazily initializes the bundled
 # engine, which is memory only.
 psl_prune_active_checksum <- function() {
   checksum <- psl_snapshots_active_checksum()

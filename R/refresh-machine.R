@@ -302,7 +302,7 @@ psl_skip_plan <- function(request_url, state) {
   )
 }
 
-# A `304` backed by bytes that verify: the licence to keep using them. The
+# A `304` backed by bytes that verify: the license to keep using them. The
 # checksum and `retrieved_at` are untouched, `checked_at` advances, and a
 # rotated validator is accepted.
 psl_not_modified_plan <- function(request_url, state, fetched, validator, now) {

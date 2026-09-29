@@ -123,7 +123,7 @@ workflow:
   # or Pipelines -> Run pipeline with that variable set.
   #
   # A run with NEITHER variable creates no pipeline at all. That is the intended
-  # behaviour, not a misconfiguration — GitLab will say the pipeline was
+  # behavior, not a misconfiguration — GitLab will say the pipeline was
   # filtered out by workflow rules, and the answer is to pass the variable.
   #
   # THE EVERYDAY GATE IS LOCAL AND UNCHANGED. `tools/verify.sh standard` runs in
@@ -393,7 +393,7 @@ check:
   needs: [lint]
   script:
     - Rscript -e 'pak::pak("rcmdcheck")'
-    # rcmdcheck summarises whatever 00check.log contains. When the check aborts
+    # rcmdcheck summarizes whatever 00check.log contains. When the check aborts
     # partway, that log holds no findings, and the summary reads as a pass — the
     # exact false green that shipped in the first pipeline. Insist the log shows
     # a check that ran to the end. `[["checkdir"]]` rather than `$checkdir` so
@@ -477,7 +477,7 @@ full-check:
       - R_VERSION: ["devel", "4.6", "4.5"]
   script:
     - Rscript -e 'pak::pak("rcmdcheck")'
-    # rcmdcheck summarises whatever 00check.log contains. When the check aborts
+    # rcmdcheck summarizes whatever 00check.log contains. When the check aborts
     # partway, that log holds no findings, and the summary reads as a pass — the
     # exact false green that shipped in the first pipeline. Insist the log shows
     # a check that ran to the end. `[["checkdir"]]` rather than `$checkdir` so
@@ -700,7 +700,7 @@ psl-upstream-check:
       ## Before merging
 
       1. **Review the upstream diff** -- \`git diff inst/extdata/public_suffix_list.dat\`.
-         A rule that moves the registrable-domain boundary is a behaviour change.
+         A rule that moves the registrable-domain boundary is a behavior change.
       2. **Check \`normalizer_version\` above.** It records whatever the runner
          resolved. While the temporary \`punycoder\` \`Remotes:\` pin is in place this
          will be a development version, which must not ship to CRAN (PSLR-fjkaqckg).

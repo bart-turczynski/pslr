@@ -5,7 +5,7 @@
 # This is the single benchmark harness. It is deliberately excluded from the
 # build (.Rbuildignore: ^bench$) and from the test suite: shared CI and CRAN
 # timing are not stable, so the timing threshold is a RELEASE GATE run by the
-# maintainer, not a unit test. The behavioural properties it leans on -- an
+# maintainer, not a unit test. The behavioral properties it leans on -- an
 # exactly-n unique corpus and a genuine cold-cache reset -- ARE unit-tested, via
 # the internal helpers in R/benchmark-fixtures.R (test-benchmark-fixtures.R).
 #

@@ -325,7 +325,7 @@ print.psl_engine <- function(x, ...) {
 }
 
 # The process-wide default `psl_engine`: the single active engine that the
-# global query API delegates to, lazily initialised from the bundled index on
+# global query API delegates to, lazily initialized from the bundled index on
 # first use. `psl_use()` and the refresh activation paths replace it.
 psl_default_engine <- function() {
   if (is.null(the_matcher$state)) {
@@ -341,7 +341,7 @@ active_snapshot <- function() psl_default_engine()$snapshot
 active_matcher <- function() psl_default_engine()$matcher
 
 # The default engine's result cache (PRD s8.2). Engine-local, minted empty by
-# `new_psl_engine()` and lazily initialised on first store via the bundled init.
+# `new_psl_engine()` and lazily initialized on first store via the bundled init.
 active_cache <- function() psl_default_engine()$cache
 
 # Stable identity of the default engine's list, reported by `psl_version()`. For

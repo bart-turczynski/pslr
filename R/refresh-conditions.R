@@ -187,7 +187,7 @@ psl_as_refresh_busy <- function(cnd) {
   )
 }
 
-# Evaluate `expr`, re-signalling any lock-busy condition as a refresh busy
+# Evaluate `expr`, re-signaling any lock-busy condition as a refresh busy
 # error. Wrap the whole locked section of a refresh in this.
 psl_refresh_with_busy <- function(expr) {
   tryCatch(
@@ -280,7 +280,7 @@ psl_refresh_publication_error <- function(message) {
 }
 
 # `Retry-After` as a whole number of seconds, or `NA` when absent or malformed.
-# Only the delta-seconds form is honoured: the HTTP-date form needs C-locale
+# Only the delta-seconds form is honored: the HTTP-date form needs C-locale
 # month and weekday names to parse portably, and a wrong answer here would
 # either suppress a legitimate retry or invent one. An unparsed value is simply
 # dropped -- the error is still raised, it just carries no delay.

@@ -1,6 +1,6 @@
 # Public query API (PRD s6, s7).
 #
-# Thin, vectorised wrappers over the canonicalization layer (R/canonicalize.R)
+# Thin, vectorized wrappers over the canonicalization layer (R/canonicalize.R)
 # and the cached core matcher (R/matcher.R). Each function owns argument
 # matching and the user-facing `section` / `output` / `unknown` / `invalid`
 # policies; the heavy lifting of normalization, matching, and caching lives

@@ -8,7 +8,7 @@ test_that("each engine owns an isolated result cache", {
   engine_a <- new_psl_engine(new_psl_snapshot(rules, meta))
   engine_b <- new_psl_engine(new_psl_snapshot(rules, meta))
 
-  # Distinct cache objects, both starting empty once initialised.
+  # Distinct cache objects, both starting empty once initialized.
   expect_false(identical(engine_a$cache, engine_b$cache))
   psl_cache_ensure(engine_a$cache)
   psl_cache_ensure(engine_b$cache)
@@ -109,7 +109,7 @@ test_that("a non-engine `engine` argument errors", {
   expect_error(public_suffix("x", engine = the_snapshot), "psl_engine")
 })
 
-test_that("print methods summarise without dumping internals", {
+test_that("print methods summarize without dumping internals", {
   e <- psl_engine("bundled")
   expect_output(print(e), "<psl_engine>")
   expect_output(print(e), "process-local compiled matcher")

@@ -292,7 +292,7 @@ First public release: a spec-complete Public Suffix List engine for R.
   MPL-2.0 data licensing separate from the package's MIT code license.
 * Added the public query API: `public_suffix()`, `registrable_domain()`,
   `is_public_suffix()`, `suffix_extract()`, and `public_suffix_rule()`. All are
-  vectorised, length- and name-preserving, NA-safe, and share the
+  vectorized, length- and name-preserving, NA-safe, and share the
   `section` / `output` / `unknown` / `invalid` policies. Input is canonicalized
   through `punycoder` with terminal-dot preservation and dotted-decimal IPv4
   literal rejection, and repeated queries are served from a bounded session

@@ -292,7 +292,7 @@ psl_response_class <- function(response) {
   "failure"
 }
 
-# `Retry-After`, honoured only where it is meaningful: a server asking a client
+# `Retry-After`, honored only where it is meaningful: a server asking a client
 # to back off answers `429` or `503`.
 psl_response_retry_after <- function(response) {
   if (!response$status %in% c(429L, 503L)) {

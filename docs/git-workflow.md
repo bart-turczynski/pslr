@@ -60,7 +60,7 @@ building the package from a copy of the tree so instrumented objects never reach
 the working directory:
 
 1. **ASAN + UBSAN.** `-fsanitize=address,undefined` with
-   `-fno-sanitize-recover=all`, so undefined behaviour aborts instead of printing
+   `-fno-sanitize-recover=all`, so undefined behavior aborts instead of printing
    a line the exit status ignores. `detect_leaks=0` — R itself is not
    instrumented, so leak detection here would report R's allocations, not the
    package's.
@@ -115,7 +115,7 @@ There are two pipelines and they answer different questions.
 
 **Local** — `tools/verify.sh`, described above. It runs on every push, it is the
 only place the `sanitize` tier (clang-ASAN, UBSAN, valgrind over `src/`) exists,
-and it is the only leg that can check macOS behaviour, because that is the
+and it is the only leg that can check macOS behavior, because that is the
 machine it runs on.
 
 **Remote** — `.gitlab-ci.yml`, and it assembles only when asked by name:
@@ -178,7 +178,7 @@ Two things to know before doing that. It is single-concurrency, so the jobs run
 one after another rather than in parallel — a full CRAN-prep run is long. And
 `pages` declares `needs: []`, so it starts without waiting for the check stage;
 if the site is all you want, `DEPLOY_PAGES=1` is the pipeline to raise rather
-than starting `CRAN_PREP=1` and cancelling the rest.
+than starting `CRAN_PREP=1` and canceling the rest.
 
 Running the pipeline locally used to need one more step, and no longer does.
 `.gitlab-ci.yml` hardcoded pandoc's `.deb` as `-amd64`, which is correct on

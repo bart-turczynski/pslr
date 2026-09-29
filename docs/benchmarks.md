@@ -15,7 +15,7 @@ state — cold clears, warm primes, cache-off sets `options(pslr.cache = FALSE)`
 are therefore genuinely cold, replacing the previously warm-contaminated,
 non-unique measurement these numbers superseded.
 
-The behavioural property the benchmark exercises — that canonical-host
+The behavioral property the benchmark exercises — that canonical-host
 deduplication avoids one normalization and one C++ call per duplicate — is
 covered by a deterministic, timing-independent unit test in
 [`tests/testthat/test-dedup.R`](../tests/testthat/test-dedup.R).

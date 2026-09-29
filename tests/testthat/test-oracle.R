@@ -4,7 +4,7 @@
 # function x option matrix (see helper-oracle.R) over a broad host corpus and
 # compares byte-for-byte against a checked-in RDS. Its whole purpose is to give
 # P2-P5 (the columnar rewrite) a fixed reference: if any pinned value changes,
-# the rewrite changed observable behaviour and must justify it (and regenerate).
+# the rewrite changed observable behavior and must justify it (and regenerate).
 #
 # The shape pins below lock the frame/vector contracts (PRD s7.1 name
 # preservation, s7.2 zero-length / all-invalid shapes) that are easy to break in

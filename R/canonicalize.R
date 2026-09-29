@@ -61,7 +61,7 @@ is_ipv4_literal <- function(x) {
 #
 # Unmarked non-ASCII input is resolved two ways: if the bytes are valid UTF-8,
 # declare that (the overwhelmingly common case, and what a caller reading from a
-# UTF-8 source actually holds); otherwise honour R's contract that "unknown"
+# UTF-8 source actually holds); otherwise honor R's contract that "unknown"
 # means native and transcode. ASCII and already-marked strings are untouched.
 psl_declare_utf8 <- function(x) {
   candidate <- !is.na(x) &
