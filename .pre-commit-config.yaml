@@ -31,6 +31,25 @@ repos:
     rev: 0.8.2
     hooks:
       - id: air-format
+  # British spellings in code, comments, string literals and tooling, which
+  # spelling::spell_check_package() (verify gate) never reads: it covers
+  # DESCRIPTION, roxygen, vignettes, README and NEWS only, and that gap let
+  # British runtime messages ship (SEOR-xtmnpmae). Only the en-GB_to_en-US
+  # dictionary is enabled, so this is not a general typo checker. codespell
+  # skips dotfiles unless given --check-hidden, so .bestpractices.json is
+  # skipped either way; it is listed so the intent survives a flag change.
+  # Excluded: man/ (roxygen output; fix the roxygen source), upstream PSL data
+  # in inst/extdata/, test fixtures, the tracker snapshot (recorded text,
+  # regenerated wholesale) and .bestpractices.json (mirrors the live
+  # bestpractices.dev entry). docs/ is hand-written source here and is checked.
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.3
+    hooks:
+      - id: codespell
+        name: codespell (British spellings, en-GB_to_en-US; SEOR-xtmnpmae)
+        args: [--builtin, en-GB_to_en-US]
+        stages: [pre-commit, pre-push]
+        exclude: '^(man/|inst/extdata/|tests/testthat/fixtures/|docs/tracker-snapshot\.md$|\.bestpractices\.json$)'
   - repo: local
     hooks:
       # The hosted pipeline no longer runs per push (see the `workflow:` rules
