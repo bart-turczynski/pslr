@@ -134,6 +134,10 @@ exactly what the mirror policy forbids — the push mirror is the only thing
 allowed to write to GitHub. Releases happen a few times a year; a job that runs
 that rarely, holding a token that powerful, is a worse trade than one command.
 
+Skip this and `CITATION.cff` keeps naming the previous version's DOI. The
+fleet-wide procedure, with stall recovery, is
+[seor `design/github-mirror.md` §5](https://gitlab.com/bart-turczynski/seor/-/blob/main/design/github-mirror.md).
+
 After the tag is pushed to GitLab and the mirror has synced it:
 
 1. **Check the tag reached GitHub with the same object id.** The mirror only
@@ -154,7 +158,9 @@ After the tag is pushed to GitLab and the mirror has synced it:
    ```
 
 3. **Confirm the deposit.** A new version should appear under the concept DOI,
-   labeled with the version from `.zenodo.json`:
+   with the version and title from `.zenodo.json`. Check both against the
+   release, and compare the archived zip with the tag by content, not checksum
+   (§5.2):
 
    ```sh
    curl -sSL -H 'Accept: application/json' \
@@ -168,8 +174,19 @@ After the tag is pushed to GitLab and the mirror has synced it:
    under the previous release's version number, which is why two Zenodo records
    read `1.0.2`.
 
-4. **Record the new version DOI** in `CITATION.cff` under `identifiers`. The
-   concept DOI and the README badge never change.
+4. **Check that doi.org resolves both DOIs**, the concept DOI and the new
+   version DOI. Zenodo shows a DOI before DataCite registers it (§5.3):
+
+   ```sh
+   curl -s -o /dev/null -w '%{http_code}\n' https://doi.org/<doi>   # expect 302
+   ```
+
+   A `404` means it is not registered yet. Wait, and don't commit it.
+
+5. **Record the new version DOI** in a follow-up commit: its entry in
+   `CITATION.cff` `identifiers:` (value and description) and `date-released`.
+   `python3 scripts/check-citation.py` must still pass. The concept DOI and the
+   README badge never change.
 
 Two things measured on the 1.2.1 deposit, so you don't misread them as failures:
 
@@ -185,4 +202,7 @@ Two things measured on the 1.2.1 deposit, so you don't misread them as failures:
 Reading a delivery's response body needs the `admin:repo_hook` scope, which a
 default `gh` login does not have (`gh auth refresh -h github.com -s
 admin:repo_hook`). Worth doing only if step 3 turns up nothing after ~15
-minutes, when redelivering the `published` event is the usual remedy.
+minutes, when redelivering the `published` event is the usual remedy. A release
+that stays at "Received" on Zenodo's GitHub page needs the delete-and-re-create
+recovery in seor `design/github-mirror.md` §5.1, which also says how to catch a
+duplicate version afterward.
