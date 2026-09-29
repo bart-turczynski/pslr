@@ -99,7 +99,7 @@ psl_report_strict_duplicates <- function(rules, exact_group, dup) {
   )
 }
 
-# Lenient mode: emit a single summarising warning before dropping duplicates.
+# Lenient mode: emit a single summarizing warning before dropping duplicates.
 psl_warn_dropped_duplicates <- function(rules, dup) {
   first_dup <- which(dup)[1]
   warning(

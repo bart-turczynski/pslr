@@ -25,7 +25,7 @@
 # is dropped before any changed redirect target. A policy violation is refused
 # before a validator is forwarded and before any response body is accepted.
 #
-# Every rejection is signalled as `pslr_refresh_url_policy_error` and every
+# Every rejection is signaled as `pslr_refresh_url_policy_error` and every
 # message interpolates a URL only after `psl_redact_url()` has removed any
 # userinfo the caller supplied.
 

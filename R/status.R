@@ -170,7 +170,7 @@ psl_status_inspect_bundled <- function() {
   )
 }
 
-# The default engine's snapshot. Reading it lazily initialises the bundled
+# The default engine's snapshot. Reading it lazily initializes the bundled
 # engine in this process, which is memory only -- no file is written.
 psl_status_inspect_active <- function() {
   meta <- active_meta()
@@ -661,7 +661,7 @@ psl_status_detail <- function(x) {
 }
 
 # Abbreviate a checksum identity for display: the algorithm plus the first 12
-# hex characters, which is plenty to recognise a snapshot by eye.
+# hex characters, which is plenty to recognize a snapshot by eye.
 psl_status_short_checksum <- function(checksum) {
   if (is.na(checksum)) {
     return(NA_character_)
@@ -677,7 +677,7 @@ psl_status_date <- function(x) {
   if (is.na(x)) NA_character_ else format(x, "%Y-%m-%d %H:%M UTC", tz = "UTC")
 }
 
-# The labelled field block: every known value, aligned, with unknown values
+# The labeled field block: every known value, aligned, with unknown values
 # omitted rather than printed as NA.
 psl_status_field_lines <- function(x) {
   values <- c(

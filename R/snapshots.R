@@ -163,7 +163,7 @@ psl_snapshots_source_index <- function() {
   )
 }
 
-# The active engine's snapshot identity. Reading it lazily initialises the
+# The active engine's snapshot identity. Reading it lazily initializes the
 # bundled engine in this process, which is memory only -- no file is written.
 psl_snapshots_active_checksum <- function() {
   checksum <- active_meta()$checksum

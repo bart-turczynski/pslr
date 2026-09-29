@@ -64,7 +64,7 @@ psl_cache_cols <- c(
 
 # Mint a fresh per-engine cache: an env holding the key -> index env, the
 # parallel column vectors, the current entry count, the allocated column length,
-# and the effective capacity bound. The store is initialised lazily (via
+# and the effective capacity bound. The store is initialized lazily (via
 # `psl_cache_ensure()` / `psl_cache_clear()`), so a freshly minted cache carries
 # only its capacity seed until first use. Each `psl_engine` owns one of these.
 new_psl_cache <- function() {
@@ -72,7 +72,7 @@ new_psl_cache <- function() {
   cache$capacity <- psl_cache_default_capacity
   # A freshly minted cache is empty: `$n == 0` is observable immediately (a
   # just-activated list reads as cold), while the columnar store (`$idx` and the
-  # column vectors) stays lazily initialised on first use via
+  # column vectors) stays lazily initialized on first use via
   # `psl_cache_ensure`.
   cache$n <- 0L
   cache
@@ -142,7 +142,7 @@ psl_cache_lookup <- function(cache, keys, cache_on) {
 }
 
 # Store records (a list of parallel column vectors) under already-composed keys,
-# honouring the capacity bound. Appends into the column vectors and records each
+# honoring the capacity bound. Appends into the column vectors and records each
 # key -> slot mapping in the index env.
 psl_cache_store <- function(cache, keys, records) {
   m <- length(keys)
@@ -158,7 +158,7 @@ psl_cache_store <- function(cache, keys, records) {
     return(invisible(NULL))
   }
   # A batch that fits the capacity but would overflow the live set evicts by
-  # full flush, then stores -- favouring the most-recent working set (D11).
+  # full flush, then stores -- favoring the most-recent working set (D11).
   if (cache$n + m > capacity) {
     psl_cache_clear(cache)
   }

@@ -179,7 +179,7 @@ list psl_match(SEXP matcher, strings hosts, int section_code) {
       static_cast<const TrieMatcher*>(R_ExternalPtrAddr(matcher));
   // Guard the C boundary: a NULL address means the pointer was never built or
   // its finalizer already ran (R_ClearExternalPtr). Dereferencing it below
-  // would be undefined behaviour, so stop with a clear message instead.
+  // would be undefined behavior, so stop with a clear message instead.
   if (m == nullptr) {
     cpp11::stop("matcher external pointer is NULL (not built or already freed)");
   }

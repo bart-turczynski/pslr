@@ -19,7 +19,7 @@
 #     bytes pslr holds are the bytes the origin means. TLS, the SHA-256
 #     identity of the stored snapshot, and full PSL validation all remain
 #     required regardless of what a validator says. A `304` is therefore only
-#     ever a licence to keep using bytes that independently verify.
+#     ever a license to keep using bytes that independently verify.
 #
 #   * COURTESY. How long to wait before the next ordinary source check. The
 #     official PSL asks clients not to download more than once a day, so
@@ -46,7 +46,7 @@ psl_max_validator_bytes <- 8192L
 # download a day.
 psl_courtesy_floor_seconds <- 86400L
 
-# Ceiling on the server-declared lifetime pslr will honour: 30 days. Anything
+# Ceiling on the server-declared lifetime pslr will honor: 30 days. Anything
 # longer is treated as 30 days, so a malformed or hostile `max-age` cannot park
 # `next_check_at` in the far future.
 psl_courtesy_cap_seconds <- 2592000L
@@ -185,7 +185,7 @@ psl_check_not_modified <- function(
 
 # A non-negative integer number of seconds, or `NA` when the value is absent,
 # negative, fractional, or otherwise not a delta-seconds integer. Only the
-# integer form is honoured, which keeps parsing exact and free of any locale
+# integer form is honored, which keeps parsing exact and free of any locale
 # dependency (no month or weekday names are ever involved).
 psl_delta_seconds <- function(value) {
   if (!is.character(value) || length(value) != 1L || is.na(value)) {
