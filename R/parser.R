@@ -155,7 +155,7 @@ psl_read_marker <- function(line, number) {
   if (length(m) == 0L) {
     psl_parse_abort("malformed section marker", number)
   }
-  list(verb = m[2], name = tolower(m[3]))
+  list(verb = m[2], name = psl_ascii_lower(m[3]))
 }
 
 psl_update_section <- function(marker, section, section_opens, number) {
