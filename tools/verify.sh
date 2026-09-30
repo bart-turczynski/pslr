@@ -184,6 +184,7 @@ run_tests() {
 # tier that gates a submission, and from the one form of the check whose
 # network dependency makes an early abort likely.
 check_ran_to_completion='
+  if (!identical(as.integer(chk[["status"]]), 0L)) stop("R CMD check exited with status ", chk[["status"]], "; the run did not complete.", call. = FALSE)
   log <- readLines(file.path(chk[["checkdir"]], "00check.log"), warn = FALSE)
   if (any(grepl("Execution halted", log, fixed = TRUE))) {
     stop("R CMD check aborted: Execution halted in 00check.log")
@@ -429,7 +430,7 @@ run_matrix() {
         Rscript -e "if (!requireNamespace(\"pak\", quietly = TRUE)) install.packages(\"pak\")"
         Rscript -e "pak::local_install_deps(dependencies = TRUE)"
         Rscript -e "pak::pak(\"rcmdcheck\")"
-        Rscript -e "rcmdcheck::rcmdcheck(args = c(\"--no-manual\", \"--as-cran\"), error_on = \"warning\")"
+        Rscript -e "chk <- rcmdcheck::rcmdcheck(args = c(\"--no-manual\", \"--as-cran\"), error_on = \"warning\"); if (!identical(as.integer(chk[[\"status\"]]), 0L)) stop(\"R CMD check exited with status \", chk[[\"status\"]], \"; the run did not complete.\", call. = FALSE)"
       '; then
       ok "R ${ver} passed"
     else

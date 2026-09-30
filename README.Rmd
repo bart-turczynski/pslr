@@ -205,7 +205,7 @@ Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
 Run the same verification CI runs (lint + `R CMD check --as-cran`):
 
 ```sh
-Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }' && Rscript -e 'rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning")'
+Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }' && Rscript -e 'chk <- rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning"); if (!identical(as.integer(chk[["status"]]), 0L)) stop("R CMD check exited with status ", chk[["status"]], "; the run did not complete.", call. = FALSE)'
 ```
 
 `R CMD check` runs the testthat and cucumber specs, so the behavior specs are
