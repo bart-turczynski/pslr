@@ -10,6 +10,8 @@
 
 ## Internal
 
+* The `R CMD check` gates (CI's check jobs, `tools/verify.sh` in its `full` and `cran` tiers, and the verify command in the README) also fail when `R CMD check` exits non-zero. `rcmdcheck` reads a check that halted partway as 0 errors, 0 warnings and 0 notes; the `00check.log` guard already caught most such halts, and the exit status is now checked first, the same way across the fleet (`SEOR-maavnxdm`).
+
 * `AGENTS.md` points at the house `agent-workflow` and `fp` skills for the git workflow (SEOR-ipwcbcov).
 
 * The fp-generated agent files `FP_AGENTS.md` and `FP_CLAUDE.md` are gone, along with the `@FP_AGENTS.md` import in `AGENTS.md`. They loaded on every agent request and carried tracker guidance the maintainer's fp skills now replace; `.Rbuildignore` still lists both names, so a regenerated copy stays out of the tarball (PSLR-yqrdpnpk).
