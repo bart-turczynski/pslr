@@ -99,6 +99,14 @@ stages:
   - audit
   - deploy
 
+default:
+  # The fleet's jobs run only on the self-hosted Docker runners on the
+  # maintainer's Mac, which carry this tag. Naming it makes that dependency
+  # explicit: while the Mac sleeps, jobs sit pending and then fail as
+  # `stuck_pending_no_matching_runners`, which is infrastructure, not code
+  # (seor CONTRIBUTING.md, "Stuck-pending runbook"; SEOR-hhtzaknn).
+  tags: [local-docker]
+
 workflow:
   # TWO ON-DEMAND PIPELINES AND ONE SCHEDULE. Runner minutes are a paid
   # resource on the free tier and this project has already exhausted them once,
