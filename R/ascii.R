@@ -5,5 +5,5 @@
 # header field names, URL schemes and hosts) is ASCII by definition, so only
 # A-Z are mapped and anything else passes through unchanged (PSLR-yomylzid).
 psl_ascii_lower <- function(x) {
-  chartr("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz", x)
+  chartr(paste(LETTERS, collapse = ""), paste(letters, collapse = ""), x)
 }
