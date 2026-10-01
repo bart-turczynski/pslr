@@ -309,3 +309,23 @@ test_that("read_psl_file reads UTF-8 without native transcoding", {
   expect_true(all(Encoding(rules$raw[non_ascii]) == "UTF-8"))
   expect_true(all(validUTF8(rules$raw)))
 })
+
+# PSLR-yomylzid: under a Turkish or Azerbaijani locale on glibc, tolower("I")
+# is the dotless "ı", which turned the ICANN section into "ıcann". Section
+# names lowercase as ASCII only, so they parse the same in any locale. A
+# machine without the locale skips; macOS's libc does not map "I" specially
+# anyway, and .lintr bans tolower() on every machine.
+for (locale in c("tr_TR.UTF-8", "az_AZ.UTF-8")) {
+  test_that(paste("section names parse the same under", locale), {
+    active <- suppressWarnings(
+      withr::with_locale(c(LC_CTYPE = locale), Sys.getlocale("LC_CTYPE"))
+    )
+    available <- identical(active, locale)
+    skip_if_not(available, paste(locale, "is not available"))
+    rules <- withr::with_locale(
+      c(LC_CTYPE = locale),
+      parse_psl_lines(psl_doc(icann = "com", private = "github.io"))
+    )
+    expect_identical(rules$section, c("icann", "private"))
+  })
+}

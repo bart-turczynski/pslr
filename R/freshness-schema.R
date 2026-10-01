@@ -66,7 +66,7 @@ psl_parse_checksum <- function(x) {
     return(NULL)
   }
   algorithm <- sub(":.*$", "", x)
-  hex <- tolower(sub("^[^:]+:", "", x))
+  hex <- psl_ascii_lower(sub("^[^:]+:", "", x))
   width <- switch(algorithm, sha256 = 64L, md5 = 32L, NULL)
   if (is.null(width) || !grepl(sprintf("^[0-9a-f]{%d}$", width), hex)) {
     return(NULL)
@@ -82,7 +82,7 @@ psl_checksum_id <- function(x) {
   if (!is.character(x) || length(x) != 1L || is.na(x)) {
     stop("`x` must be a single non-missing checksum string.", call. = FALSE)
   }
-  value <- tolower(x)
+  value <- psl_ascii_lower(x)
   if (grepl("^[0-9a-f]{64}$", value)) {
     value <- paste0("sha256:", value)
   }

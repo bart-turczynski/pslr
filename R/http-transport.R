@@ -72,7 +72,7 @@ psl_normalize_headers <- function(headers) {
   if (!is.character(headers) || is.null(names(headers))) {
     stop("Headers must be a named character vector.", call. = FALSE)
   }
-  fields <- tolower(trimws(names(headers)))
+  fields <- psl_ascii_lower(trimws(names(headers)))
   values <- trimws(unname(headers))
   unique_fields <- unique(fields)
   out <- vapply(
@@ -87,7 +87,7 @@ psl_normalize_headers <- function(headers) {
 # One header value, or `NA` when the field is absent.
 psl_response_header <- function(response, name) {
   headers <- response$headers
-  name <- tolower(name)
+  name <- psl_ascii_lower(name)
   if (!length(headers) || !name %in% names(headers)) {
     return(NA_character_)
   }
@@ -326,7 +326,7 @@ psl_require_response_status <- function(response, request_url = NA_character_) {
 # must never carry transport traces. The token still tells timeout, DNS, TLS,
 # and connection failures apart.
 psl_curl_reason <- function(message) {
-  message <- tolower(message)
+  message <- psl_ascii_lower(message)
   patterns <- c(
     limit = "file ?size|maximum file size",
     timeout = "timed out|timeout|operation too slow",

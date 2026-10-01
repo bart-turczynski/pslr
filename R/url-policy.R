@@ -136,7 +136,7 @@ psl_normalize_source_url <- function(url) {
   if (is.null(parts)) {
     psl_url_policy_stop("Refresh refused: %s is not an absolute URL.", url)
   }
-  if (!identical(tolower(parts$scheme), "https")) {
+  if (!identical(psl_ascii_lower(parts$scheme), "https")) {
     psl_url_policy_stop("Refresh refused: %s is not an https URL.", url)
   }
   if (grepl("@", parts$authority, fixed = TRUE)) {
@@ -164,7 +164,7 @@ psl_normalize_authority <- function(authority, url) {
   if (is.null(split) || !psl_valid_url_host(split$host)) {
     psl_url_policy_stop("Refresh refused: %s has no usable host.", url)
   }
-  host <- tolower(split$host)
+  host <- psl_ascii_lower(split$host)
   port <- if (identical(split$port, "443")) "" else split$port
   if (nzchar(port)) paste0(host, ":", port) else host
 }
