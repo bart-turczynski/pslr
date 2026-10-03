@@ -39,7 +39,7 @@ reformat code unrelated to your change. The linter set and its deviations are in
 dev loop and the release checklist all call it rather than restating the command:
 
 ```sh
-tools/verify.sh            # standard: lint + spelling + tests (the pre-push gate, ~2 min)
+tools/verify.sh            # standard: lint + spelling + URLs + tests (the pre-push gate, ~2 min)
 tools/verify.sh full       # + R CMD check --as-cran, NEWS/version, README, coverage, audits, PSL
 tools/verify.sh matrix     # R 4.5 / 4.6 / devel via Docker
 tools/verify.sh sanitize   # the suite over src/ under ASAN+UBSAN, then valgrind
@@ -83,7 +83,7 @@ pointer arithmetic.
 ### Pre-push
 
 On `git push`, the `verify` hook runs `tools/verify.sh standard` — lint,
-spelling and the test suite, about two minutes — and then prints a staleness
+spelling, the declared-URL check and the test suite, about two minutes — and then prints a staleness
 line for the `full` tier.
 
 This hook is not a mirror of CI — it **is** the gate for branches. No hosted

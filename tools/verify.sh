@@ -2,23 +2,19 @@
 #
 # The local verify gate.
 #
-# GitLab runner minutes are a paid resource, so the hosted pipeline assembles
-# only when someone asks for it by name — `CRAN_PREP=1` or `DEPLOY_PAGES=1` on a
-# manual run (see the `workflow:` rules in .gitlab-ci.yml). Nothing fires by
-# itself: not a push, not a merge request, not a tag. The one exception is the
-# dependency-audit schedule, which runs only the two audit jobs. Everything else
-# CI used to do on a schedule is done here instead, on the maintainer's machine,
-# for free. This script is therefore the single definition of "is the tree
-# healthy" — the pre-push hook, the AGENTS.md dev loop and the release checklist
-# all call it rather than restating the command.
+# The hosted pipeline runs on a push to `main` and on two weekly schedules (see
+# the `workflow:` rules in .gitlab-ci.yml); nothing hosted runs for a branch
+# push, a merge request or a tag. So for a branch this script is the single
+# definition of "is the tree healthy" — the pre-push hook, the AGENTS.md dev
+# loop and the release checklist all call it rather than restating the command.
 #
 # Usage:
 #   tools/verify.sh [standard|full|matrix|sanitize|cran]
 #   tools/verify.sh --staleness
 #
-#   standard  lint + spelling + the test suite.  The per-push gate; what the
-#             pre-push hook runs.  About two minutes, most of it the 2000-odd
-#             tests.
+#   standard  lint + spelling + declared URLs + the test suite.  The per-push
+#             gate; what the pre-push hook runs.  About two minutes, most of it
+#             the 2000-odd tests.
 #   full      standard + R CMD check --as-cran, NEWS/version consistency,
 #             README drift, coverage and both dependency audits.  Replaces the
 #             weekly CI schedules.  Records a timestamp in .verify-stamp.
@@ -156,6 +152,17 @@ run_spelling() {
   step "spelling (spelling::spell_check_package)"
   Rscript -e 'bad <- spelling::spell_check_package(); if (nrow(bad)) { print(bad); quit(status = 1) }'
   ok "no misspelled words"
+}
+
+# Fetches every URL the package declares and fails on a dead one, which
+# `R CMD check --as-cran` reports only as a NOTE. A URL that could not be
+# reached at all only warns, so a network blip never rejects a push; the
+# BugReports `/-/issues` 404 is the one exemption (SEOR-ocbtrrnl). The fleet's
+# shape of this check, ported from sitemapr (SEOR-twxjxogh).
+run_urls() {
+  step "declared URLs resolve (tools/check-urls.R)"
+  Rscript tools/check-urls.R
+  ok "no broken URLs"
 }
 
 run_tests() {
@@ -576,6 +583,7 @@ case "$tier" in
     need_cmd Rscript
     run_lint
     run_spelling
+    run_urls
     run_tests
     summarize
     printf '\n%sstandard verify passed%s\n' "$c_green" "$c_reset"
@@ -588,6 +596,7 @@ case "$tier" in
     check_toolchain
     run_lint
     run_spelling
+    run_urls
     run_tests
     run_check
     run_news_version
@@ -616,6 +625,7 @@ case "$tier" in
     require_ossindex_credentials
     run_lint
     run_spelling
+    run_urls
     run_tests
     # CI disables the remote incoming checks because the rocker image points
     # `repos` at a binary mirror with no src/contrib, so the fetch 404s and
