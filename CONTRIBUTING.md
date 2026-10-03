@@ -1,8 +1,12 @@
 # Contributing
 
-Development happens on [GitLab](https://gitlab.com/bart-turczynski/pslr):
-open issues and merge requests there. The GitHub repository is a read-only
-mirror, and pull requests opened on it are not reviewed.
+Report bugs and request features in the GitLab issue tracker:
+<https://gitlab.com/bart-turczynski/pslr/-/work_items>. Report security issues
+privately as described in `SECURITY.md`. Send changes as merge requests on
+GitLab; the GitHub repository is a read-only mirror.
+
+New code needs tests, and each user-facing change needs one `NEWS.md` bullet.
+A merge request must pass the verification command below.
 
 Install dependencies:
 

@@ -780,7 +780,8 @@ pages:
     # new family needs no repo change to be caught. The keep-list itself is
     # human-facing documentation this project actually ships:
     # README/NEWS/LICENSE (pkgdown's own skip list), CONTRIBUTING, SECURITY,
-    # CODE_OF_CONDUCT, THIRD_PARTY_NOTICES, ACKNOWLEDGMENTS and cran-comments
+    # CODE_OF_CONDUCT, THIRD_PARTY_NOTICES, ACKNOWLEDGMENTS, ARCHITECTURE (the
+    # fleet standard's root map, SEOR-twxjxogh) and cran-comments
     # (already no_render, listed for clarity). Confirmed 2026-09-23: every
     # page pslr currently publishes (ACKNOWLEDGMENTS, CODE_OF_CONDUCT,
     # CONTRIBUTING, LICENSE, SECURITY) is on this list, so nothing that is
@@ -800,7 +801,7 @@ pages:
     - >-
       for f in *.md; do
       case "$f" in
-      README.md|NEWS.md|LICENSE.md|CONTRIBUTING.md|SECURITY.md|CODE_OF_CONDUCT.md|THIRD_PARTY_NOTICES.md|ACKNOWLEDGMENTS.md|cran-comments.md)
+      README.md|NEWS.md|LICENSE.md|CONTRIBUTING.md|SECURITY.md|CODE_OF_CONDUCT.md|THIRD_PARTY_NOTICES.md|ACKNOWLEDGMENTS.md|ARCHITECTURE.md|cran-comments.md)
       ;;
       *)
       mv "$f" /tmp/agent-md/
