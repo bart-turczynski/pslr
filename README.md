@@ -11,13 +11,19 @@
 
 [![CRAN status](https://www.r-pkg.org/badges/version/pslr)](https://CRAN.R-project.org/package=pslr)
 [![CRAN downloads](https://cranlogs.r-pkg.org/badges/pslr)](https://CRAN.R-project.org/package=pslr)
-[![Documentation](https://img.shields.io/badge/docs-pkgdown-1f75cb?logo=gitlab&logoColor=white)](https://bart-turczynski.gitlab.io/pslr/)
+[![CRAN checks](https://badges.cranchecks.info/worst/pslr.svg)](https://cran.r-project.org/web/checks/check_results_pslr.html)
+[![r-universe](https://bart-turczynski.r-universe.dev/pslr/badges/version)](https://bart-turczynski.r-universe.dev/pslr)
+[![Pipeline](https://gitlab.com/bart-turczynski/pslr/badges/main/pipeline.svg)](https://gitlab.com/bart-turczynski/pslr/-/pipelines)
+[![Coverage](https://gitlab.com/bart-turczynski/pslr/badges/main/coverage.svg)](https://gitlab.com/bart-turczynski/pslr/-/pipelines)
+[![Docs](https://img.shields.io/website?url=https%3A%2F%2Fbart-turczynski.gitlab.io%2Fpslr%2F&label=docs&logo=gitlab&logoColor=white&up_message=pkgdown&up_color=1f75cb)](https://bart-turczynski.gitlab.io/pslr/)
 [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![Project Status: Active](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20973660.svg)](https://doi.org/10.5281/zenodo.20973660)
 [![Zenodo](https://img.shields.io/badge/Zenodo-all_software-1682D4?logo=zenodo&logoColor=white)](https://zenodo.org/search?q=metadata.creators.person_or_org.identifiers.identifier:0000-0002-8788-7980)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr?ref=badge_shield&issueType=license)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbart-turczynski%2Fpslr?ref=badge_shield&issueType=security)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13430/badge)](https://www.bestpractices.dev/projects/13430)
+[![License](https://img.shields.io/gitlab/license/bart-turczynski%2Fpslr)](https://gitlab.com/bart-turczynski/pslr/-/blob/main/LICENSE.md)
+[![Dependencies](https://tinyverse.netlify.app/badge/pslr)](https://CRAN.R-project.org/package=pslr)
+[![Last commit](https://img.shields.io/gitlab/last-commit/bart-turczynski%2Fpslr)](https://gitlab.com/bart-turczynski/pslr/-/commits/main)
 <!-- badges: end -->
 
 A focused, spec-complete implementation of the
