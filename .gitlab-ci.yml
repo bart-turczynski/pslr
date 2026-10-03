@@ -285,12 +285,18 @@ variables:
 
 # Adds the package's own dependency closure, through pak.
 #
-# R_FLOOR=true (set only on full-check's floor leg) un-freezes the repository.
-# rocker/r-ver bakes a date-pinned P3M snapshot into Rprofile.site, and for an
-# old R that date predates punycoder on CRAN, so the closure cannot resolve.
-# The leg moves the pin to `latest` with CRAN behind it, as pagerankr's floor
-# leg does: old R against current packages is what CRAN itself tests. An
-# unrecognized repo shape stops the job rather than leaving the pin in place.
+# Every job here resolves against current CRAN packages, whatever R it runs.
+# rocker/r-ver freezes an R series at a dated P3M snapshot once the next minor
+# ships (from the rocker-versioned2 Dockerfiles: 4.6.1 and later point at
+# `__linux__/noble/latest`, 4.5.3 at `__linux__/noble/2026-04-23`, devel at
+# https://cloud.r-project.org). A date older than punycoder's arrival on CRAN
+# (2026-06) leaves `punycoder (>= 1.1.0)` unresolvable, which took out the
+# 4.5 full-check leg and the sanitizers job on the first deep-check run, and
+# the 4.1.3 floor leg before that. So a date-pinned repo moves to `latest`
+# with CRAN behind it, as pagerankr does: old R against current packages is
+# what CRAN itself tests. A repo already at `latest` or at CRAN is current
+# and stays as it is. Any other shape stops the job rather than leaving an
+# unrecognized pin in place.
 .r-deps:
   extends: .r-pak
   before_script:
@@ -311,16 +317,16 @@ variables:
       echo '.libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))'
       >> "${R_HOME}/etc/Rprofile.site"
     - |
-      if [ "${R_FLOOR:-}" = "true" ]; then
-        current="$(Rscript -e 'cat(getOption("repos")[["CRAN"]])')"
-        case "$current" in
-          */[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
-          *) echo "Expected a date-pinned P3M repo in Rprofile.site, found '$current'; the image changed shape."; exit 1 ;;
-        esac
-        latest="${current%/*}/latest"
-        echo "options(repos = c(P3M = '${latest}', CRAN = 'https://cloud.r-project.org'))" >> "${R_HOME}/etc/Rprofile.site"
-        Rscript -e 'print(getOption("repos"))'
-      fi
+      current="$(Rscript -e 'cat(getOption("repos")[["CRAN"]])')"
+      case "$current" in
+        */[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9])
+          latest="${current%/*}/latest"
+          echo "options(repos = c(P3M = '${latest}', CRAN = 'https://cloud.r-project.org'))" >> "${R_HOME}/etc/Rprofile.site"
+          ;;
+        */latest | https://cloud.r-project.org | https://cloud.r-project.org/) ;;
+        *) echo "Expected a dated or latest P3M repo, or CRAN, in Rprofile.site; found '$current'. The image changed shape."; exit 1 ;;
+      esac
+      Rscript -e 'print(getOption("repos"))'
     - >-
       Rscript -e 'if (!requireNamespace("pak", quietly = TRUE))
       install.packages("pak", repos = sprintf(
@@ -483,6 +489,12 @@ readme:
 
 # The fleet's 95% floor (ADR 0007 in seor): never lowered; a drop below it
 # is fixed with tests.
+#
+# `.covrignore` keeps the cached library out of the figure. The cache sits
+# inside the package root ($CI_PROJECT_DIR/.rlib, see .r-pak), so the cpp11
+# headers src/ compiles against are package files as far as covr can tell,
+# and their ~270 mostly unexecuted lines count. That alone made the first run
+# read 93.71% against a local 95.30%; the same report without .rlib/ is 95.27%.
 coverage:
   extends: [.r-deps, .rules-main]
   stage: check
@@ -511,7 +523,8 @@ coverage:
 # `R (>= 4.1.0)`. The floor leg runs on 4.1.3, the last 4.1 patch release:
 # rocker publishes it for arm64, which the self-hosted runner is, while 4.0.5
 # has no arm64 image. Bump the release/oldrel tags when a new minor R ships,
-# and the floor leg with DESCRIPTION's Depends.
+# and the floor leg with DESCRIPTION's Depends. The 4.5 and 4.1.3 images pin
+# dated P3M snapshots; .r-deps moves every leg onto current packages.
 full-check:
   extends: [.r-deps, .rules-deep-check]
   stage: check
@@ -519,9 +532,7 @@ full-check:
   timeout: 1h
   parallel:
     matrix:
-      - R_VERSION: ["devel", "4.6", "4.5"]
-      - R_VERSION: "4.1.3"
-        R_FLOOR: "true"
+      - R_VERSION: ["devel", "4.6", "4.5", "4.1.3"]
   script:
     - Rscript -e 'pak::pak("rcmdcheck")'
     # rcmdcheck summarizes whatever 00check.log contains. When the check aborts
