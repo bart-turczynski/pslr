@@ -14,7 +14,7 @@
 
 ## Internal
 
-* The pre-push gate (`tools/verify.sh`, every tier) fetches every URL the package declares and fails on a dead one, which `R CMD check --as-cran` reports only as a NOTE. `tools/check-urls.R` is sitemapr's URL check: an unreachable host only warns, and the `BugReports:` `/-/issues` 404 is the one exemption (SEOR-twxjxogh).
+* The pre-push gate (`tools/verify.sh`, every tier) fetches every URL the package declares and fails on a dead one, which `R CMD check --as-cran` reports only as a NOTE. `tools/check-urls.R` is the URL check from `sitemapr`: an unreachable host only warns, and the `BugReports:` `/-/issues` 404 is the one exemption (SEOR-twxjxogh).
 
 * CI follows the fleet standard. Every push to `main` runs `R CMD check --as-cran`, coverage (failing below 95%), lint, spelling, the NEWS/version, citation and README drift guards, and the pages deploy. A weekly `deep-check` schedule runs the R devel, release and oldrel legs, an R 4.1.3 leg for the declared `R (>= 4.1.0)` floor, and an ASAN + UBSAN job over the C++ matcher (SEOR-twxjxogh).
 
