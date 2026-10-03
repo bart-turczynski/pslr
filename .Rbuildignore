@@ -23,6 +23,8 @@
 # directories ... NOTE" plus a non-portable-path NOTE on what is inside it,
 # which error_on = "warning" does not catch but a reviewer would.
 ^\.rlib$
+# covr's exclusion list; it names .rlib above (see the coverage job).
+^\.covrignore$
 ^\.github$
 ^\.editorconfig$
 ^\.env$
