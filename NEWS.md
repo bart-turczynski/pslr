@@ -10,7 +10,13 @@
 
 * The README and `NEWS.md` are spelled in US English throughout, matching `Language: en-US`, and the British spellings are gone from `inst/WORDLIST`, so the spelling check now rejects them (SEOR-kfiqpymb).
 
+* Project metadata follows the fleet standard: `DESCRIPTION` lists Bart Turczynski as copyright holder (`cph`) and links the r-universe page (`https://bart-turczynski.r-universe.dev/pslr`) ahead of CRAN, `SECURITY.md` adds a confidential GitLab issue as the second reporting channel, the Code of Conduct names `bartek@turczynski.pl` as its contact, and the repository gains `ARCHITECTURE.md`, `SECURITY-INSIGHTS.yml` and GitLab issue and merge request templates (SEOR-twxjxogh).
+
 ## Internal
+
+* The pre-push gate (`tools/verify.sh`, every tier) fetches every URL the package declares and fails on a dead one, which `R CMD check --as-cran` reports only as a NOTE. `tools/check-urls.R` is the URL check from `sitemapr`: an unreachable host only warns, and the `BugReports:` `/-/issues` 404 is the one exemption (SEOR-twxjxogh).
+
+* CI follows the fleet standard. Every push to `main` runs `R CMD check --as-cran`, coverage (failing below 95%), lint, spelling, the NEWS/version, citation and README drift guards, and the pages deploy. A weekly `deep-check` schedule runs the R devel, release and oldrel legs, an R 4.1.3 leg for the declared `R (>= 4.1.0)` floor, and an ASAN + UBSAN job over the C++ matcher (SEOR-twxjxogh).
 
 * The `R CMD check` gates (CI's check jobs, `tools/verify.sh` in its `full` and `cran` tiers, and the verify command in the README) also fail when `R CMD check` exits non-zero. `rcmdcheck` reads a check that halted partway as 0 errors, 0 warnings and 0 notes; the `00check.log` guard already caught most such halts, and the exit status is now checked first, the same way across the fleet (`SEOR-maavnxdm`).
 

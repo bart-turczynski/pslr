@@ -4,7 +4,7 @@ Title: Public Suffix List Engine
 Version: 1.2.1.9000
 Authors@R:
     person("Bart", "Turczynski", email = "bartek@turczynski.pl",
-           role = c("aut", "cre"),
+           role = c("aut", "cre", "cph"),
            comment = c(ORCID = "0000-0002-8788-7980"))
 Description: A focused implementation of the Public Suffix List (PSL). Bundles a
     reproducible, pinned PSL snapshot and implements the official prevailing-rule
@@ -18,8 +18,8 @@ License: MIT + file LICENSE
 Language: en-US
 URL: https://bart-turczynski.gitlab.io/pslr/,
     https://gitlab.com/bart-turczynski/pslr,
-    https://CRAN.R-project.org/package=pslr,
-    https://bart-turczynski.r-universe.dev
+    https://bart-turczynski.r-universe.dev/pslr,
+    https://CRAN.R-project.org/package=pslr
 BugReports: https://gitlab.com/bart-turczynski/pslr/-/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
