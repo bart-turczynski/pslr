@@ -14,6 +14,8 @@
 
 ## Internal
 
+* CI follows the fleet standard. Every push to `main` runs `R CMD check --as-cran`, coverage (failing below 95%), lint, spelling, the NEWS/version, citation and README drift guards, and the pages deploy. A weekly `deep-check` schedule runs the R devel, release and oldrel legs, an R 4.1.3 leg for the declared `R (>= 4.1.0)` floor, and an ASAN + UBSAN job over the C++ matcher (SEOR-twxjxogh).
+
 * The `R CMD check` gates (CI's check jobs, `tools/verify.sh` in its `full` and `cran` tiers, and the verify command in the README) also fail when `R CMD check` exits non-zero. `rcmdcheck` reads a check that halted partway as 0 errors, 0 warnings and 0 notes; the `00check.log` guard already caught most such halts, and the exit status is now checked first, the same way across the fleet (`SEOR-maavnxdm`).
 
 * `AGENTS.md` points at the house `agent-workflow` and `fp` skills for the git workflow (SEOR-ipwcbcov).

@@ -86,12 +86,10 @@ On `git push`, the `verify` hook runs `tools/verify.sh standard` — lint,
 spelling and the test suite, about two minutes — and then prints a staleness
 line for the `full` tier.
 
-This hook is no longer a mirror of CI — it **is** the everyday gate. GitLab
-runner minutes are a paid resource, so no hosted pipeline is created by a branch
-push, a merge request or a tag; nothing checks a push server-side. Everything CI
-used to do weekly is in `tools/verify.sh full`, run locally. The one recurring
-hosted pipeline is the dependency-audit schedule described under
-[the remote pipeline](#the-remote-pipeline).
+This hook is not a mirror of CI — it **is** the gate for branches. No hosted
+pipeline is created by a branch push, a merge request or a tag; only a push to
+`main` and the two weekly schedules start one (see
+[the remote pipeline](#the-remote-pipeline)).
 
 The staleness line is deliberately non-blocking. A hook that refused a push until
 a fifteen-minute check had run would be met with `--no-verify` within a
@@ -114,11 +112,16 @@ thing that actually matters.
 There are two pipelines and they answer different questions.
 
 **Local** — `tools/verify.sh`, described above. It runs on every push, it is the
-only place the `sanitize` tier (clang-ASAN, UBSAN, valgrind over `src/`) exists,
-and it is the only leg that can check macOS behavior, because that is the
-machine it runs on.
+only place the valgrind leg of the `sanitize` tier exists, and it is the only
+leg that can check macOS behavior, because that is the machine it runs on.
 
-**Remote** — `.gitlab-ci.yml`, and it assembles only when asked by name:
+**Remote** — `.gitlab-ci.yml`, per the fleet standard (seor's
+`design/fleet-standard.md`). Every push to `main` runs lint, spelling, the
+NEWS/version and citation guards, `R CMD check --as-cran`, the README drift
+check, coverage (failing below 95%) and the pages deploy. The weekly schedule
+whose variables include `SCHEDULE_KIND=deep-check` runs the R devel / 4.6 / 4.5
+matrix, the R 4.1.3 floor leg and the ASAN + UBSAN `sanitizers` job. Two more
+pipelines assemble when asked by name:
 
 ```sh
 glab ci run --branch main --variables CRAN_PREP:1     # the pre-submission gate
@@ -152,7 +155,7 @@ There a run is blocking for both, and `security-audit` sets
 pair is a red job rather than a vacuous green one.
 
 What the remote leg cannot give you: no macOS, no Windows — GitLab.com shared
-runners are Linux-only — and no sanitizers. Cross-platform assurance before a
+runners are Linux-only — and no valgrind. Cross-platform assurance before a
 submission comes from `devtools::check_win_devel()` and
 `devtools::check_mac_release()`, and dynamic analysis from `tools/verify.sh
 sanitize`. Neither leg is a superset of the other, which is why both exist.
