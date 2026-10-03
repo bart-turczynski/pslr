@@ -118,8 +118,10 @@ leg that can check macOS behavior, because that is the machine it runs on.
 **Remote** — `.gitlab-ci.yml`, per the fleet standard (seor's
 `design/fleet-standard.md`). Every push to `main` runs lint, spelling, the
 NEWS/version and citation guards, `R CMD check --as-cran`, the README drift
-check, coverage (failing below 95%) and the pages deploy. The weekly schedule
-whose variables include `SCHEDULE_KIND=deep-check` runs the R devel / 4.6 / 4.5
+check, coverage (failing below 95%) and the pages deploy. Both weekly schedules
+run those jobs too, as every fleet repository's schedules do, so the coverage
+badge always has a successful pipeline on `main` to read. The schedule whose
+variables include `SCHEDULE_KIND=deep-check` adds the R devel / 4.6 / 4.5
 matrix, the R 4.1.3 floor leg and the ASAN + UBSAN `sanitizers` job. Two more
 pipelines assemble when asked by name:
 
@@ -147,9 +149,10 @@ OSS Index pair is read from `~/.Renviron` instead — see
 [the verify gate](#the-verify-gate) — so the same audit that skips in CI runs
 for real on this machine.
 
-The OSV and OSS Index audits (`osv-audit`, `security-audit`) also run, and only
-they run, from a pipeline schedule on `main` whose variables include
-`SCHEDULE_KIND=dependency-audit` (Build > Pipeline schedules; an owner step).
+The OSV and OSS Index audits (`osv-audit`, `security-audit`) also run from a
+pipeline schedule on `main` whose variables include
+`SCHEDULE_KIND=dependency-audit` (Build > Pipeline schedules; an owner step),
+which adds them to the push-to-`main` jobs.
 There a run is blocking for both, and `security-audit` sets
 `OSSINDEX_AUDIT_REQUIRED=true`, so a missing `OSSINDEX_USER`/`OSSINDEX_TOKEN`
 pair is a red job rather than a vacuous green one.
