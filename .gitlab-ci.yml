@@ -27,8 +27,9 @@
 #    spelling, NEWS/version, citation, README drift) and the pages deploy. The
 #    jobs run on the maintainer's self-hosted runner (`default: tags`), so the
 #    shared-runner quota this file used to ration is no longer what pays for
-#    them. Branch pushes and merge requests still start no pipeline: the
-#    per-branch gate is local (`tools/verify.sh standard` in the pre-push hook).
+#    them. Both schedules (item 4) run these jobs too. Branch pushes and merge
+#    requests still start no pipeline: the per-branch gate is local
+#    (`tools/verify.sh standard` in the pre-push hook).
 #
 # 3. NO R-HUB JOB. rhub v2 (`rhub::rhub_check()`) dispatches to the maintainer's
 #    own GitHub Actions runners and requires a GitHub repository. There is no
@@ -44,11 +45,20 @@
 # 4. TWO SCHEDULES, SELECTED BY `SCHEDULE_KIND`. The fleet's two weekly
 #    schedules on the default branch (seor design/fleet.md) each carry the
 #    schedule variable `SCHEDULE_KIND`, and every scheduled job requires both
-#    `$CI_PIPELINE_SOURCE == "schedule"` and its own kind:
+#    `$CI_PIPELINE_SOURCE == "schedule"` and its own kind. Each kind adds its
+#    own jobs to the push-to-main jobs (item 2):
 #
 #      dependency-audit  `osv-audit` and `security-audit` (SEOR-fftbjnpl).
 #      deep-check        `full-check` (R release, oldrel, devel and the
 #                        DESCRIPTION floor) and `sanitizers` (ASAN/UBSAN).
+#
+#    A schedule pipeline runs every push-to-main job (`.rules-main` and
+#    `pages`), as the schedules in every other fleet repository do (seor
+#    design/fleet.md, "Scheduled pipelines"). That re-checks `main` against
+#    dependencies that moved since the last push, and it keeps the coverage
+#    badge honest: GitLab reads the badge from the latest successful pipeline
+#    on `main`, so a schedule that ran only its own jobs left the badge at
+#    "unknown" after every green run (SEOR-twxjxogh).
 #
 #    A schedule without either value creates no pipeline at all. The schedules
 #    live in Build > Pipeline schedules, not in this file.
@@ -151,10 +161,13 @@ workflow:
   rules:
     - if: $CRAN_PREP == "1"
 
-# The fleet gate: every push to the default branch, and the CRAN_PREP gate.
+# The fleet gate: every push to the default branch, both schedules on it
+# (header item 4), and the CRAN_PREP gate. The pipeline source is named rather
+# than left out, as punycoder's branch-only rule does, so a DEPLOY_PAGES run on
+# `main` still runs `pages` and nothing else.
 .rules-main:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE =~ /^(push|schedule)$/ && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CRAN_PREP == "1"
 
 # The deep-check schedule (header item 4), and the CRAN_PREP gate.
@@ -335,7 +348,7 @@ variables:
     - Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
 
 # ---------------------------------------------------------------------------
-# The fleet gate: every push to main (and CRAN_PREP)
+# The fleet gate: every push to main, both schedules (and CRAN_PREP)
 # ---------------------------------------------------------------------------
 
 lint:
@@ -835,8 +848,9 @@ psl-upstream-check:
 # are public as of 2026-08-09, so the gate is gone and the job is ordinary.
 #
 # Publishes on every push to `main` (the fleet standard), so the site documents
-# the default branch. `DEPLOY_PAGES=1` republishes it on demand, and a
-# `CRAN_PREP=1` run refreshes it too.
+# the default branch, and on both schedules, as `.rules-main` does and as every
+# fleet repository's `pages` does (header item 4). `DEPLOY_PAGES=1` republishes
+# it on demand, and a `CRAN_PREP=1` run refreshes it too.
 pages:
   extends: .r-deps
   stage: deploy
@@ -895,7 +909,7 @@ pages:
     paths:
       - public
   rules:
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE =~ /^(push|schedule)$/ && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     # The docs pipeline, and also refreshed as part of release prep so the
     # site a CRAN reviewer follows matches the tarball being submitted.
     - if: $DEPLOY_PAGES == "1"
