@@ -706,3 +706,95 @@ test_that("an empty or missing header block reads as no headers", {
   response <- psl_curl_response(fetched, NULL, request)
   expect_length(response$headers, 0L)
 })
+
+test_that("an obs-text ETag from curl reaches If-None-Match byte for byte", {
+  # A Latin-1 entity tag is allowed by RFC 9110 and is not valid UTF-8. It is
+  # stored as the server sent it and sent back the same way: never escaped,
+  # and handed to curl unchanged (PSLR-tiugfvxh).
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+  etag <- c(charToRaw("\"caf"), as.raw(0xe9), charToRaw("\""))
+  staging <- local_request()
+  writeLines("", staging$destfile)
+  block <- c(
+    charToRaw("HTTP/1.1 200 OK\r\nETag: "),
+    etag,
+    charToRaw("\r\n\r\n")
+  )
+  fetched <- list(status_code = 200L, url = staging$url, headers = block)
+
+  response <- psl_curl_response(fetched, NULL, staging)
+  expect_identical(charToRaw(psl_response_header(response, "etag")), etag)
+
+  stored <- psl_validator_update(NA_character_, NA_character_, response$headers)
+  conditional <- psl_validator_request(stored$etag, stored$last_modified)
+  expect_no_condition(request <- local_request(headers = conditional$headers))
+  expect_identical(charToRaw(request$headers[["if-none-match"]]), etag)
+
+  sent <- NULL
+  local_mocked_bindings(
+    handle_setheaders = function(handle, ..., .list = list()) {
+      sent <<- .list
+      handle
+    },
+    .package = "curl"
+  )
+  psl_curl_handle(request)
+  expect_identical(charToRaw(sent[["if-none-match"]]), etag)
+})
+
+test_that("curl takes an obs-text request header without a warning", {
+  # curl::handle_setheaders() runs a regex over each value, which warns on
+  # bytes that are not valid UTF-8 under a UTF-8 ctype; libcurl itself sends
+  # them as they are (PSLR-tiugfvxh).
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+  ctype <- Sys.getlocale("LC_CTYPE")
+  request <- local_request()
+  request$headers <- c("if-none-match" = "\"caf\xe9\"")
+
+  expect_no_condition(psl_curl_handle(request))
+  expect_identical(Sys.getlocale("LC_CTYPE"), ctype)
+})
+
+test_that("an obs-text request validator is checked by its bytes", {
+  # Bytes 0x80-0x9F are obs-text on the wire, not control characters, so a
+  # stored validator holding one is sent rather than refused (PSLR-tiugfvxh).
+  local_utf8_ctype()
+  value <- "\"a\x85\xe9\""
+
+  expect_no_condition(
+    request <- local_request(
+      headers = c("If-None-Match" = value)
+    )
+  )
+  expect_identical(
+    charToRaw(request$headers[["if-none-match"]]),
+    charToRaw(value)
+  )
+  expect_error(
+    local_request(headers = c("If-None-Match" = "\"a\xe9\r\nX: 1\"")),
+    "control characters"
+  )
+})
+
+test_that("repeated validator headers read the same in vector and list form", {
+  # The repeated fields are combined first and the result judged as one, so
+  # the outcome cannot depend on the shape the transport used (PSLR-tiugfvxh).
+  local_utf8_ctype()
+  vector <- c(ETag = " \"a\" ", etag = " \"b\xff\" ")
+  listed <- list(etag = c(" \"a\" ", " \"b\xff\" "))
+
+  expect_identical(
+    psl_normalize_headers(vector),
+    psl_normalize_headers(listed)
+  )
+  expect_identical(
+    charToRaw(psl_normalize_headers(listed)[["etag"]]),
+    charToRaw("\"a\", \"b\xff\"")
+  )
+  expect_identical(
+    psl_validator_update("\"old\"", NA_character_, vector),
+    psl_validator_update("\"old\"", NA_character_, listed)
+  )
+})

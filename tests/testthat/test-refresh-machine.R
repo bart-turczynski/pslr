@@ -686,3 +686,77 @@ test_that("a rotated validator that needed escaping keeps the stored one", {
   expect_equal(request_count(transport), 2L)
   expect_equal(machine_request_header(transport, 2L, "if-none-match"), "\"v1\"")
 })
+
+test_that("a 200 with an unusable ETag stores no ETag from the old body", {
+  # The stored ETag names the old body. Kept beside the new one, it would win
+  # over the fresh Last-Modified, and every later check would ask about the old
+  # body (PSLR-tiugfvxh).
+  local_utf8_ctype()
+  stamp <- "Tue, 30 Jun 2026 12:00:00 GMT"
+  transport <- local_machine_transport(list(
+    list(
+      body = machine_list("net"),
+      headers = c(etag = "\"b\x01\"", "last-modified" = stamp)
+    ),
+    list(status = 304L)
+  ))
+  state <- machine_state(next_check_at = NA)
+  plan <- psl_refresh_transition(
+    machine_url,
+    machine_destfile(),
+    state = state,
+    now = machine_now(),
+    verify = verify_known(state$checksum)
+  )
+  expect_equal(plan$outcome, "updated")
+  expect_true(is.na(plan$state$etag))
+  expect_equal(plan$state$last_modified, stamp)
+
+  psl_refresh_transition(
+    machine_url,
+    machine_destfile(),
+    state = do.call(machine_state, plan$state),
+    now = machine_now(),
+    force = TRUE,
+    verify = verify_known(plan$state$checksum)
+  )
+  expect_equal(
+    machine_request_header(transport, 2L, "if-modified-since"),
+    stamp
+  )
+  expect_true(is.na(machine_request_header(transport, 2L, "if-none-match")))
+})
+
+test_that("an obs-text ETag on a 200 goes back byte for byte", {
+  # RFC 9110 allows bytes 0x80-0xFF in an entity tag. A Latin-1 ETag is not
+  # valid UTF-8, and it still has to reach the server exactly as issued
+  # (PSLR-tiugfvxh).
+  local_utf8_ctype()
+  etag <- "\"caf\xe9\""
+  transport <- local_machine_transport(list(
+    list(body = machine_list("net"), headers = c(ETag = etag)),
+    list(status = 304L)
+  ))
+  state <- machine_state(next_check_at = NA)
+  plan <- psl_refresh_transition(
+    machine_url,
+    machine_destfile(),
+    state = state,
+    now = machine_now(),
+    verify = verify_known(state$checksum)
+  )
+  expect_identical(charToRaw(plan$state$etag), charToRaw(etag))
+
+  psl_refresh_transition(
+    machine_url,
+    machine_destfile(),
+    state = do.call(machine_state, plan$state),
+    now = machine_now(),
+    force = TRUE,
+    verify = verify_known(plan$state$checksum)
+  )
+  expect_identical(
+    charToRaw(machine_request_header(transport, 2L, "if-none-match")),
+    charToRaw(etag)
+  )
+})
