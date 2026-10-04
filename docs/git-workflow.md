@@ -40,6 +40,7 @@ dev loop and the release checklist all call it rather than restating the command
 
 ```sh
 tools/verify.sh            # standard: lint + spelling + URLs + tests (the pre-push gate, ~2 min)
+tools/verify.sh tests      # the test stage alone, exactly as standard runs it
 tools/verify.sh full       # + R CMD check --as-cran, NEWS/version, README, coverage, audits, PSL
 tools/verify.sh matrix     # R 4.5 / 4.6 / devel via Docker
 tools/verify.sh sanitize   # the suite over src/ under ASAN+UBSAN, then valgrind
@@ -85,6 +86,19 @@ pointer arithmetic.
 On `git push`, the `verify` hook runs `tools/verify.sh standard` — lint,
 spelling, the declared-URL check and the test suite, about two minutes — and then prints a staleness
 line for the `full` tier.
+
+The test stage fails closed on its own. testthat's `stop_on_failure` aborts on
+a failing test, and the stage also reads the results testthat returns and exits
+1 unless at least one test ran and none failed or errored. So a run that prints
+`[ FAIL n ]` cannot end with "passed", whatever went wrong around it. A
+full-disk run was reported doing exactly that; it did not reproduce
+(PSLR-vacblucj). The `verify-self-test` hook pins this on every push, in about
+seven seconds: `scripts/verify-self-test.sh` builds throwaway packages, runs a
+copy of `tools/verify.sh` against them (the `tests` tier, plus `standard` with
+lint, spelling and URLs stubbed), and switches `stop_on_failure` off in some
+cases to show that the result check alone still fails the gate. It runs on
+every push rather than only when the gate changes, because a testthat upgrade
+can change what `stop_on_failure` does without touching a file here.
 
 This hook is not a mirror of CI — it **is** the gate for branches. No hosted
 pipeline is created by a branch push, a merge request or a tag; only a push to
