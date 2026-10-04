@@ -22,7 +22,7 @@
 
 ## Internal
 
-* The test stage of the pre-push gate is pinned to fail when a test fails or errors, and when testthat cannot write or read `testthat-problems.rds`. `scripts/verify-self-test.sh` runs `tools/verify.sh tests`, a new tier that runs the suite alone, against throwaway packages, and pre-commit runs it whenever either file changes. A run on a full disk was reported to print `[ FAIL 7 ]` and still pass; that did not reproduce (PSLR-vacblucj).
+* The test stage of the pre-push gate fails closed on its own. Besides the `stop_on_failure` option of testthat, it reads the results testthat returns and fails unless at least one test ran and none of them failed or raised an error, so `[ FAIL n ]` can no longer be followed by "passed". A run on a full disk was reported doing exactly that; it did not reproduce, and now it cannot happen whatever the cause. `scripts/verify-self-test.sh` pins this on every push in a few seconds: it runs a copy of `tools/verify.sh` against throwaway packages, through a new `tests` tier (the suite alone) and through `standard`, some cases with `stop_on_failure` switched off (PSLR-vacblucj).
 
 * CI builds the `tr_TR.UTF-8` and `az_AZ.UTF-8` locales in the setup every package-installing job shares, so the Turkish and Azerbaijani legs of the parser tests run in `check`, `coverage` and every `full-check` R version instead of skipping. `check` and each `full-check` leg then fail unless every locale leg ran and passed (PSLR-mgqnsbjz).
 
