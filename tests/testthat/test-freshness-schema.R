@@ -108,6 +108,19 @@ test_that("a checksum holding bytes that are not UTF-8 reads as unreadable", {
   }
 })
 
+test_that("the sha256 identity checks match bytes, not locale characters", {
+  # PSLR-vqrwsjar: under a UTF-8 ctype grepl() warned "unable to translate" and
+  # "input string 1 is invalid" on such a value, an error under warn = 2.
+  local_utf8_ctype()
+  for (value in c("sha256:\xff", "\xff")) {
+    info <- psl_escape_invalid_utf8(value)
+    expect_no_warning(expect_false(psl_valid_sha256_ref(value), info = info))
+    expect_no_warning(
+      expect_error(psl_checksum_id(value), "must be SHA-256", info = info)
+    )
+  }
+})
+
 test_that("source stream names hash the url and never contain url text", {
   url <- "https://publicsuffix.org/list/public_suffix_list.dat"
   name <- psl_source_stream_name(url)

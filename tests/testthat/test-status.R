@@ -395,8 +395,8 @@ test_that("a mixed-case v1 marker checksum activates and reads canonical", {
 test_that("a v1 marker checksum that is not UTF-8 reads as malformed", {
   # PSLR-vqrwsjar: activation and status failed with base R's "input string 1
   # is invalid". They now treat it as any checksum they cannot read, such as
-  # `SHA256:nothex`: activation refuses the cache as corrupt and status shows
-  # the value as recorded.
+  # `SHA256:nothex`: activation refuses the cache as corrupt and status keeps
+  # the value as recorded, printing its bytes escaped as `<xx>`.
   local_utf8_ctype()
   cache <- local_pslr_clean()
   recorded <- "SHA256:\xff"
@@ -407,7 +407,9 @@ test_that("a v1 marker checksum that is not UTF-8 reads as malformed", {
   status <- psl_status("cache", now = status_now)
   expect_identical(status$checksum, recorded)
   expect_identical(status$state, "never_checked")
-  expect_no_error(format(status))
+  lines <- format(status)
+  expect_true(all(validUTF8(lines)))
+  expect_match(lines, "checksum: +SHA256:<ff>$", all = FALSE)
 })
 
 test_that("inspection writes nothing to the cache directory", {
