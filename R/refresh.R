@@ -54,22 +54,37 @@ psl_checksum <- function(path, algorithm) {
   }
 }
 
-# Verify a file against a recorded, algorithm-prefixed checksum. Recomputes the
-# SAME algorithm named by the prefix and compares, so a match/mismatch reflects
-# genuine content -- a legacy MD5-recorded cache verifies against MD5, while
-# every newly recorded identity verifies against SHA-256. The recorded value is
-# read with psl_parse_checksum(), the one prefix parser, so a mixed-case
-# spelling verifies against its canonical form and a value it cannot read
-# fails verification rather than erroring (PSLR-nffupurr).
-psl_verify_checksum <- function(path, expected) {
-  parsed <- psl_parse_checksum(expected)
+# Check a file against a recorded, algorithm-prefixed checksum: `"ok"`,
+# `"checksum_mismatch"`, or `"checksum_unreadable"` when the recorded value is
+# not one pslr can verify, so nothing was hashed or compared (PSLR-izeypfus).
+# Recomputes the SAME algorithm named by the prefix, so a match/mismatch
+# reflects genuine content -- a legacy MD5-recorded cache verifies against MD5,
+# while every newly recorded identity verifies against SHA-256. The recorded
+# value is read once, with psl_parse_checksum(), the one prefix parser, so a
+# mixed-case spelling verifies against its canonical form (PSLR-nffupurr).
+psl_checksum_fault <- function(path, recorded) {
+  parsed <- psl_parse_checksum(recorded)
   if (is.null(parsed)) {
-    return(FALSE)
+    return("checksum_unreadable")
   }
-  identical(
-    psl_checksum(path, parsed$algorithm),
-    paste0(parsed$algorithm, ":", parsed$hex)
-  )
+  actual <- psl_checksum(path, parsed$algorithm)
+  if (identical(actual, paste0(parsed$algorithm, ":", parsed$hex))) {
+    "ok"
+  } else {
+    "checksum_mismatch"
+  }
+}
+
+# Do these bytes match a checksum the caller already knows pslr can verify (a
+# canonical identity, or one checked by psl_valid_sha256_ref())? An unreadable
+# value is a caller bug, and errors rather than reading as a mismatch; a
+# recorded value of unknown shape goes through psl_checksum_fault() instead.
+psl_verify_checksum <- function(path, expected) {
+  fault <- psl_checksum_fault(path, expected)
+  if (identical(fault, "checksum_unreadable")) {
+    stop("`expected` is not a checksum pslr can verify.", call. = FALSE)
+  }
+  identical(fault, "ok")
 }
 
 # Validate, parse, and index a PSL source file under the runtime normalizer.
@@ -542,21 +557,15 @@ psl_legacy_cache_snapshot <- function() {
       call. = FALSE
     )
   }
-  # A recorded checksum pslr cannot read was never compared with anything, so
-  # it is not reported as a mismatch; migration and status call it unreadable
-  # too (PSLR-izeypfus).
-  if (is.null(psl_parse_checksum(current$meta$checksum))) {
-    stop(
-      "PSL cache is corrupt: recorded checksum is unreadable. ",
-      "Run psl_refresh(force = TRUE).",
-      call. = FALSE
-    )
-  }
-  if (!psl_verify_checksum(dat, current$meta$checksum)) {
-    stop(
-      "PSL cache is corrupt: checksum mismatch. ",
-      "Run psl_refresh(force = TRUE).",
-      call. = FALSE
+  fault <- psl_checksum_fault(dat, current$meta$checksum)
+  if (!identical(fault, "ok")) {
+    psl_cache_corrupt(
+      "error",
+      switch(
+        fault,
+        checksum_unreadable = psl_checksum_unreadable,
+        checksum_mismatch = "checksum mismatch"
+      )
     )
   }
   psl_load_cached_snapshot(dat, current)

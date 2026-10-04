@@ -392,28 +392,24 @@ test_that("a mixed-case v1 marker checksum activates and reads canonical", {
   }
 })
 
-# A v1 marker whose recorded checksum pslr cannot read gets one diagnosis:
-# activation refuses the cache because that checksum is unreadable, never as a
-# mismatch it did not compute, and status is `unknown` with a corruption
-# message rather than `never_checked` against the canonical source, as for an
-# unreadable selection (PSLR-izeypfus). The row keeps the value as recorded.
+# A v1 marker whose recorded checksum pslr cannot verify gets one diagnosis,
+# in one wording: activation refuses the cache for it, never as a mismatch it
+# did not compute, and status is `unknown` rather than `never_checked` against
+# the canonical source (PSLR-izeypfus). The row keeps the value as recorded.
 expect_legacy_checksum_unreadable <- function(recorded) {
   cache <- local_pslr_clean()
   seed_legacy_cache(cache, spell = \(x) recorded)
 
   err <- expect_error(psl_use("cache"), "cache is corrupt", fixed = TRUE)
-  expect_match(conditionMessage(err), "recorded checksum is unreadable")
+  expect_match(conditionMessage(err), psl_checksum_unreadable, fixed = TRUE)
+  expect_match(conditionMessage(err), "psl_refresh(force = TRUE)", fixed = TRUE)
   expect_no_match(conditionMessage(err), "mismatch")
 
   status <- psl_status("cache", now = status_now)
   expect_identical(status$checksum, recorded)
   expect_identical(status$state, "unknown")
   expect_identical(status$request_url, NA_character_)
-  expect_match(
-    status$message,
-    "could not read the recorded checksum of the legacy cache",
-    fixed = TRUE
-  )
+  expect_match(status$message, psl_checksum_unreadable, fixed = TRUE)
   lines <- format(status)
   expect_true(all(validUTF8(lines)))
   invisible(lines)

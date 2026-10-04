@@ -263,7 +263,7 @@ test_that("bytes that fail their recorded checksum are never imported", {
 })
 
 test_that("an unreadable recorded checksum is unprovable", {
-  for (recorded in c("crc32:deadbeef", "SHA256:nothex")) {
+  for (recorded in c("crc32:deadbeef", "sha1:abc", "SHA256:nothex")) {
     cache <- local_migration_cache()
     write_legacy_cache(cache, checksum = recorded)
     result <- psl_migrate_legacy_cache(quiet = TRUE)
@@ -271,7 +271,7 @@ test_that("an unreadable recorded checksum is unprovable", {
     # The same diagnosis activation and status give (PSLR-izeypfus).
     expect_match(
       result$message,
-      "recorded checksum is unreadable",
+      psl_checksum_unreadable,
       fixed = TRUE,
       info = recorded
     )
@@ -286,7 +286,7 @@ test_that("a recorded checksum that is not UTF-8 is unreadable, not an error", {
   result <- psl_migrate_legacy_cache(quiet = TRUE)
   expect_identical(result$status, "unprovable")
   expect_identical(result$reason, "checksum_unreadable")
-  expect_match(result$message, "recorded checksum is unreadable", fixed = TRUE)
+  expect_match(result$message, psl_checksum_unreadable, fixed = TRUE)
 })
 
 test_that("checksum-clean bytes that are not a valid PSL are not imported", {
