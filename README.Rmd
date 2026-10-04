@@ -63,11 +63,13 @@ Install the released version from CRAN:
 install.packages("pslr")
 ```
 
-Or the development version from GitLab:
+Or the development version from r-universe:
 
 ```{r eval=FALSE}
-# install.packages("pak")
-pak::pak("gitlab::bart-turczynski/pslr")
+install.packages(
+  "pslr",
+  repos = c("https://bart-turczynski.r-universe.dev", "https://cloud.r-project.org")
+)
 ```
 
 `pslr` depends on [`punycoder`](https://cran.r-project.org/package=punycoder),
@@ -139,96 +141,12 @@ normalization identifiers; record it alongside reproducibility-sensitive output.
 ## How pslr compares to other PSL libraries
 
 The [Public Suffix List website](https://publicsuffix.org/learn/) catalogs
-implementations in C, C#, C++, Go, Haskell, Java, JavaScript, Perl, PHP, Python,
-Ruby, Rust, Swift, and more — but no R. `pslr` fills that gap, and it is built
-to be a *reproducibility- and correctness-first* engine rather than a quick
-suffix splitter.
-
-The table compares `pslr` with a representative set of the most established
-libraries from that catalog, across the dimensions that matter for correct,
-auditable suffix handling. ✅ first-class · ◐ partial/limited · ❌ absent.
-
-| Library (language) | Full algorithm (`*`/`!`) | ICANN / PRIVATE / both | IDN + Punycode | Offline default + explicit refresh | Queryable provenance | Compiled core | Strict input validation | Unlisted-TLD policy configurable |
-|---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
-| **pslr (R)** | ✅ | ✅ 3-way | ✅ in & out | ✅ bundled; validated HTTPS-only `psl_refresh()` | ✅ list **and** normalization identity | ✅ `cpp11` | ✅ rejects URLs, IPv4, IPv6 | ✅ `unknown=` |
-| libpsl (C) | ✅ | ✅ 3-way | ✅ | ✅ bundled; OS-package update | ◐ sha1 + mtime | ✅ | ◐ | ✅ |
-| x/net/publicsuffix (Go) | ✅ | ◐ `icann` flag | ❌ ASCII only | ✅ embedded; bump module | ◐ date constant | ✅ | ◐ | ❌ |
-| publicsuffix-go (Go) | ✅ | ◐ toggle private | ✅ | ✅ embedded | ❌ | ❌ | ◐ | ✅ |
-| psl crate (Rust) | ✅ | ◐ per-suffix type | ✅ | ✅ compiled-in | ◐ dated releases | ✅ | ❌ | ◐ |
-| tldextract (Python) | ✅ | ◐ private on/off | ✅ | ⚠ network-first; offline opt-in | ❌ | ❌ | ◐ | ❌ |
-| publicsuffixlist (Python) | ✅ | ◐ exclude private | ✅ | ✅ bundled + updater | ◐ date in version | ❌ | ❌ | ❌ |
-| public_suffix (Ruby) | ✅ | ◐ `ignore_private` | ❌ caller pre-encodes | ✅ bundled | ❌ | ❌ | ◐ | ✅ |
-| php-domain-parser (PHP) | ✅ | ✅ 3-way | ✅ | ⚠ not bundled; PSR-16 cache | ◐ `isKnown` flags | ❌ | ◐ | ◐ |
-| tldts (JS/TS) | ✅ | ◐ `allowPrivateDomains` | ✅ | ✅ embedded; npm bump | ◐ submodule pin | ◐ optional WASM | ✅ | ◐ |
-| Guava `InternetDomainName` (Java) | ◐ | ✅ registry vs public | ✅ | ◐ in-jar; bump Guava | ❌ | ❌ | ◐ | ❌ |
-
-### What `pslr` does differently
-
-- **Provenance is best-in-class.** `psl_version()` records the list identity
-  (source, commit, date, SHA-256) *and* the normalization identity (normalizer
-  package + version, profile, Unicode version). A PSL answer depends on both
-  *which list* answered and *how the host was normalized* — `pslr` is the only
-  surveyed library that surfaces both, so a result is genuinely reproducible.
-- **Conformance is verified.** The package ships the official upstream
-  `tests.txt` vectors, pinned in lockstep with the bundled snapshot and run on
-  every check.
-- **Offline by default, one hardened network path.** Every query works with zero
-  network access; `psl_refresh()` is the *only* code that touches the network —
-  HTTPS-only, credential- and downgrade-rejecting, size-capped, conditional when
-  it can be, published append-only. This is stricter than network-first designs
-  and pairs with the reproducibility story rather than fighting it.
-- **Freshness reported honestly.** `psl_status()` separates "a check is due"
-  from "a newer list was actually observed", and never infers the second from
-  snapshot age. Surveyed libraries report a date or nothing at all.
-- **Snapshots can be diffed.** Because every retained download is an immutable,
-  checksummed artifact, `psl_diff()` reports what actually changed between two
-  snapshots — canonically, offline, keyed on each rule's logical identity so a
-  wildcard/exception change or an ICANN/PRIVATE move reads as one change rather
-  than an unrelated removal and addition. No surveyed library offers this.
-- **Strict, policy-driven validation.** URLs, IPv6, dotted-decimal IPv4, and
-  malformed labels are rejected; `invalid = "na"` / `"error"` lets you choose
-  silent `NA` or a hard stop. Many libraries are deliberately lenient.
-- **Vectorized, `NA`-safe, name-preserving.** Every function operates on a whole
-  character vector — the idiomatic shape for data work in R.
-
-### Trade-offs
-
-- **Session-global active list.** There is no per-call list switching yet; the
-  active list is per-session state (`psl_use()` / `psl_refresh()`).
-- **Hostnames, not URLs.** URL-shaped input is rejected by design; parse the host
-  out first or use [`rurl`](https://CRAN.R-project.org/package=rurl).
-- **No network-first auto-fetch.** Refreshing is always explicit — a deliberate
-  choice for reproducibility, not a convenience feature.
-
-## Development
-
-Install dependencies plus the dev tooling used by the checks:
-
-```sh
-Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
-```
-
-Run the same verification CI runs (lint + `R CMD check --as-cran`):
-
-```sh
-Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }' && Rscript -e 'chk <- rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning"); if (!identical(as.integer(chk[["status"]]), 0L)) stop("R CMD check exited with status ", chk[["status"]], "; the run did not complete.", call. = FALSE)'
-```
-
-`R CMD check` runs the testthat and cucumber specs, so the behavior specs are
-verified as part of the check. A non-CRAN performance benchmark and its release
-gate live in [`bench/benchmark.R`](https://gitlab.com/bart-turczynski/pslr/-/blob/main/bench/benchmark.R); recorded reference
-results are in [`docs/benchmarks.md`](https://gitlab.com/bart-turczynski/pslr/-/blob/main/docs/benchmarks.md).
-
-### Project layout
-
-- `R/` — package source (edit roxygen comments here, not `man/` or `NAMESPACE`).
-- `src/` — the `cpp11` matcher core.
-- `man/` — generated help pages (`devtools::document()`).
-- `tests/testthat/` — testthat tests and cucumber feature specs.
-- `vignettes/` — long-form documentation.
-- `data-raw/` — the deterministic snapshot regeneration pipeline.
-- `docs/` — durable project context: `PRD.md` (normative spec), `architecture.md`
-  (how the code is built), `decisions.md` (design-decision log), `benchmarks.md`.
+implementations in a dozen languages but none in R. `pslr` fills that gap as a
+reproducibility- and correctness-first engine: it records which list answered
+and how hosts were normalized, runs the official upstream test vectors on every
+check, works offline by default, and can diff two snapshots.
+`vignette("comparison", package = "pslr")` sets it against ten established
+libraries, from libpsl to tldts, and lists its trade-offs.
 
 ## Acknowledgments
 

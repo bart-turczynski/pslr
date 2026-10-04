@@ -26,6 +26,11 @@ the release checklist call it too, so running the underlying `lintr` and
 `rcmdcheck` commands by hand checks less than a push does. See
 [docs/git-workflow.md](docs/git-workflow.md#the-verify-gate) for all four tiers.
 
+The test suite holds both the testthat tests and the Cucumber behavior specs,
+so `R CMD check` verifies the specs too. A performance benchmark and its release
+gate, kept out of CRAN, live in [`bench/benchmark.R`](bench/benchmark.R); the
+recorded reference results are in [`docs/benchmarks.md`](docs/benchmarks.md).
+
 Format R sources with [Air](https://posit-dev.github.io/air/) (a fast,
 R-free formatter; config in `air.toml`):
 
@@ -37,7 +42,8 @@ Air runs automatically as a pre-commit hook, so you rarely need to invoke it by
 hand. Air owns layout; lintr (in the verify gate above) owns logic and
 best-practice lints. Don't reformat code unrelated to your change.
 
-R sources live in `R/`, compiled sources in `src/`, tests and their Cucumber `.feature` specs in `tests/testthat/`, and durable project context in `docs/`.
+Edit roxygen comments in `R/`, never the generated `man/` or `NAMESPACE`; the
+full repository layout is in [ARCHITECTURE.md](ARCHITECTURE.md#repository-layout).
 
 Keep local-only planning state in `_scratch/`. Do not commit `_scratch/`, `.fp/`, secrets, dependency folders, build outputs, or generated caches.
 

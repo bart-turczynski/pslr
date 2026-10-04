@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* The README is for users: it installs from CRAN or from r-universe (`install.packages("pslr", repos = c("https://bart-turczynski.r-universe.dev", "https://cloud.r-project.org"))`), which replaces the GitLab `pak` command, and it summarizes how pslr compares to other PSL libraries in a few lines. The full comparison table, with what pslr does differently and its trade-offs, is the new `vignette("comparison")`. The Development section moved to `CONTRIBUTING.md` and its project layout to `ARCHITECTURE.md` (SEOR-kqmqosji).
+
 * The bundled list loads, and every lowercase comparison holds, under a Turkish or Azerbaijani locale on Linux. Base R's `tolower()` follows the locale, and there glibc maps `I` to `ı`, so the section marker `ICANN` became `ıcann` and loading the list failed with "subscript out of bounds", taking down every caller that touches the PSL (`rurl` included). Section names, checksums, header field names, and the scheme and host of the refresh URL now lowercase as ASCII only (PSLR-yomylzid).
 
 * The human-facing tracker metadata now points at `https://gitlab.com/bart-turczynski/pslr/-/work_items`, the address GitLab actually serves: `.bestpractices.json`, `codemeta.json` and the GitHub pull-request template. `DESCRIPTION`'s `BugReports:` deliberately stays on `https://gitlab.com/bart-turczynski/pslr/-/issues` -- R's CRAN incoming check inspects that field alone and demands that form, and declaring `/-/work_items` there is what got the first pslr 1.2.1 upload archived at the pretest on 2026-09-12 (PSLR-kjkmhrok).

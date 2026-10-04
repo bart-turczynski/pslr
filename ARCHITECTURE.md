@@ -24,3 +24,16 @@ into `site/`):
   the normative contract, what the package must do.
 - [docs/decisions.md](https://gitlab.com/bart-turczynski/pslr/-/blob/main/docs/decisions.md):
   the rationale log for the load-bearing choices.
+
+## Repository layout
+
+- `R/`: package source. Edit the roxygen comments here, not `man/` or
+  `NAMESPACE`.
+- `src/`: the `cpp11` matcher core.
+- `man/`: generated help pages (`devtools::document()`).
+- `tests/testthat/`: testthat tests and Cucumber feature specs.
+- `vignettes/`: long-form documentation.
+- `data-raw/`: the deterministic snapshot regeneration pipeline.
+- `bench/`: the performance benchmark, kept out of the package build.
+- `docs/`: durable project context, the documents listed above plus
+  `benchmarks.md`.
