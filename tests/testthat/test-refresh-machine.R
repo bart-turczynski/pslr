@@ -712,7 +712,7 @@ test_that("a 200 with an unusable ETag stores no ETag from the old body", {
     verify = verify_known(state$checksum)
   )
   expect_equal(plan$outcome, "updated")
-  expect_true(is.na(plan$state$etag))
+  expect_equal(plan$state$etag, NA_character_)
   expect_equal(plan$state$last_modified, stamp)
 
   psl_refresh_transition(
@@ -727,7 +727,10 @@ test_that("a 200 with an unusable ETag stores no ETag from the old body", {
     machine_request_header(transport, 2L, "if-modified-since"),
     stamp
   )
-  expect_true(is.na(machine_request_header(transport, 2L, "if-none-match")))
+  expect_equal(
+    machine_request_header(transport, 2L, "if-none-match"),
+    NA_character_
+  )
 })
 
 test_that("an obs-text ETag on a 200 goes back byte for byte", {
@@ -761,5 +764,112 @@ test_that("an obs-text ETag on a 200 goes back byte for byte", {
   expect_identical(
     charToRaw(machine_request_header(transport, 2L, "if-none-match")),
     charToRaw(etag)
+  )
+})
+
+test_that("a 200 with unchanged bytes keeps the stored validator", {
+  # SHA-256 shows the stored ETag still names these exact bytes, so a 200
+  # without one leaves it in place (PSLR-tiugfvxh).
+  local_machine_transport(list(list(body = machine_list())))
+  state <- machine_state(next_check_at = NA)
+  plan <- psl_refresh_transition(
+    machine_url,
+    machine_destfile(),
+    state = state,
+    now = machine_now(),
+    verify = verify_known(state$checksum)
+  )
+  expect_equal(plan$outcome, "downloaded_unchanged")
+  expect_equal(plan$state$etag, "\"v1\"")
+})
+
+test_that("a 304 never takes a Last-Modified that is not ASCII", {
+  # Only an entity tag may hold obs-text. Such a Last-Modified is no
+  # HTTP-date, so it reads as absent and the stored one stays (PSLR-tiugfvxh).
+  local_utf8_ctype()
+  stamp <- "Tue, 30 Jun 2026 12:00:00 GMT"
+  transport <- local_machine_transport(list(
+    list(
+      status = 304L,
+      headers = c("last-modified" = "Wed, 01 Jul 2026 00:00:00 GMT\xff")
+    ),
+    list(
+      status = 304L,
+      headers = c("last-modified" = paste0(stamp, intToUtf8(0xE9)))
+    ),
+    list(status = 304L)
+  ))
+  state <- machine_state(
+    etag = NA_character_,
+    last_modified = stamp,
+    next_check_at = NA
+  )
+  for (n in 1:3) {
+    plan <- psl_refresh_transition(
+      machine_url,
+      machine_destfile(),
+      state = state,
+      now = machine_now(),
+      force = TRUE,
+      verify = verify_known(state$checksum)
+    )
+    expect_equal(plan$state$last_modified, stamp)
+    state <- do.call(machine_state, plan$state)
+  }
+  expect_equal(
+    machine_request_header(transport, 3L, "if-modified-since"),
+    stamp
+  )
+})
+
+test_that("a 304 with repeated ETag headers keeps the stored one", {
+  local_utf8_ctype()
+  transport <- local_machine_transport(list(
+    list(
+      status = 304L,
+      headers = stats::setNames(c("\"a\"", "\"b\""), c("etag", "etag"))
+    ),
+    list(status = 304L)
+  ))
+  state <- machine_state(next_check_at = NA)
+  plan <- psl_refresh_transition(
+    machine_url,
+    machine_destfile(),
+    state = state,
+    now = machine_now(),
+    verify = verify_known(state$checksum)
+  )
+  expect_equal(plan$state$etag, "\"v1\"")
+})
+
+test_that("a latin1-marked ETag goes back as its own bytes", {
+  # A transport may mark a Latin-1 value as such; pasting it would re-encode
+  # 0xe9 as UTF-8 c3 a9, which the server never issued (PSLR-tiugfvxh).
+  local_utf8_ctype()
+  etag <- "\"caf\xe9\""
+  Encoding(etag) <- "latin1"
+  transport <- local_machine_transport(list(
+    list(body = machine_list("net"), headers = c(ETag = etag)),
+    list(status = 304L)
+  ))
+  state <- machine_state(next_check_at = NA)
+  plan <- psl_refresh_transition(
+    machine_url,
+    machine_destfile(),
+    state = state,
+    now = machine_now(),
+    verify = verify_known(state$checksum)
+  )
+  psl_refresh_transition(
+    machine_url,
+    machine_destfile(),
+    state = do.call(machine_state, plan$state),
+    now = machine_now(),
+    force = TRUE,
+    verify = verify_known(plan$state$checksum)
+  )
+  expect_identical(
+    charToRaw(machine_request_header(transport, 2L, "if-none-match")),
+    as.raw(c(0x22, 0x63, 0x61, 0x66, 0xe9, 0x22))
   )
 })
