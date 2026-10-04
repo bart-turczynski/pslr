@@ -51,6 +51,9 @@ psl_transport <- function() {
 # Headers
 # ---------------------------------------------------------------------------
 
+# Response fields pslr stores and sends back as validators.
+psl_validator_fields <- c("etag", "last-modified")
+
 psl_empty_headers <- function() {
   out <- character()
   names(out) <- character()
@@ -61,9 +64,14 @@ psl_empty_headers <- function() {
 # Accepts the named list `curl::parse_headers_list()` returns as well as a
 # plain named character vector, so a test double can hand over either. Repeated
 # fields collapse into one comma-separated value, which is how HTTP defines a
-# repeated field anyway. A name or value that is not valid UTF-8 is reduced to
-# ASCII first, so server bytes reach no string function that would fail on
-# them (PSLR-mlnfdltl).
+# repeated field anyway.
+#
+# A name or value that is not valid UTF-8 is reduced to ASCII first, so server
+# bytes reach no string function that would fail on them. A validator is the
+# exception: pslr stores it and sends it back byte for byte
+# (R/validator-policy.R), and an escaped one would never match on the server,
+# so a validator that needed escaping is dropped as if absent, and the stored
+# validator is kept (PSLR-mlnfdltl).
 psl_normalize_headers <- function(headers) {
   if (is.null(headers) || !length(headers)) {
     return(psl_empty_headers())
@@ -75,7 +83,13 @@ psl_normalize_headers <- function(headers) {
     stop("Headers must be a named character vector.", call. = FALSE)
   }
   fields <- psl_ascii_lower(trimws(psl_escape_invalid_utf8(names(headers))))
-  values <- trimws(psl_escape_invalid_utf8(unname(headers)))
+  values <- unname(headers)
+  garbled <- !validUTF8(values) & fields %in% psl_validator_fields
+  fields <- fields[!garbled]
+  values <- trimws(psl_escape_invalid_utf8(values[!garbled]))
+  if (!length(fields)) {
+    return(psl_empty_headers())
+  }
   unique_fields <- unique(fields)
   out <- vapply(
     unique_fields,

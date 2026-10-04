@@ -98,8 +98,43 @@ test_that("a response header holding a 0xff byte leaves the others readable", {
     headers = c(ETag = "\"v\xff\"", "Retry-After" = "30")
   )
 
-  expect_equal(psl_response_header(response, "etag"), "\"v<ff>\"")
+  expect_equal(psl_response_header(response, "etag"), NA_character_)
   expect_equal(psl_response_retry_after(response), 30L)
+})
+
+test_that("a validator that needed escaping reads as absent", {
+  # pslr sends a validator back byte for byte, so an escaped one would never
+  # match on the server; it is dropped and the stored one kept (PSLR-mlnfdltl).
+  local_utf8_ctype()
+  headers <- c(
+    ETag = "\"v\xff\"",
+    "Last-Modified" = "Mon, 05 Oct 2026 10:00:00 GMT\xff",
+    "Retry-After" = "3\xff",
+    "Cache-Control" = "max-age=60"
+  )
+
+  normalized <- psl_normalize_headers(headers)
+
+  expect_named(normalized, c("retry-after", "cache-control"))
+  expect_equal(unname(normalized), c("3<ff>", "max-age=60"))
+})
+
+test_that("a curl validator holding a 0xff byte reads as absent", {
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+  request <- local_request()
+  writeLines("", request$destfile)
+  block <- c(
+    charToRaw("HTTP/1.1 304 Not Modified\r\nETag: \"v"),
+    as.raw(0xff),
+    charToRaw("\"\r\nRetry-After: 30\r\n\r\n")
+  )
+  fetched <- list(status_code = 304L, url = request$url, headers = block)
+
+  response <- psl_curl_response(fetched, NULL, request)
+
+  expect_equal(psl_response_header(response, "etag"), NA_character_)
+  expect_equal(psl_response_header(response, "retry-after"), "30")
 })
 
 test_that("a response exposes status, headers, effective URL, and body", {
