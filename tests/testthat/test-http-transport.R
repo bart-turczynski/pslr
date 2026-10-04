@@ -318,6 +318,12 @@ test_that("a host name quoted in a libcurl message does not pick the reason", {
       "dns",
       label = host
     )
+    # Older libcurl quotes the host after an apostrophe of its own.
+    expect_equal(
+      psl_curl_reason(sprintf("Couldn't resolve host '%s'", host)),
+      "dns",
+      label = host
+    )
   }
   expect_equal(
     psl_curl_reason(paste(
