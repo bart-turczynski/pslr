@@ -16,6 +16,8 @@
 
 ## Internal
 
+* CI's `check` job builds the `tr_TR.UTF-8` and `az_AZ.UTF-8` locales, so the Turkish and Azerbaijani legs of the parser tests run on every push to `main` instead of skipping, and the job fails if either leg skips (PSLR-mgqnsbjz).
+
 * The pre-push gate (`tools/verify.sh`, every tier) fetches every URL the package declares and fails on a dead one, which `R CMD check --as-cran` reports only as a NOTE. `tools/check-urls.R` is the URL check from `sitemapr`: an unreachable host only warns, and the `BugReports:` `/-/issues` 404 is the one exemption (SEOR-twxjxogh).
 
 * CI follows the fleet standard. Every push to `main` runs `R CMD check --as-cran`, coverage (failing below 95%), lint, spelling, the NEWS/version, citation and README drift guards, and the pages deploy. A weekly `deep-check` schedule runs the R devel, release and oldrel legs, an R 4.1.3 leg for the declared `R (>= 4.1.0)` floor, and an ASAN + UBSAN job over the C++ matcher. Every leg resolves current CRAN packages, since the R 4.5 image's dated package snapshot predates `punycoder`, and the coverage figure leaves out the cached library CI keeps inside the package root (SEOR-twxjxogh).

@@ -445,6 +445,30 @@ check:
   stage: check
   needs: [lint]
   script:
+    # The Turkish and Azerbaijani legs of tests/testthat/test-parser.R
+    # (PSLR-yomylzid) run only where R can switch LC_CTYPE to tr_TR.UTF-8 and
+    # az_AZ.UTF-8, and rocker/r-ver generates neither, so on this image they
+    # always skipped (PSLR-mgqnsbjz). Build both with localedef, the ssrfr
+    # recipe (SSRF-erprjgmv). The image already ships the `locales` sources
+    # localedef reads; naming that package in apt-get upgraded glibc under R in
+    # ssrfr's probes, so it is not installed. Then make R prove both the way
+    # the tests detect them, Sys.setlocale() returning the exact name asked
+    # for, and that each one folds "I" to the dotless U+0131, the mapping the
+    # tests exist to survive. The session locale is unchanged.
+    - localedef -i tr_TR -f UTF-8 tr_TR.UTF-8
+    - localedef -i az_AZ -f UTF-8 az_AZ.UTF-8
+    - |
+      Rscript -e '
+        for (l in c("tr_TR.UTF-8", "az_AZ.UTF-8")) {
+          old <- Sys.getlocale("LC_CTYPE")
+          active <- suppressWarnings(Sys.setlocale("LC_CTYPE", l))
+          folds <- identical(tolower("I"), intToUtf8(0x131L))
+          invisible(Sys.setlocale("LC_CTYPE", old))
+          if (!identical(active, l)) stop("R cannot switch LC_CTYPE to ", l, call. = FALSE)
+          if (!folds) stop(l, " does not fold I to dotless i; the test leg would prove nothing", call. = FALSE)
+        }
+        cat("tr_TR.UTF-8 and az_AZ.UTF-8 usable in R\n")
+      '
     - Rscript -e 'pak::pak("rcmdcheck")'
     # rcmdcheck summarizes whatever 00check.log contains. When the check aborts
     # partway, that log holds no findings, and the summary reads as a pass — the
@@ -452,6 +476,11 @@ check:
     # a check that ran to the end, and one whose exit status is 0: a halted
     # check exits non-zero (SEOR-maavnxdm). `[["checkdir"]]` rather than
     # `$checkdir` so nothing downstream tries to expand a `$name`.
+    #
+    # R CMD check keeps the test output in tests/testthat.Rout, out of the job
+    # log, so the last lines bring the locale legs into the log: a skip of
+    # either one fails the job, and testthat's summary line is printed
+    # (PSLR-mgqnsbjz).
     - |
       Rscript -e '
         chk <- rcmdcheck::rcmdcheck(
@@ -466,6 +495,11 @@ check:
         if (!any(grepl("^Status:", log))) {
           stop("R CMD check did not run to completion: no Status line in 00check.log")
         }
+        rout <- readLines(file.path(chk[["checkdir"]], "tests", "testthat.Rout"), warn = FALSE)
+        skipped <- grep("(tr_TR|az_AZ)[.]UTF-8 is not available", rout, value = TRUE)
+        if (length(skipped)) stop("Turkish/Azerbaijani locale legs skipped: ", paste(skipped, collapse = "; "), call. = FALSE)
+        writeLines(grep("^[[] FAIL", rout, value = TRUE))
+        cat("Turkish and Azerbaijani locale legs ran; none skipped.\n")
       '
   artifacts:
     when: on_failure
