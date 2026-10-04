@@ -16,7 +16,7 @@
 
 ## Internal
 
-* CI's `check` job builds the `tr_TR.UTF-8` and `az_AZ.UTF-8` locales, so the Turkish and Azerbaijani legs of the parser tests run on every push to `main` instead of skipping, and the job fails if either leg skips (PSLR-mgqnsbjz).
+* CI builds the `tr_TR.UTF-8` and `az_AZ.UTF-8` locales in the setup every package-installing job shares, so the Turkish and Azerbaijani legs of the parser tests run in `check`, `coverage` and every `full-check` R version instead of skipping. `check` and each `full-check` leg then fail unless every locale leg ran and passed (PSLR-mgqnsbjz).
 
 * The pre-push gate (`tools/verify.sh`, every tier) fetches every URL the package declares and fails on a dead one, which `R CMD check --as-cran` reports only as a NOTE. `tools/check-urls.R` is the URL check from `sitemapr`: an unreachable host only warns, and the `BugReports:` `/-/issues` 404 is the one exemption (SEOR-twxjxogh).
 

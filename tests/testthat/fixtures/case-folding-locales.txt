@@ -1,0 +1,2 @@
+tr_TR.UTF-8
+az_AZ.UTF-8
