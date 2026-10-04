@@ -1,6 +1,6 @@
 # pslr (development version)
 
-* Cached metadata whose checksum spells its algorithm prefix in upper or mixed case (`SHA256:<hex>`, `MD5:<hex>`) now reads as that checksum. Only the hex digest used to be case-folded, so such a value was classed as unreadable metadata even though the identity helper accepted it; pslr itself still writes only lowercase `sha256:<hex>` (PSLR-nffupurr).
+* A cache whose recorded checksum is spelled in upper or mixed case (`SHA256:<hex>`, `sha256:<HEX>`, `MD5:<hex>`) now reads as that checksum everywhere. `psl_use("cache")` on an unmigrated v1 cache used to fail with "unsupported checksum algorithm" or a false checksum mismatch, migration classed an upper-case prefix as unreadable, and `psl_status()` showed the raw spelling; activation, migration and status now all read it, and status shows it in lowercase. pslr itself still writes only lowercase `sha256:<hex>` (PSLR-nffupurr).
 
 * The README is for users: it installs from CRAN or from r-universe (`install.packages("pslr", repos = c("https://bart-turczynski.r-universe.dev", "https://cloud.r-project.org"))`), which replaces the GitLab `pak` command, and it summarizes how pslr compares to other PSL libraries in a few lines. The full comparison table, with what pslr does differently and its trade-offs, is the new `vignette("comparison")`. The Development section moved to `CONTRIBUTING.md` and its project layout to `ARCHITECTURE.md` (SEOR-kqmqosji).
 

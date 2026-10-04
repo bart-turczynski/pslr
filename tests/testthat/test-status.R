@@ -364,6 +364,35 @@ test_that("an unmigrated v1 cache reports never_checked and is not rewritten", {
   expect_false(dir.exists(psl_snapshot_dir()))
 })
 
+test_that("a v1 marker with a mixed-case checksum activates and reads canonical", {
+  # PSLR-nffupurr: `SHA256:<UPPERHEX>` used to fail activation as an
+  # unsupported algorithm, and status showed the raw spelling.
+  cache <- local_pslr_clean()
+  seed_legacy_cache(
+    cache,
+    spell = \(x) chartr("abcdefsh", "ABCDEFSH", x)
+  )
+  canonical <- psl_source_checksum(bundled_dat_path())
+  expect_match(readRDS(psl_cache_marker())$meta$checksum, "^SHA256:[0-9A-F]+$")
+
+  version <- psl_use("cache")
+  expect_identical(version$source, "cache")
+  expect_identical(version$checksum, canonical)
+
+  for (selector in c("active", "cache")) {
+    status <- psl_status(selector, now = status_now)
+    expect_identical(status$checksum, canonical, info = selector)
+    expect_identical(status$state, "never_checked", info = selector)
+    expect_match(
+      format(status),
+      substr(canonical, 1L, 19L),
+      fixed = TRUE,
+      all = FALSE,
+      info = selector
+    )
+  }
+})
+
 test_that("inspection writes nothing to the cache directory", {
   cache <- local_pslr_clean()
   seed_confirmed_cache(days = 9)

@@ -59,25 +59,28 @@ test_that("both checksum helpers read every prefix spelling alike", {
     value <- paste0(prefix, ":", hex)
     expect_identical(
       psl_parse_checksum(value),
-      list(algorithm = "sha256", hex = strrep("c", 64L))
+      list(algorithm = "sha256", hex = strrep("c", 64L)),
+      info = value
     )
     expect_identical(
       psl_checksum_id(value),
-      paste0("sha256:", strrep("c", 64L))
+      paste0("sha256:", strrep("c", 64L)),
+      info = value
     )
   }
   for (prefix in c("md5", "MD5", "Md5")) {
     value <- paste0(prefix, ":", strrep("D", 32L))
     expect_identical(
       psl_parse_checksum(value),
-      list(algorithm = "md5", hex = strrep("d", 32L))
+      list(algorithm = "md5", hex = strrep("d", 32L)),
+      info = value
     )
-    expect_error(psl_checksum_id(value), "must be SHA-256")
+    expect_error(psl_checksum_id(value), "must be SHA-256", info = value)
   }
   for (prefix in c("sha1", "SHA1")) {
     value <- paste0(prefix, ":", strrep("e", 40L))
-    expect_null(psl_parse_checksum(value))
-    expect_error(psl_checksum_id(value), "must be SHA-256")
+    expect_null(psl_parse_checksum(value), info = value)
+    expect_error(psl_checksum_id(value), "must be SHA-256", info = value)
   }
 })
 

@@ -78,6 +78,14 @@ psl_parse_checksum <- function(x) {
   list(algorithm = algorithm, hex = hex)
 }
 
+# The canonical `<algorithm>:<lowercase hex>` spelling of a checksum reference,
+# or `x` unchanged when psl_parse_checksum() cannot read it, so an unreadable
+# value still shows as recorded (PSLR-nffupurr).
+psl_canonical_checksum <- function(x) {
+  parsed <- psl_parse_checksum(x)
+  if (is.null(parsed)) x else paste0(parsed$algorithm, ":", parsed$hex)
+}
+
 # Normalize a SHA-256 digest to the canonical `sha256:<lowercase hex>` identity
 # used by every v2 record. Accepts a bare hex digest or an already-prefixed
 # value; an MD5 value is rejected here on purpose -- new identities must never
