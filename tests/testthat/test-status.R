@@ -364,7 +364,7 @@ test_that("an unmigrated v1 cache reports never_checked and is not rewritten", {
   expect_false(dir.exists(psl_snapshot_dir()))
 })
 
-test_that("a v1 marker with a mixed-case checksum activates and reads canonical", {
+test_that("a mixed-case v1 marker checksum activates and reads canonical", {
   # PSLR-nffupurr: `SHA256:<UPPERHEX>` used to fail activation as an
   # unsupported algorithm, and status showed the raw spelling.
   cache <- local_pslr_clean()
