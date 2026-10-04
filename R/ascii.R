@@ -5,15 +5,25 @@
 # header field names, URL schemes and hosts) is ASCII by definition, so only
 # A-Z are mapped and anything else passes through unchanged (PSLR-yomylzid).
 #
-# The mapping works on bytes, not characters: a header field name holds
-# whatever bytes the server sent, and chartr() fails with "invalid input
-# multibyte string" on bytes that are not valid in the session's encoding.
-# Every byte of a non-ASCII UTF-8 or Latin-1 character is 0x80 or above, so
-# rewriting the bytes of A-Z alone leaves every other character intact, and
-# each result keeps its input's declared encoding (PSLR-mlnfdltl).
+# Strings that are valid UTF-8 go through one vectorized chartr(). The rest
+# are mapped byte by byte: a header field name holds whatever bytes the server
+# sent, and chartr() fails with "invalid input multibyte string" on bytes that
+# are not valid in the session's encoding. Every byte of a non-ASCII UTF-8 or
+# Latin-1 character is 0x80 or above, so rewriting the bytes of A-Z alone
+# leaves every other character intact, and each result keeps its input's
+# declared encoding (PSLR-mlnfdltl).
 psl_ascii_lower <- function(x) {
-  keep <- !is.na(x)
-  x[keep] <- vapply(x[keep], psl_ascii_lower_one, character(1))
+  if (!is.character(x)) {
+    x <- as.character(x)
+  }
+  fast <- validUTF8(x) & Encoding(x) != "bytes"
+  x[fast] <- chartr(
+    paste(LETTERS, collapse = ""),
+    paste(letters, collapse = ""),
+    x[fast]
+  )
+  slow <- !fast & !is.na(x)
+  x[slow] <- vapply(x[slow], psl_ascii_lower_one, character(1))
   x
 }
 

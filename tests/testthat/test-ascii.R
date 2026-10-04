@@ -34,3 +34,19 @@ test_that("a string keeps its declared encoding", {
   expect_identical(Encoding(lowered), "UTF-8")
   expect_identical(lowered, intToUtf8(c(0x61, 0xC4, 0x130)))
 })
+
+test_that("input chartr() accepted is still accepted", {
+  expect_identical(psl_ascii_lower(factor(c("ABC", "Def"))), c("abc", "def"))
+  expect_identical(psl_ascii_lower(NULL), character())
+  expect_identical(psl_ascii_lower(NA), NA_character_)
+  expect_identical(psl_ascii_lower(c(a = "X")), c(a = "x"))
+})
+
+test_that("valid UTF-8 takes the vectorized path, not the byte loop", {
+  local_mocked_bindings(psl_ascii_lower_one = \(s) stop("byte loop"))
+
+  expect_identical(
+    psl_ascii_lower(c("ICANN", NA, "Sha256:AB")),
+    c("icann", NA, "sha256:ab")
+  )
+})
