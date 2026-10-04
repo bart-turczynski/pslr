@@ -98,16 +98,20 @@ test_that("a response header holding a 0xff byte leaves the others readable", {
     headers = c(ETag = "\"v\xff\"", "Retry-After" = "30")
   )
 
-  expect_equal(psl_response_header(response, "etag"), NA_character_)
+  expect_identical(
+    charToRaw(psl_response_header(response, "etag")),
+    charToRaw("\"v\xff\"")
+  )
   expect_equal(psl_response_retry_after(response), 30L)
 })
 
-test_that("a validator that needed escaping reads as absent", {
+test_that("a validator keeps its bytes while other headers are escaped", {
   # pslr sends a validator back byte for byte, so an escaped one would never
-  # match on the server; it is dropped and the stored one kept (PSLR-mlnfdltl).
+  # match on the server: it is trimmed by bytes and kept exactly as it came
+  # (PSLR-mlnfdltl, PSLR-tiugfvxh).
   local_utf8_ctype()
   headers <- c(
-    ETag = "\"v\xff\"",
+    ETag = " \"v\xff\" ",
     "Last-Modified" = "Mon, 05 Oct 2026 10:00:00 GMT\xff",
     "Retry-After" = "3\xff",
     "Cache-Control" = "max-age=60"
@@ -115,11 +119,19 @@ test_that("a validator that needed escaping reads as absent", {
 
   normalized <- psl_normalize_headers(headers)
 
-  expect_named(normalized, c("retry-after", "cache-control"))
-  expect_equal(unname(normalized), c("3<ff>", "max-age=60"))
+  expect_named(
+    normalized,
+    c("etag", "last-modified", "retry-after", "cache-control")
+  )
+  expect_identical(charToRaw(normalized[["etag"]]), charToRaw("\"v\xff\""))
+  expect_identical(
+    charToRaw(normalized[["last-modified"]]),
+    charToRaw("Mon, 05 Oct 2026 10:00:00 GMT\xff")
+  )
+  expect_equal(unname(normalized[3:4]), c("3<ff>", "max-age=60"))
 })
 
-test_that("a curl validator holding a 0xff byte reads as absent", {
+test_that("a curl validator holding a 0xff byte is read as sent", {
   skip_if_not_installed("curl")
   local_utf8_ctype()
   request <- local_request()
@@ -133,7 +145,10 @@ test_that("a curl validator holding a 0xff byte reads as absent", {
 
   response <- psl_curl_response(fetched, NULL, request)
 
-  expect_equal(psl_response_header(response, "etag"), NA_character_)
+  expect_identical(
+    charToRaw(psl_response_header(response, "etag")),
+    charToRaw("\"v\xff\"")
+  )
   expect_equal(psl_response_header(response, "retry-after"), "30")
 })
 
@@ -731,16 +746,16 @@ test_that("an obs-text ETag from curl reaches If-None-Match byte for byte", {
   expect_no_condition(request <- local_request(headers = conditional$headers))
   expect_identical(charToRaw(request$headers[["if-none-match"]]), etag)
 
-  sent <- NULL
+  sent <- new.env()
   local_mocked_bindings(
     handle_setheaders = function(handle, ..., .list = list()) {
-      sent <<- .list
+      sent$headers <- .list
       handle
     },
     .package = "curl"
   )
   psl_curl_handle(request)
-  expect_identical(charToRaw(sent[["if-none-match"]]), etag)
+  expect_identical(charToRaw(sent$headers[["if-none-match"]]), etag)
 })
 
 test_that("curl takes an obs-text request header without a warning", {

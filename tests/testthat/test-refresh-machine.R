@@ -656,10 +656,10 @@ test_that("a misspelled optional argument is rejected", {
   )
 })
 
-test_that("a rotated validator that needed escaping keeps the stored one", {
-  # A server ETag holding a byte that is not valid UTF-8 cannot be sent back as
-  # issued, so the stored validator survives and the next request still
-  # carries it (PSLR-mlnfdltl).
+test_that("a 304 rotates to an obs-text ETag and sends it back as issued", {
+  # A server ETag holding a byte that is not valid UTF-8 is still an entity
+  # tag (RFC 9110 obs-text): it replaces the stored one, and the next request
+  # carries its exact bytes (PSLR-mlnfdltl, PSLR-tiugfvxh).
   local_utf8_ctype()
   transport <- local_machine_transport(list(
     list(status = 304L, headers = c(etag = "\"v\xff\"")),
@@ -673,7 +673,7 @@ test_that("a rotated validator that needed escaping keeps the stored one", {
     now = machine_now(),
     verify = verify_known(state$checksum)
   )
-  expect_equal(plan$state$etag, "\"v1\"")
+  expect_identical(charToRaw(plan$state$etag), charToRaw("\"v\xff\""))
 
   psl_refresh_transition(
     machine_url,
@@ -684,7 +684,10 @@ test_that("a rotated validator that needed escaping keeps the stored one", {
     verify = verify_known(state$checksum)
   )
   expect_equal(request_count(transport), 2L)
-  expect_equal(machine_request_header(transport, 2L, "if-none-match"), "\"v1\"")
+  expect_identical(
+    charToRaw(machine_request_header(transport, 2L, "if-none-match")),
+    charToRaw("\"v\xff\"")
+  )
 })
 
 test_that("a 200 with an unusable ETag stores no ETag from the old body", {
