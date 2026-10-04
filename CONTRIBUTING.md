@@ -59,6 +59,13 @@ pslr's deltas:
   `glab ci run --branch main --variables CRAN_PREP:1` (agent+go), which also
   runs `psl-upstream-check`. See
   [docs/git-workflow.md](docs/git-workflow.md#the-verify-gate).
+  Also run the suite against the current CRAN punycoder built from source
+  with libidn2 (`pkg-config` finds it, as on CRAN's Debian flavors).
+  The Unicode output path (`decode_ascii_pool()` in `R/query.R`) calls
+  `punycoder::puny_decode()`, which tries libidn2 first when punycoder was
+  built with it, and that build can decode differently:
+  rurl 3.1.0's first upload failed CRAN's Debian pre-test on such a
+  difference (SEOR-hxxxkmws).
 - **Step 14: the concept DOI is `10.5281/zenodo.20973660`.** Its
   `<concept-recid>` in the Zenodo API query is `20973660`. Create the GitHub
   Release with `--title "pslr <version>" --notes-file <notes>`. Two older
