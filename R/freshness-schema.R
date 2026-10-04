@@ -60,13 +60,17 @@ psl_valid_sha256_ref <- function(x) {
 # into its algorithm and lowercase hex digest. Legacy caches carry `md5:<hex>`
 # and legacy `sha256:<hex>` values that must stay readable and verifiable; only
 # writing new MD5 identities is forbidden. Returns NULL for anything else, so
-# callers can classify unreadable metadata rather than trust it.
+# callers can classify unreadable metadata rather than trust it. The whole
+# value is case-folded, prefix included, as `psl_checksum_id()` folds it: pslr
+# writes only lowercase, and both helpers read a mixed-case spelling the same
+# way (PSLR-nffupurr).
 psl_parse_checksum <- function(x) {
   if (!is.character(x) || length(x) != 1L || is.na(x)) {
     return(NULL)
   }
+  x <- psl_ascii_lower(x)
   algorithm <- sub(":.*$", "", x)
-  hex <- psl_ascii_lower(sub("^[^:]+:", "", x))
+  hex <- sub("^[^:]+:", "", x)
   width <- switch(algorithm, sha256 = 64L, md5 = 32L, NULL)
   if (is.null(width) || !grepl(sprintf("^[0-9a-f]{%d}$", width), hex)) {
     return(NULL)

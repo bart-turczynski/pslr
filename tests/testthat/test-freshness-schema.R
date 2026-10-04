@@ -51,6 +51,36 @@ test_that("the compatibility reader accepts legacy md5 and sha256 values", {
   )
 })
 
+test_that("both checksum helpers read every prefix spelling alike", {
+  # PSLR-nffupurr: the reader used to lowercase only the hex, so a prefix
+  # psl_checksum_id() accepted made the metadata unreadable.
+  hex <- strrep("C", 64L)
+  for (prefix in c("sha256", "SHA256", "Sha256")) {
+    value <- paste0(prefix, ":", hex)
+    expect_identical(
+      psl_parse_checksum(value),
+      list(algorithm = "sha256", hex = strrep("c", 64L))
+    )
+    expect_identical(
+      psl_checksum_id(value),
+      paste0("sha256:", strrep("c", 64L))
+    )
+  }
+  for (prefix in c("md5", "MD5", "Md5")) {
+    value <- paste0(prefix, ":", strrep("D", 32L))
+    expect_identical(
+      psl_parse_checksum(value),
+      list(algorithm = "md5", hex = strrep("d", 32L))
+    )
+    expect_error(psl_checksum_id(value), "must be SHA-256")
+  }
+  for (prefix in c("sha1", "SHA1")) {
+    value <- paste0(prefix, ":", strrep("e", 40L))
+    expect_null(psl_parse_checksum(value))
+    expect_error(psl_checksum_id(value), "must be SHA-256")
+  }
+})
+
 test_that("the compatibility reader returns NULL for unreadable values", {
   expect_null(psl_parse_checksum("sha1:abc"))
   expect_null(psl_parse_checksum(paste0("md5:", strrep("a", 31L))))

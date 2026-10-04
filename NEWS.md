@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* Cached metadata whose checksum spells its algorithm prefix in upper or mixed case (`SHA256:<hex>`, `MD5:<hex>`) now reads as that checksum. Only the hex digest used to be case-folded, so such a value was classed as unreadable metadata even though the identity helper accepted it; pslr itself still writes only lowercase `sha256:<hex>` (PSLR-nffupurr).
+
 * The README is for users: it installs from CRAN or from r-universe (`install.packages("pslr", repos = c("https://bart-turczynski.r-universe.dev", "https://cloud.r-project.org"))`), which replaces the GitLab `pak` command, and it summarizes how pslr compares to other PSL libraries in a few lines. The full comparison table, with what pslr does differently and its trade-offs, is the new `vignette("comparison")`. The Development section moved to `CONTRIBUTING.md` and its project layout to `ARCHITECTURE.md` (SEOR-kqmqosji).
 
 * The bundled list loads, and every lowercase comparison holds, under a Turkish or Azerbaijani locale on Linux. Base R's `tolower()` follows the locale, and there glibc maps `I` to `ı`, so the section marker `ICANN` became `ıcann` and loading the list failed with "subscript out of bounds", taking down every caller that touches the PSL (`rurl` included). Section names, checksums, header field names, and the scheme and host of the refresh URL now lowercase as ASCII only (PSLR-yomylzid).
