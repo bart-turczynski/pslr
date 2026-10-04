@@ -89,7 +89,9 @@ request_headers <- function(state, n = 1L) state$requests[[n]]$headers
 
 # Seed a v1 (pre-freshness) cache: a content-addressed `psl-<hex>.dat` plus the
 # `current.rds` commit marker naming it. Returns the marker's `dat_file` name.
-seed_legacy_cache <- function(dir, src = bundled_dat_path()) {
+# `spell` rewrites the checksum the marker records, for a marker that spells
+# it differently from what pslr writes (PSLR-nffupurr).
+seed_legacy_cache <- function(dir, src = bundled_dat_path(), spell = identity) {
   checksum <- psl_source_checksum(src)
   dat_file <- paste0("psl-", sub("^sha256:", "", checksum), ".dat")
   dat <- file.path(dir, dat_file)
@@ -102,7 +104,7 @@ seed_legacy_cache <- function(dir, src = bundled_dat_path()) {
         path = dat,
         retrieved_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
         size = as.integer(file.size(dat)),
-        checksum = checksum
+        checksum = spell(checksum)
       )
     ),
     file.path(dir, "current.rds")
