@@ -36,11 +36,14 @@ psl_ascii_lower_one <- function(s) {
   out
 }
 
-# `x` with each element that is not valid UTF-8 reduced to ASCII, every other
-# byte written as `<xx>`, the form psl_curl_reason() gives libcurl messages.
-# Header bytes come from the server, and trimws(), the regex functions and
-# curl::parse_headers_list() all fail on such input under a UTF-8 ctype. Valid
-# UTF-8 and NA pass through unchanged (PSLR-mlnfdltl).
+# `x` with each element that is not valid UTF-8 reduced to ASCII, every byte
+# at or above 0x80 written as `<xx>`. The bytes are read as Latin-1, where each
+# one is a character, so the result is the same whatever the session's
+# encoding. Header bytes come from the server, and trimws() and the regex
+# functions fail on such input under a UTF-8 ctype. Valid UTF-8 and NA pass
+# through unchanged. psl_curl_reason() writes bytes in the same `<xx>`
+# notation but escapes valid non-ASCII UTF-8 too, which suits a message that
+# is only matched against ASCII keywords and never kept (PSLR-mlnfdltl).
 psl_escape_invalid_utf8 <- function(x) {
   bad <- !is.na(x) & !validUTF8(x)
   x[bad] <- iconv(x[bad], from = "latin1", to = "ASCII", sub = "byte")
