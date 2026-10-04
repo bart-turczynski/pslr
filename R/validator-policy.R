@@ -55,11 +55,12 @@ psl_courtesy_cap_seconds <- 2592000L
 # Validator sanitization
 # ---------------------------------------------------------------------------
 
-# Does `value` contain a byte no HTTP field value may carry? The test is done
-# on raw bytes rather than with a character class, so it is independent of the
-# session locale and of any multi-byte encoding: every ASCII control byte
-# (including CR, LF, NUL, and DEL) is rejected, and bytes at or above 0x80 are
-# left alone -- they are non-ASCII text, not control characters.
+# Does `value` contain a control character no HTTP field value may carry? The
+# test reads code points rather than a locale's character class, so it is the
+# same in every session: every ASCII control byte (including CR, LF, NUL, and
+# DEL) is rejected, and so is a C1 control (U+0080-U+009F) in a value that is
+# valid UTF-8. In a value that is not, bytes at or above 0x80 are left alone:
+# they are obs-text, which RFC 9110 allows in an entity tag (PSLR-tiugfvxh).
 #
 # NUL cannot appear in an R character string at all (R refuses to build one),
 # so in practice a NUL is rejected earlier, by whatever tried to construct the
@@ -67,7 +68,10 @@ psl_courtesy_cap_seconds <- 2592000L
 # come off the wire and out of files.
 psl_has_control_bytes <- function(value) {
   bytes <- as.integer(charToRaw(value))
-  any(bytes < 32L | bytes == 127L)
+  if (any(bytes < 32L | bytes == 127L)) {
+    return(TRUE)
+  }
+  validUTF8(value) && any(utf8ToInt(value) %in% 128:159)
 }
 
 # Is `value` a validator pslr may store and send? Applied in BOTH directions:
@@ -129,7 +133,9 @@ psl_validator_request <- function(etag, last_modified) {
 # on any response, including a `304`, so a usable value in the response wins;
 # an absent or unusable one leaves the stored value untouched rather than
 # clearing it, because a single malformed header should not cost the next
-# request its conditional.
+# request its conditional. Whether a stored value may stand at all -- it must
+# name the body pslr now holds -- is the caller's call: it passes `NA` when
+# it may not.
 psl_validator_update <- function(etag, last_modified, headers) {
   headers <- psl_normalize_headers(headers)
   list(

@@ -62,10 +62,10 @@ test_that("a request rejects malformed scalars", {
 })
 
 test_that("headers collapse repeated fields and accept curl's list shape", {
-  headers <- psl_normalize_headers(list("ETag" = "\"a\"", "etag" = "\"b\""))
+  headers <- psl_normalize_headers(list("Vary" = "Accept", "vary" = "Origin"))
 
-  expect_named(headers, "etag")
-  expect_equal(unname(headers), "\"a\", \"b\"")
+  expect_named(headers, "vary")
+  expect_equal(unname(headers), "Accept, Origin")
   expect_length(psl_normalize_headers(NULL), 0L)
 })
 
@@ -91,6 +91,17 @@ test_that("a valid UTF-8 header keeps its characters", {
   )
 })
 
+test_that("a trimmed UTF-8 value keeps its encoding mark", {
+  # Trimming by bytes must not leave a UTF-8 Location or Cache-Control as
+  # native bytes, which a non-UTF-8 session would misread (PSLR-tiugfvxh).
+  local_utf8_ctype()
+  value <- paste0("https://example.org/", intToUtf8(0xE9))
+  normalized <- psl_normalize_headers(c(Location = paste0(" ", value, " ")))
+
+  expect_equal(Encoding(normalized[["location"]]), "UTF-8")
+  expect_identical(charToRaw(normalized[["location"]]), charToRaw(value))
+})
+
 test_that("a response header holding a 0xff byte leaves the others readable", {
   local_utf8_ctype()
   response <- new_psl_transport_response(
@@ -98,16 +109,20 @@ test_that("a response header holding a 0xff byte leaves the others readable", {
     headers = c(ETag = "\"v\xff\"", "Retry-After" = "30")
   )
 
-  expect_equal(psl_response_header(response, "etag"), NA_character_)
+  expect_identical(
+    charToRaw(psl_response_header(response, "etag")),
+    charToRaw("\"v\xff\"")
+  )
   expect_equal(psl_response_retry_after(response), 30L)
 })
 
-test_that("a validator that needed escaping reads as absent", {
+test_that("a validator keeps its bytes while other headers are escaped", {
   # pslr sends a validator back byte for byte, so an escaped one would never
-  # match on the server; it is dropped and the stored one kept (PSLR-mlnfdltl).
+  # match on the server: it is trimmed by bytes and kept exactly as it came
+  # (PSLR-mlnfdltl, PSLR-tiugfvxh).
   local_utf8_ctype()
   headers <- c(
-    ETag = "\"v\xff\"",
+    ETag = " \"v\xff\" ",
     "Last-Modified" = "Mon, 05 Oct 2026 10:00:00 GMT\xff",
     "Retry-After" = "3\xff",
     "Cache-Control" = "max-age=60"
@@ -115,11 +130,19 @@ test_that("a validator that needed escaping reads as absent", {
 
   normalized <- psl_normalize_headers(headers)
 
-  expect_named(normalized, c("retry-after", "cache-control"))
-  expect_equal(unname(normalized), c("3<ff>", "max-age=60"))
+  # obs-text is for entity tags only: a Last-Modified that is not ASCII is no
+  # HTTP-date, and reads as absent (PSLR-tiugfvxh).
+  expect_named(normalized, c("etag", "retry-after", "cache-control"))
+  expect_identical(charToRaw(normalized[["etag"]]), charToRaw("\"v\xff\""))
+  expect_equal(unname(normalized[2:3]), c("3<ff>", "max-age=60"))
+  accented <- paste0("Mon, 05 Oct 2026 10:00:00 GMT", intToUtf8(0xE9))
+  expect_named(
+    psl_normalize_headers(c("Last-Modified" = accented)),
+    character()
+  )
 })
 
-test_that("a curl validator holding a 0xff byte reads as absent", {
+test_that("a curl validator holding a 0xff byte is read as sent", {
   skip_if_not_installed("curl")
   local_utf8_ctype()
   request <- local_request()
@@ -133,7 +156,10 @@ test_that("a curl validator holding a 0xff byte reads as absent", {
 
   response <- psl_curl_response(fetched, NULL, request)
 
-  expect_equal(psl_response_header(response, "etag"), NA_character_)
+  expect_identical(
+    charToRaw(psl_response_header(response, "etag")),
+    charToRaw("\"v\xff\"")
+  )
   expect_equal(psl_response_header(response, "retry-after"), "30")
 })
 
@@ -705,4 +731,122 @@ test_that("an empty or missing header block reads as no headers", {
   fetched <- list(status_code = 304L, url = request$url, headers = raw())
   response <- psl_curl_response(fetched, NULL, request)
   expect_length(response$headers, 0L)
+})
+
+test_that("an obs-text ETag from curl reaches If-None-Match byte for byte", {
+  # A Latin-1 entity tag is allowed by RFC 9110 and is not valid UTF-8. It is
+  # stored as the server sent it and sent back the same way: never escaped,
+  # and handed to curl unchanged (PSLR-tiugfvxh).
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+  etag <- c(charToRaw("\"caf"), as.raw(0xe9), charToRaw("\""))
+  staging <- local_request()
+  writeLines("", staging$destfile)
+  block <- c(
+    charToRaw("HTTP/1.1 200 OK\r\nETag: "),
+    etag,
+    charToRaw("\r\n\r\n")
+  )
+  fetched <- list(status_code = 200L, url = staging$url, headers = block)
+
+  response <- psl_curl_response(fetched, NULL, staging)
+  expect_identical(charToRaw(psl_response_header(response, "etag")), etag)
+
+  stored <- psl_validator_update(NA_character_, NA_character_, response$headers)
+  conditional <- psl_validator_request(stored$etag, stored$last_modified)
+  expect_no_condition(request <- local_request(headers = conditional$headers))
+  expect_identical(charToRaw(request$headers[["if-none-match"]]), etag)
+
+  sent <- new.env()
+  local_mocked_bindings(
+    handle_setheaders = function(handle, ..., .list = list()) {
+      sent$headers <- .list
+      handle
+    },
+    .package = "curl"
+  )
+  psl_curl_handle(request)
+  expect_identical(charToRaw(sent$headers[["if-none-match"]]), etag)
+})
+
+test_that("curl takes an obs-text request header without a warning", {
+  # curl::handle_setheaders() runs a regex over each value, which warns on
+  # bytes that are not valid UTF-8 under a UTF-8 ctype; libcurl itself sends
+  # them as they are (PSLR-tiugfvxh).
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+  request <- local_request(headers = c("If-None-Match" = "\"caf\xe9\""))
+
+  expect_no_condition(psl_curl_handle(request))
+})
+
+test_that("an obs-text request validator is checked by its bytes", {
+  # Bytes 0x80-0x9F are obs-text on the wire, not control characters, so a
+  # stored validator holding one is sent rather than refused (PSLR-tiugfvxh).
+  local_utf8_ctype()
+  value <- "\"a\x85\xe9\""
+
+  expect_no_condition(
+    request <- local_request(
+      headers = c("If-None-Match" = value)
+    )
+  )
+  expect_identical(
+    charToRaw(request$headers[["if-none-match"]]),
+    charToRaw(value)
+  )
+  expect_error(
+    local_request(headers = c("If-None-Match" = "\"a\xe9\r\nX: 1\"")),
+    "control characters"
+  )
+})
+
+test_that("a C1 control in a valid UTF-8 request header is refused", {
+  # Only bytes that are not valid UTF-8 are obs-text; U+0085 in a UTF-8 value
+  # is a control character, as on main (PSLR-tiugfvxh).
+  local_utf8_ctype()
+  nel <- paste0("\"a", intToUtf8(0x85), "\"")
+
+  expect_error(
+    local_request(headers = c("If-None-Match" = nel)),
+    "control characters"
+  )
+  expect_error(
+    local_request(headers = c("X-Name" = nel)),
+    "control characters"
+  )
+  expect_false(psl_validator_usable(nel))
+})
+
+test_that("repeated validator headers read the same in vector and list form", {
+  # ETag and Last-Modified each name one value. Repeated, the field is
+  # unusable as a whole, whichever shape the transport used (PSLR-tiugfvxh).
+  local_utf8_ctype()
+  stamp <- "Mon, 05 Oct 2026 10:00:00 GMT"
+  vector <- c(
+    ETag = " \"a\" ",
+    etag = " \"b\xff\" ",
+    "Last-Modified" = stamp,
+    "last-modified" = stamp,
+    "Cache-Control" = "max-age=60"
+  )
+  listed <- list(
+    etag = c(" \"a\" ", " \"b\xff\" "),
+    "last-modified" = c(stamp, stamp),
+    "cache-control" = "max-age=60"
+  )
+
+  expect_identical(
+    psl_normalize_headers(vector),
+    psl_normalize_headers(listed)
+  )
+  expect_named(psl_normalize_headers(listed), "cache-control")
+  expect_identical(
+    psl_validator_update("\"old\"", NA_character_, vector),
+    psl_validator_update("\"old\"", NA_character_, listed)
+  )
+  expect_equal(
+    psl_validator_update("\"old\"", NA_character_, listed)$etag,
+    "\"old\""
+  )
 })

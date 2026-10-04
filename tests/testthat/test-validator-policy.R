@@ -112,6 +112,15 @@ test_that("an unusable rotated validator does not clobber the stored one", {
   expect_equal(updated$etag, "\"old\"")
 })
 
+test_that("an unusable rotated validator keeps the stored one", {
+  updated <- psl_validator_update(
+    "\"old\"",
+    NA_character_,
+    c(etag = "\"b\x01\"")
+  )
+  expect_equal(updated$etag, "\"old\"")
+})
+
 test_that("an unusable stored validator is dropped on update", {
   updated <- psl_validator_update(
     "\"bad\r\"",
