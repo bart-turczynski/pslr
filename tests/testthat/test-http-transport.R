@@ -244,6 +244,7 @@ test_that("libcurl failures map to coarse reason tokens", {
 test_that("a libcurl message holding invalid UTF-8 still gets a token", {
   # Server bytes quoted into the message need not be valid UTF-8; lowercasing
   # or matching them must not error or warn (PSLR-ejksqarh).
+  local_utf8_ctype()
   invalid <- "Could not resolve host: \xff\xfe.example"
   expect_false(validUTF8(invalid))
   expect_no_condition(reason <- psl_curl_reason(invalid))
@@ -288,6 +289,21 @@ test_that("a TLS failure and a DNS failure keep their reasons apart", {
 
   expect_equal(tls$reason, "tls")
   expect_equal(dns$reason, "dns")
+})
+
+test_that("a libcurl message holding invalid UTF-8 is a transport error", {
+  # The classed error, not base R's "invalid input multibyte string", reaches
+  # the caller of psl_refresh() (PSLR-ejksqarh).
+  local_utf8_ctype()
+  request <- local_request()
+  cnd <- tryCatch(
+    psl_curl_failed(simpleError("Could not resolve host: \xff\xfe"), request),
+    condition = identity
+  )
+
+  expect_s3_class(cnd, "pslr_refresh_transport_error")
+  expect_s3_class(cnd, "pslr_refresh_error")
+  expect_equal(cnd$reason, "dns")
 })
 
 test_that("a transfer aborted by the size ceiling is a limit error", {
