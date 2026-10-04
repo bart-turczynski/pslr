@@ -49,11 +49,16 @@ psl_sha256_file <- function(path) {
 
 # Is `x` a checksum reference this release writes? SHA-256 is the sole identity
 # for newly published bytes, so only the `sha256:` form qualifies.
+#
+# Every checksum pattern in this file is ASCII, so each one matches bytes
+# (`useBytes = TRUE`): a value read from cache metadata may hold bytes that are
+# not valid UTF-8, and a character match on it warns or fails under a UTF-8
+# ctype instead of simply not matching (PSLR-vqrwsjar).
 psl_valid_sha256_ref <- function(x) {
   is.character(x) &&
     length(x) == 1L &&
     !is.na(x) &&
-    grepl("^sha256:[0-9a-f]{64}$", x)
+    grepl("^sha256:[0-9a-f]{64}$", x, useBytes = TRUE)
 }
 
 # Compatibility reader: split any checksum reference pslr has ever recorded
@@ -63,18 +68,21 @@ psl_valid_sha256_ref <- function(x) {
 # callers can classify unreadable metadata rather than trust it. The whole
 # value is case-folded, prefix included, as `psl_checksum_id()` folds it: pslr
 # writes only lowercase, and both helpers read a mixed-case spelling the same
-# way (PSLR-nffupurr). A value that is not valid UTF-8 is unreadable too: no
-# checksum pslr wrote holds such bytes, and sub() fails on them under a UTF-8
-# ctype (PSLR-vqrwsjar).
+# way (PSLR-nffupurr). A value that is not valid UTF-8 is unreadable too, said
+# outright rather than left to the byte matches below: no checksum pslr wrote
+# holds such bytes (PSLR-vqrwsjar).
 psl_parse_checksum <- function(x) {
   if (!is.character(x) || length(x) != 1L || is.na(x) || !validUTF8(x)) {
     return(NULL)
   }
   x <- psl_ascii_lower(x)
-  algorithm <- sub(":.*$", "", x)
-  hex <- sub("^[^:]+:", "", x)
+  algorithm <- sub(":.*$", "", x, useBytes = TRUE)
+  hex <- sub("^[^:]+:", "", x, useBytes = TRUE)
   width <- switch(algorithm, sha256 = 64L, md5 = 32L, NULL)
-  if (is.null(width) || !grepl(sprintf("^[0-9a-f]{%d}$", width), hex)) {
+  if (
+    is.null(width) ||
+      !grepl(sprintf("^[0-9a-f]{%d}$", width), hex, useBytes = TRUE)
+  ) {
     return(NULL)
   }
   list(algorithm = algorithm, hex = hex)
@@ -97,7 +105,7 @@ psl_checksum_id <- function(x) {
     stop("`x` must be a single non-missing checksum string.", call. = FALSE)
   }
   value <- psl_ascii_lower(x)
-  if (grepl("^[0-9a-f]{64}$", value)) {
+  if (grepl("^[0-9a-f]{64}$", value, useBytes = TRUE)) {
     value <- paste0("sha256:", value)
   }
   if (!psl_valid_sha256_ref(value)) {

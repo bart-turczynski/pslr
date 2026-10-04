@@ -669,14 +669,16 @@ psl_status_detail <- function(x) {
 }
 
 # Abbreviate a checksum identity for display: the algorithm plus the first 12
-# hex characters, which is plenty to recognize a snapshot by eye.
+# hex characters, which is plenty to recognize a snapshot by eye. A value it
+# cannot read is shown as recorded, except that bytes which are not valid UTF-8
+# are written as `<xx>`; the row itself keeps them (PSLR-vqrwsjar).
 psl_status_short_checksum <- function(checksum) {
   if (is.na(checksum)) {
     return(NA_character_)
   }
   parsed <- psl_parse_checksum(checksum)
   if (is.null(parsed)) {
-    return(checksum)
+    return(psl_escape_invalid_utf8(checksum))
   }
   sprintf("%s:%s...", parsed$algorithm, substr(parsed$hex, 1L, 12L))
 }
