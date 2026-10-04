@@ -407,6 +407,31 @@ test_that("curl's bracketed host suffix does not pick the reason", {
   )
 })
 
+test_that("a host curl 5.x brackets mid-message does not pick the reason", {
+  # curl < 6.0.0 raises a plain simpleError, so the message alone decides.
+  expect_equal(
+    psl_curl_reason(paste(
+      "Timeout was reached: [filesize.example]",
+      "Resolving timed out after 10000 milliseconds"
+    )),
+    "timeout"
+  )
+  expect_equal(
+    psl_curl_reason(paste(
+      "SSL peer certificate or SSH remote key was not OK: [timeout.example]",
+      "SSL: no alternative certificate subject name matches"
+    )),
+    "tls"
+  )
+})
+
+test_that("a quoted URL with no host marker does not pick the reason", {
+  expect_equal(
+    psl_curl_reason("Unsupported proxy syntax in 'http://filesize.example'"),
+    "transport"
+  )
+})
+
 # A condition shaped like the ones curl >= 6.0.0 raises: its class names the
 # libcurl error code, and its message quotes the host in brackets.
 curl_condition <- function(code, message) {

@@ -376,19 +376,23 @@ psl_curl_reason <- function(message, class = character()) {
   if (length(hit)) hit[[1L]] else "transport"
 }
 
-# A lowercased libcurl message without the host names it quotes: the token
+# A lowercased libcurl message without the host names it quotes: every
+# bracketed span (curl writes the host as `[host]`, after the strerror text in
+# curl 5.x and ahead of its `:` detail line from 6.0.0), every quoted span
+# (libcurl quotes hosts and URLs, as in "proxy syntax in 'http://...'"; an
+# apostrophe inside a word such as "Couldn't" opens none), and the bare token
 # right after "host:", "proxy:", "resolve host", "host name", "subject name",
-# "connect to" or "connection to" (bare, quoted, bracketed or parenthesized),
-# and the ` [host]` curl >= 6.0.0 appends ahead of its `:` detail line. Other
-# text stays, parenthesized detail such as "(SSL_ERROR_SYSCALL)" included.
+# "connect to" or "connection to". Parenthesized detail such as
+# "(Connection timed out)" or "(SSL_ERROR_SYSCALL)" stays: it names the reason.
 psl_curl_strip_hosts <- function(message) {
+  message <- gsub("\\[[^]]*\\]", "", message)
+  message <- gsub("(^|[^[:alnum:]])('[^']*'|\"[^\"]*\")", "\\1", message)
   markers <- paste0(
     "(host:|proxy:|resolve host|host name|subject name|connect to|",
     "connection to)"
   )
-  token <- "('[^']*'|\"[^\"]*\"|\\[[^]]*\\]|\\([^)]*\\)|[^[:space:]]+)"
-  message <- gsub(paste0(markers, "[[:space:]]+", token), "\\1", message)
-  gsub(" \\[[^]]*\\](:|$)", "\\1", message)
+  token <- "(\\([^)]*\\)|[^[:space:]]+)"
+  gsub(paste0(markers, "[[:space:]]+", token), "\\1", message)
 }
 
 # Build the libcurl handle for one request. No automatic retries are configured
@@ -494,13 +498,17 @@ psl_curl_response <- function(fetched, handle, request) {
 # the whole block as one string, and under a UTF-8 ctype one header byte that
 # is not valid UTF-8 makes it return an empty list: ETag, Last-Modified and
 # Retry-After vanish with it. Under the C ctype every byte is a character of
-# its own, so the block is parsed there, header by header, and
-# psl_normalize_headers() deals with the bytes of each header on its own: a
-# header that is valid UTF-8 is read exactly as sent (PSLR-mlnfdltl).
+# its own, so a block holding any byte at or above 0x80 is parsed there,
+# header by header, and psl_normalize_headers() deals with the bytes of each
+# header on its own: a header that is valid UTF-8 is read exactly as sent. An
+# all-ASCII block, the usual case, is parsed without touching the session's
+# locale (PSLR-mlnfdltl).
 psl_curl_headers <- function(headers) {
-  ctype <- Sys.getlocale("LC_CTYPE")
-  on.exit(Sys.setlocale("LC_CTYPE", ctype), add = TRUE)
-  Sys.setlocale("LC_CTYPE", "C")
+  if (is.raw(headers) && any(headers >= as.raw(0x80))) {
+    ctype <- Sys.getlocale("LC_CTYPE")
+    on.exit(Sys.setlocale("LC_CTYPE", ctype), add = TRUE)
+    Sys.setlocale("LC_CTYPE", "C")
+  }
   curl::parse_headers_list(headers)
 }
 
