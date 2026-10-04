@@ -376,18 +376,19 @@ psl_curl_reason <- function(message, class = character()) {
   if (length(hit)) hit[[1L]] else "transport"
 }
 
-# A lowercased libcurl message without the host names it quotes: bracketed,
-# parenthesized and quoted text (`[host]`, a certificate's `(subject name)`,
-# `'host'`, but not the apostrophe of "couldn't"), and the token after
-# "host:", "proxy:", "connect to" and "connection to".
+# A lowercased libcurl message without the host names it quotes: the token
+# right after "host:", "proxy:", "resolve host", "host name", "subject name",
+# "connect to" or "connection to" (bare, quoted, bracketed or parenthesized),
+# and the ` [host]` curl >= 6.0.0 appends ahead of its `:` detail line. Other
+# text stays, parenthesized detail such as "(SSL_ERROR_SYSCALL)" included.
 psl_curl_strip_hosts <- function(message) {
-  message <- gsub("\\[[^]]*\\]|\\([^)]*\\)|\"[^\"]*\"", "", message)
-  message <- gsub("(^|[^[:alnum:]])'[^']*'", "\\1", message)
-  gsub(
-    "(host:|proxy:|connect to|connection to)[[:space:]]+[^[:space:]]+",
-    "\\1",
-    message
+  markers <- paste0(
+    "(host:|proxy:|resolve host|host name|subject name|connect to|",
+    "connection to)"
   )
+  token <- "('[^']*'|\"[^\"]*\"|\\[[^]]*\\]|\\([^)]*\\)|[^[:space:]]+)"
+  message <- gsub(paste0(markers, "[[:space:]]+", token), "\\1", message)
+  gsub(" \\[[^]]*\\](:|$)", "\\1", message)
 }
 
 # Build the libcurl handle for one request. No automatic retries are configured

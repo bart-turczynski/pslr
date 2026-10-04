@@ -383,6 +383,30 @@ test_that("a host name quoted in a libcurl message does not pick the reason", {
   )
 })
 
+test_that("parenthesized text that names no host still picks the reason", {
+  expect_equal(
+    psl_curl_reason("Recv failure (Connection timed out)"),
+    "timeout"
+  )
+  expect_equal(psl_curl_reason("Recv failure (SSL_ERROR_SYSCALL)"), "tls")
+})
+
+test_that("curl's bracketed host suffix does not pick the reason", {
+  # curl >= 6.0.0 appends ` [host]` to libcurl's text before its detail line;
+  # a code with no token of its own still reads the message (PSLR-mlnfdltl).
+  expect_equal(
+    psl_curl_reason(
+      paste(
+        "Failure when receiving data from the peer [filesize.example]:",
+        "Recv failure: Connection reset by peer",
+        sep = "\n"
+      ),
+      "curl_error_recv_error"
+    ),
+    "connect"
+  )
+})
+
 # A condition shaped like the ones curl >= 6.0.0 raises: its class names the
 # libcurl error code, and its message quotes the host in brackets.
 curl_condition <- function(code, message) {
