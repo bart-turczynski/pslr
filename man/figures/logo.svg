@@ -1,0 +1,28 @@
+<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="1.732in" height="2in" viewBox="0 0 1732 2000" role="img" aria-labelledby="pslr-title">
+<title id="pslr-title">pslr</title>
+<desc id="pslr-desc">Public Suffix List library for R</desc>
+<metadata id="pslr-metadata"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#">
+<cc:Work rdf:about="">
+<dc:title>pslr</dc:title>
+<dc:description>Public Suffix List library for R</dc:description>
+<dc:creator><cc:Agent><dc:title>Bart Turczynski</dc:title></cc:Agent></dc:creator>
+<dc:rights><cc:Agent><dc:title>&#169; 2026 Bart Turczynski. MIT License.</dc:title></cc:Agent></dc:rights>
+<cc:license>https://opensource.org/license/mit</cc:license>
+<dc:date>2026-10-04</dc:date>
+<dc:format>image/svg+xml</dc:format>
+<dc:language>en</dc:language>
+<dc:identifier>pslr</dc:identifier>
+<dc:source>https://github.com/bart-turczynski/pslr</dc:source>
+<dc:relation>https://github.com/bart-turczynski/pslr</dc:relation>
+<dc:relation>https://gitlab.com/bart-turczynski/pslr</dc:relation>
+<dc:relation>https://CRAN.R-project.org/package=pslr</dc:relation>
+<dc:relation>https://bart-turczynski.r-universe.dev/pslr</dc:relation>
+<dc:subject><rdf:Bag><rdf:li>R</rdf:li><rdf:li>rstats</rdf:li><rdf:li>R package</rdf:li><rdf:li>SEO</rdf:li><rdf:li>Public Suffix List</rdf:li><rdf:li>domains</rdf:li><rdf:li>eTLD</rdf:li></rdf:Bag></dc:subject>
+<dc:contributor>Name set in IBM Plex Mono (SIL Open Font License 1.1), converted to outlines.</dc:contributor>
+</cc:Work>
+</rdf:RDF></metadata>
+<path id="pslr-border" fill="#F5F5F5" d="M866 0L1732 500L1732 1500L866 2000L0 1500L0 500Z"></path>
+<path id="pslr-background" fill="#000000" d="M866 69.3L1672 534.6L1672 1465.4L866 1930.7L60 1465.4L60 534.6Z"></path>
+<path id="pslr-name-bold" fill="#F5F5F5" d="M653.1 1075.4L620.5 1075.4L620.5 924.6L678.8 924.6Q689.9 924.6 698.5 928.0Q707.1 931.3 713.1 937.6Q719.0 943.8 722.0 952.7Q725.1 961.6 725.1 972.6L725.1 972.6Q725.1 983.6 722.0 992.4Q719.0 1001.3 713.1 1007.6Q707.1 1013.8 698.5 1017.2Q689.9 1020.5 678.8 1020.5L678.8 1020.5L653.1 1020.5L653.1 1075.4ZM653.1 950.8L653.1 994.4L670.6 994.4Q682.1 994.4 686.5 990.1Q690.9 985.7 690.9 975.8L690.9 975.8L690.9 969.3Q690.9 959.4 686.5 955.1Q682.1 950.8 670.6 950.8L670.6 950.8L653.1 950.8ZM796.1 1078.0L796.1 1078.0Q777.1 1078.0 763.1 1071.7Q749.0 1065.4 740.4 1054.6L740.4 1054.6L759.2 1033.9Q767.4 1043.0 777.2 1047.3Q787.1 1051.6 797.2 1051.6L797.2 1051.6Q808.9 1051.6 814.9 1046.4Q821.0 1041.3 821.0 1031.5L821.0 1031.5Q821.0 1023.5 816.3 1019.4Q811.7 1015.3 800.7 1013.6L800.7 1013.6L784.9 1011.0Q764.6 1007.6 755.5 996.0Q746.4 984.4 746.4 967.8L746.4 967.8Q746.4 946 760.7 934.0Q775.0 922.0 800.7 922.0L800.7 922.0Q818.2 922.0 831.1 927.4Q844.1 932.8 852.1 942.1L852.1 942.1L833.7 962.6Q827.7 955.9 819.5 952.2Q811.2 948.4 800.9 948.4L800.9 948.4Q779.1 948.4 779.1 966.3L779.1 966.3Q779.1 974.1 783.9 978.0Q788.8 981.9 799.8 983.8L799.8 983.8L815.6 986.6Q833.9 989.8 843.9 1000.4Q853.8 1011.0 853.8 1028.9L853.8 1028.9Q853.8 1039.5 850.1 1048.5Q846.5 1057.5 839.1 1064.0Q831.8 1070.6 821.1 1074.3Q810.4 1078.0 796.1 1078.0ZM980.6 1075.4L883.2 1075.4L883.2 924.6L915.8 924.6L915.8 1048.8L980.6 1048.8L980.6 1075.4Z"></path>
+<path id="pslr-name-regular" fill="#F5F5F5" d="M1030.5 1011.0L1030.5 1075.4L1012.3 1075.4L1012.3 924.6L1067.2 924.6Q1088.2 924.6 1099.2 936.1Q1110.2 947.5 1110.2 968.0L1110.2 968.0Q1110.2 986.4 1100.7 997.4Q1091.2 1008.4 1073.0 1010.2L1073.0 1010.2L1111.5 1075.4L1091.2 1075.4L1054.5 1011.0L1030.5 1011.0ZM1030.5 995.7L1066.8 995.7Q1078.2 995.7 1084.6 990.0Q1091.0 984.2 1091.0 973.6L1091.0 973.6L1091.0 962.4Q1091.0 951.8 1084.6 946.1Q1078.2 940.4 1066.8 940.4L1066.8 940.4L1030.5 940.4L1030.5 995.7Z"></path>
+</svg>

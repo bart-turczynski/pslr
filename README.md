@@ -5,7 +5,7 @@
 
 <!-- CI (the `readme` job in .gitlab-ci.yml) fails if README.md is out of sync with README.Rmd. -->
 
-# pslr
+# pslr <img src="man/figures/logo.png" align="right" height="139" />
 
 <!-- badges: start -->
 

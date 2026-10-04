@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* pslr has a logo, the fleet's black hex, in `man/figures/logo.svg` and `logo.png`. r-universe shows it on the package card and the documentation site in its header, and the `README.md` heading carries it (`SEOR-wxjuxbtu`).
+
 * A cache whose recorded checksum is spelled in upper or mixed case (`SHA256:<hex>`, `sha256:<HEX>`, `MD5:<hex>`) now reads as that checksum everywhere. `psl_use("cache")` on a v1 cache not yet migrated used to fail with "unsupported checksum algorithm" or a false checksum mismatch, migration classed an upper-case prefix as unreadable, and `psl_status()` showed the raw spelling; activation, migration and status now all read it, and status shows it in lowercase. pslr itself still writes only lowercase `sha256:<hex>` (PSLR-nffupurr).
 
 * `psl_refresh()` reports a libcurl failure whose message quotes bytes that are not valid UTF-8 as the classed transport error with its `timeout`, `dns`, `tls`, `connect` or `transport` reason, instead of failing with base R's "invalid input multibyte string" (PSLR-ejksqarh).
