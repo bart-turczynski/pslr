@@ -9,9 +9,11 @@
 # loop and the release checklist all call it rather than restating the command.
 #
 # Usage:
-#   tools/verify.sh [standard|full|matrix|sanitize|cran]
+#   tools/verify.sh [tests|standard|full|matrix|sanitize|cran]
 #   tools/verify.sh --staleness
 #
+#   tests     the test suite alone, exactly as `standard` runs it.  What
+#             scripts/verify-self-test.sh runs against a throwaway package.
 #   standard  lint + spelling + declared URLs + the test suite.  The per-push
 #             gate; what the pre-push hook runs.  About two minutes, most of it
 #             the 2000-odd tests.
@@ -174,7 +176,37 @@ run_tests() {
   # name: with credentials in ~/.Renviron they otherwise ran live on every push
   # and blocked a merge on 2026-09-09. run_osv and run_security run them
   # deliberately in the `full` and `cran` tiers (SEOR-fftbjnpl).
-  Rscript -e 'testthat::test_local(reporter = "check", stop_on_failure = TRUE, filter = "^(security|osv)$", invert = TRUE)'
+  #
+  # The stage fails closed on its own. stop_on_failure makes testthat abort on
+  # a failure, but the stage does not rest on that alone: it keeps the results
+  # test_local() returns and exits 1 itself unless at least one test ran and
+  # none failed or errored (skips are fine). A full-disk run was reported to
+  # print `[ FAIL 7 ... ]` and still pass; that did not reproduce
+  # (PSLR-vacblucj), and with this check it cannot happen whatever the cause.
+  # testthat-problems.rds plays no part: the gate never reads it, and testthat
+  # writes it only when a test has already failed.
+  # scripts/verify-self-test.sh pins this check with stop_on_failure switched
+  # off, and runs on every push.
+  Rscript -e '
+    res <- testthat::test_local(
+      reporter = "check", stop_on_failure = TRUE,
+      filter = "^(security|osv)$", invert = TRUE
+    )
+    if (!inherits(res, "testthat_results")) {
+      message("verify: the test stage failed closed: no testthat results")
+      quit(status = 1)
+    }
+    df <- as.data.frame(res)
+    n_failed <- sum(df$failed)
+    n_errored <- sum(df$error)
+    if (nrow(df) == 0L || n_failed > 0L || n_errored > 0L) {
+      message(sprintf(
+        "verify: the test stage failed closed: %d test(s) ran, %d failed expectation(s), %d errored",
+        nrow(df), n_failed, n_errored
+      ))
+      quit(status = 1)
+    }
+  '
   ok "tests passed"
 }
 
@@ -577,6 +609,12 @@ case "$tier" in
   --staleness)
     report_staleness
     exit 0
+    ;;
+
+  tests)
+    need_cmd Rscript
+    run_tests
+    printf '\n%stests verify passed%s\n' "$c_green" "$c_reset"
     ;;
 
   standard)

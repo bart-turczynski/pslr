@@ -18,13 +18,14 @@ Run verification:
 
 ```sh
 tools/verify.sh            # standard: lint + spelling + URLs + tests (the pre-push gate, ~2 min)
+tools/verify.sh tests      # the test stage alone, exactly as standard runs it
 tools/verify.sh full       # + R CMD check --as-cran and the release audits
 ```
 
 `tools/verify.sh` is the single definition of the gate — the pre-push hook and
 the release checklist call it too, so running the underlying `lintr` and
 `rcmdcheck` commands by hand checks less than a push does. See
-[docs/git-workflow.md](docs/git-workflow.md#the-verify-gate) for all four tiers.
+[docs/git-workflow.md](docs/git-workflow.md#the-verify-gate) for every tier.
 
 The test suite is plain testthat, run by `R CMD check`. A performance benchmark
 and its release gate, kept out of CRAN, live in
