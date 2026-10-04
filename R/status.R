@@ -105,7 +105,8 @@ psl_status_legacy_checksum_message <- function() {
   sprintf(
     paste0(
       "The legacy cache in %s cannot be trusted because %s. ",
-      "Run psl_refresh(force = TRUE) to replace it."
+      "Run psl_refresh(force = TRUE) to publish a fresh snapshot; the legacy ",
+      "files can then be removed by hand."
     ),
     psl_cache_dir(),
     psl_checksum_unreadable

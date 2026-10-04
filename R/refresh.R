@@ -564,7 +564,8 @@ psl_legacy_cache_snapshot <- function() {
       switch(
         fault,
         checksum_unreadable = psl_checksum_unreadable,
-        checksum_mismatch = "checksum mismatch"
+        checksum_mismatch = "checksum mismatch",
+        fault
       )
     )
   }
