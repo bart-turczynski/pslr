@@ -98,7 +98,7 @@ test_that("a checksum holding bytes that are not UTF-8 reads as unreadable", {
   local_utf8_ctype()
   values <- c(
     "SHA256:\xff",
-    paste0("sha256:", strrep("a", 63L), "\xfe"),
+    paste0("sha256:", strrep("a", 63L), rawToChar(as.raw(0xfe))),
     "md5\xff:abc"
   )
   for (value in values) {

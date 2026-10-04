@@ -63,9 +63,11 @@ psl_valid_sha256_ref <- function(x) {
 # callers can classify unreadable metadata rather than trust it. The whole
 # value is case-folded, prefix included, as `psl_checksum_id()` folds it: pslr
 # writes only lowercase, and both helpers read a mixed-case spelling the same
-# way (PSLR-nffupurr).
+# way (PSLR-nffupurr). A value that is not valid UTF-8 is unreadable too: no
+# checksum pslr wrote holds such bytes, and sub() fails on them under a UTF-8
+# ctype (PSLR-vqrwsjar).
 psl_parse_checksum <- function(x) {
-  if (!is.character(x) || length(x) != 1L || is.na(x)) {
+  if (!is.character(x) || length(x) != 1L || is.na(x) || !validUTF8(x)) {
     return(NULL)
   }
   x <- psl_ascii_lower(x)
