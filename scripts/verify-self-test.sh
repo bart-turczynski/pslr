@@ -3,22 +3,23 @@
 # Self-test for the test stage of the verify gate (tools/verify.sh).
 #
 # A pre-push run on a full disk was reported to print testthat's
-# `[ FAIL 7 ... ]` while the verify hook said Passed (PSLR-vacblucj). Against
-# the live script that did not reproduce: a failing test, an erroring one, and
-# a testthat-problems.rds that could not be written (a full volume included)
-# all left Rscript exiting 1 and the gate red. The stage reads no result file
-# of its own; its result is Rscript's exit status, carried by the script's
-# `set -euo pipefail`. These cases pin that, so a later edit that drops the
-# status (an `|| true`, a lost `set -e`, `stop_on_failure = FALSE`) goes red.
+# `[ FAIL 7 ... ]` while the verify hook said Passed (PSLR-vacblucj). That did
+# not reproduce, but nothing stopped it either: the stage trusted testthat's
+# stop_on_failure alone. run_tests now also reads the results testthat returns
+# and exits 1 itself when no test ran, or when any test failed or errored. This
+# script pins both layers, so that an edit to the gate, or a testthat upgrade
+# that changes what stop_on_failure does, turns it red.
 #
-# Each case builds a throwaway package, copies tools/verify.sh into it, and
-# runs the copy's `tests` tier: the same run_tests the standard tier calls,
-# run in its own process under the script's own shell options. A case that
-# should fail also names a line its log must contain, so it proves the
-# scenario it describes happened rather than failing for some other reason.
+# Each case builds a throwaway package, copies tools/verify.sh into it and runs
+# the copy in its own process, under the script's own `set -euo pipefail`, the
+# way the pre-push hook runs it. Most cases use the `tests` tier, which runs
+# run_tests alone; one runs `standard`, the pre-push tier, with its lint,
+# spelling and URL steps stubbed out. A case that should fail also names a line
+# its log must contain, so it proves its scenario happened rather than failing
+# for some other reason.
 #
-# Offline, and seconds rather than minutes: each fixture has two one-line
-# tests. pre-commit runs it on a push that changes either file.
+# Offline, and seconds rather than minutes: each fixture has one or two
+# one-line tests. pre-commit runs it on every push.
 
 set -euo pipefail
 
@@ -26,11 +27,37 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 verify_sh="$repo_root/tools/verify.sh"
 
 work="$(mktemp -d "${TMPDIR:-/tmp}/verify-self-test.XXXXXX")"
-# Some cases remove permissions on purpose; restore them so rm can clean up.
 trap 'chmod -R u+rwx "$work" 2>/dev/null; rm -rf "$work"' EXIT
 
 failures=0
 cases=0
+
+# What run_tests prints when its own result check fails the stage.
+fail_closed_line='verify: the test stage failed closed'
+
+fail_case() {
+  failures=$((failures + 1))
+  printf '  xx  %s\n' "$1"
+}
+
+# Both the pre-push tier and the `tests` tier must call run_tests as a plain
+# statement, never under `if`, `||` or `&&`, where `set -e` would not stop the
+# gate on its failure. The cases below run `tests`; this ties them to
+# `standard`.
+check_tier_calls_run_tests() {
+  local tier="$1" body
+  cases=$((cases + 1))
+  body="$(awk -v t="  ${tier})" '
+    $0 == t { inside = 1; next }
+    inside && /^    ;;$/ { exit }
+    inside { print }
+  ' "$verify_sh")"
+  if printf '%s\n' "$body" | grep -qx '    run_tests'; then
+    printf '  ok  the %s tier calls run_tests as a plain statement\n' "$tier"
+  else
+    fail_case "the ${tier} tier no longer calls run_tests as a plain statement"
+  fi
+}
 
 # make_pkg <dir>: a minimal package with one passing test and a copy of the
 # gate script, so the copy's repo root is the fixture.
@@ -57,94 +84,141 @@ add_failing_test() {
     > "$1/tests/testthat/test-fail.R"
 }
 
-# run_case <name> <pass|fail> <log line or ""> <dir> [VAR=value ...]
+add_erroring_test() {
+  printf '%s\n' \
+    'test_that("errors", {' \
+    '  con <- file(file.path(tempdir(), "missing", "x"), "r")' \
+    '  close(con)' \
+    '})' > "$1/tests/testthat/test-error.R"
+}
+
+# Switches testthat's own stop_on_failure off in the fixture's copy, so only
+# run_tests' result check stands between a failure and a pass.
+disable_stop_on_failure() {
+  local copy="$1/tools/verify.sh"
+  sed 's/reporter = "check", stop_on_failure = TRUE/reporter = "check", stop_on_failure = FALSE/' \
+    "$copy" > "$copy.new"
+  mv "$copy.new" "$copy"
+  grep -q 'reporter = "check", stop_on_failure = FALSE' "$copy"
+}
+
+# Stubs the standard tier's lint, spelling and URL steps in the fixture's copy:
+# they are not what this tests, and lint alone takes longer than every case
+# here together. Later definitions win, so the stubs go just above the tier
+# dispatch.
+stub_standard_steps() {
+  local copy="$1/tools/verify.sh"
+  awk '
+    $0 == "tier=\"${1:-standard}\"" {
+      print "run_lint() { :; }"
+      print "run_spelling() { :; }"
+      print "run_urls() { :; }"
+      found = 1
+    }
+    { print }
+    END { exit !found }
+  ' "$copy" > "$copy.new"
+  mv "$copy.new" "$copy"
+}
+
+# run_case <name> <tier> <pass|fail> <log line or ""> <dir>
 #
 # The child is a separate process, so `|| status=$?` here does not switch off
 # errexit inside it: the gate script runs exactly as the pre-push hook runs it.
 run_case() {
-  local name="$1" want="$2" marker="$3" dir="$4" log status=0 ok=1
-  shift 4
+  local name="$1" tier="$2" want="$3" marker="$4" dir="$5" log status=0 ok=1
   log="$dir.log"
   cases=$((cases + 1))
-  env "$@" bash "$dir/tools/verify.sh" tests > "$log" 2>&1 || status=$?
+  bash "$dir/tools/verify.sh" "$tier" > "$log" 2>&1 || status=$?
 
   if [ "$want" = pass ]; then
     [ "$status" -eq 0 ] || ok=0
-    grep -q 'tests verify passed' "$log" || ok=0
+    grep -q "${tier} verify passed" "$log" || ok=0
   else
     [ "$status" -ne 0 ] || ok=0
-    if grep -q 'tests verify passed' "$log"; then ok=0; fi
+    if grep -q "${tier} verify passed" "$log"; then ok=0; fi
   fi
   if [ -n "$marker" ] && ! grep -qF -- "$marker" "$log"; then ok=0; fi
 
   if [ "$ok" -eq 1 ]; then
     printf '  ok  %s (exit %d)\n' "$name" "$status"
   else
-    failures=$((failures + 1))
-    printf '  xx  %s: wanted the gate to %s, got exit %d' "$name" "$want" "$status"
-    [ -z "$marker" ] || printf ' (log must contain: %s)' "$marker"
-    printf '\n----- log -----\n'
+    fail_case "$(printf '%s: wanted the gate to %s, got exit %d' \
+      "$name" "$want" "$status")"
+    [ -z "$marker" ] || printf '      log must contain: %s\n' "$marker"
+    printf '%s\n' '----- log -----'
     cat "$log"
-    printf -- '---------------\n'
+    printf '%s\n' '---------------'
   fi
 }
 
-# 1. Control: without it a gate that always fails would pass every case below.
-make_pkg "$work/pass"
-run_case "passing suite passes" pass "" "$work/pass"
+check_tier_calls_run_tests standard
+check_tier_calls_run_tests tests
 
-# 2. A failing expectation.
+# Control: without it a gate that always fails would pass every case below.
+make_pkg "$work/pass"
+run_case "passing suite passes" tests pass "" "$work/pass"
+
 make_pkg "$work/failure"
 add_failing_test "$work/failure"
-run_case "failing test fails the gate" fail "Test failures" "$work/failure"
+run_case "failing test fails the gate" tests fail \
+  "Test failures" "$work/failure"
 
-# 3. An error inside a test, with the message the reported run showed.
+# The message the reported run showed.
 make_pkg "$work/error"
-printf '%s\n' \
-  'test_that("errors", {' \
-  '  con <- file(file.path(tempdir(), "missing", "x"), "r")' \
-  '  close(con)' \
-  '})' > "$work/error/tests/testthat/test-error.R"
-run_case "erroring test fails the gate" fail \
+add_erroring_test "$work/error"
+run_case "erroring test fails the gate" tests fail \
   "cannot open the connection" "$work/error"
 
-# 4. testthat cannot write its result file: something it cannot replace sits
-#    where the check reporter saves testthat-problems.rds.
-make_pkg "$work/unwritable"
-add_failing_test "$work/unwritable"
-mkdir "$work/unwritable/tests/testthat/testthat-problems.rds"
-run_case "unwritable result file fails the gate" fail \
-  "testthat-problems.rds" "$work/unwritable"
+# testthat saves testthat-problems.rds only when a test failed, so this cannot
+# isolate the file; it shows that a failure to save it does not swallow the
+# test failure that made testthat try.
+make_pkg "$work/unsaved"
+add_failing_test "$work/unsaved"
+mkdir "$work/unsaved/tests/testthat/testthat-problems.rds"
+run_case "failing test still fails when testthat-problems.rds can't be written" \
+  tests fail "testthat-problems.rds" "$work/unsaved"
 
-# 5. The result file exists but can be neither read nor written. Root ignores
-#    file modes, so the case would not test anything there.
-if [ "$(id -u)" -ne 0 ]; then
-  make_pkg "$work/unreadable"
-  add_failing_test "$work/unreadable"
-  : > "$work/unreadable/tests/testthat/testthat-problems.rds"
-  chmod 000 "$work/unreadable/tests/testthat/testthat-problems.rds"
-  run_case "unreadable result file fails the gate" fail \
-    "testthat-problems.rds" "$work/unreadable"
+# run_tests' own result check, with testthat's stop_on_failure switched off.
+make_pkg "$work/check-failure"
+add_failing_test "$work/check-failure"
+if disable_stop_on_failure "$work/check-failure"; then
+  run_case "result check fails a failing test without stop_on_failure" tests \
+    fail "$fail_closed_line" "$work/check-failure"
 else
-  printf '  --  unreadable result file: skipped as root\n'
+  cases=$((cases + 1))
+  fail_case "could not switch off stop_on_failure in the fixture: update disable_stop_on_failure"
 fi
 
-# 6 and 7. TMPDIR is missing, or read-only: R's session temp directory and
-#    every tempfile() a test uses live under it.
-make_pkg "$work/tmp-missing"
-add_failing_test "$work/tmp-missing"
-run_case "missing TMPDIR still fails the gate" fail "" "$work/tmp-missing" \
-  TMPDIR="$work/no-such-dir"
+make_pkg "$work/check-error"
+add_erroring_test "$work/check-error"
+if disable_stop_on_failure "$work/check-error"; then
+  run_case "result check fails an erroring test without stop_on_failure" tests \
+    fail "$fail_closed_line" "$work/check-error"
+else
+  cases=$((cases + 1))
+  fail_case "could not switch off stop_on_failure in the fixture: update disable_stop_on_failure"
+fi
 
-make_pkg "$work/tmp-readonly"
-add_failing_test "$work/tmp-readonly"
-mkdir "$work/readonly-tmp"
-chmod 555 "$work/readonly-tmp"
-run_case "read-only TMPDIR still fails the gate" fail "" "$work/tmp-readonly" \
-  TMPDIR="$work/readonly-tmp"
+# A test file that runs no test: testthat passes it, the result check does not.
+make_pkg "$work/no-tests"
+printf 'invisible(NULL)\n' > "$work/no-tests/tests/testthat/test-pass.R"
+run_case "suite that runs no test fails the gate" tests fail \
+  "$fail_closed_line" "$work/no-tests"
+
+# The tier the pre-push hook runs, end to end apart from the stubbed steps.
+make_pkg "$work/standard"
+add_failing_test "$work/standard"
+if stub_standard_steps "$work/standard"; then
+  run_case "standard tier fails on a failing test" standard fail \
+    "Test failures" "$work/standard"
+else
+  cases=$((cases + 1))
+  fail_case "could not stub the standard tier's steps: update stub_standard_steps"
+fi
 
 if [ "$failures" -gt 0 ]; then
-  printf '\nverify self-test: %d of %d case(s) failed\n' "$failures" "$cases"
+  printf '\nverify self-test: %d of %d check(s) failed\n' "$failures" "$cases"
   exit 1
 fi
-printf '\nverify self-test: all %d cases passed\n' "$cases"
+printf '\nverify self-test: all %d checks passed\n' "$cases"

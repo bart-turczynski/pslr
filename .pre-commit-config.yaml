@@ -123,16 +123,18 @@ repos:
         pass_filenames: false
         files: ^scripts/bestpractices-url\.py$
         stages: [pre-push]
-      # The verify hook's test stage must fail on a failing or erroring test,
-      # and when testthat cannot write its result file. A full-disk run was
-      # reported to pass with `[ FAIL 7 ]` on screen; it did not reproduce
-      # (PSLR-vacblucj), and this pins that it stays so. Offline, about five
-      # seconds on throwaway packages; only when the gate or its self-test
-      # changes.
+      # The verify hook's test stage must fail when a test fails or errors, or
+      # when no test ran, and it checks testthat's results itself rather than
+      # trusting stop_on_failure alone. A full-disk run was reported to pass
+      # with `[ FAIL 7 ]` on screen; that did not reproduce (PSLR-vacblucj),
+      # and the result check makes it impossible whatever the cause. Every
+      # push, not only one that touches the gate: a testthat upgrade can change
+      # what stop_on_failure does without changing a file here. Offline, about
+      # seven seconds on throwaway packages.
       - id: verify-self-test
         name: verify gate self-test (the test stage fails closed)
         entry: scripts/verify-self-test.sh
         language: system
         pass_filenames: false
-        files: ^(tools/verify\.sh|scripts/verify-self-test\.sh)$
+        always_run: true
         stages: [pre-push]
