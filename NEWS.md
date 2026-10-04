@@ -22,6 +22,8 @@
 
 ## Internal
 
+* The test stage of the pre-push gate is pinned to fail when a test fails or errors, and when testthat cannot write or read `testthat-problems.rds`. `scripts/verify-self-test.sh` runs `tools/verify.sh tests`, a new tier that runs the suite alone, against throwaway packages, and pre-commit runs it whenever either file changes. A run on a full disk was reported to print `[ FAIL 7 ]` and still pass; that did not reproduce (PSLR-vacblucj).
+
 * CI builds the `tr_TR.UTF-8` and `az_AZ.UTF-8` locales in the setup every package-installing job shares, so the Turkish and Azerbaijani legs of the parser tests run in `check`, `coverage` and every `full-check` R version instead of skipping. `check` and each `full-check` leg then fail unless every locale leg ran and passed (PSLR-mgqnsbjz).
 
 * The Cucumber behavior specs are plain testthat checks of the same outcomes, in `test-query.R` and `test-status.R`, and `cucumber` is gone from `Suggests` (PSLR-lohhvukn).

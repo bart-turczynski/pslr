@@ -9,9 +9,11 @@
 # loop and the release checklist all call it rather than restating the command.
 #
 # Usage:
-#   tools/verify.sh [standard|full|matrix|sanitize|cran]
+#   tools/verify.sh [tests|standard|full|matrix|sanitize|cran]
 #   tools/verify.sh --staleness
 #
+#   tests     the test suite alone, exactly as `standard` runs it.  What
+#             scripts/verify-self-test.sh runs against a throwaway package.
 #   standard  lint + spelling + declared URLs + the test suite.  The per-push
 #             gate; what the pre-push hook runs.  About two minutes, most of it
 #             the 2000-odd tests.
@@ -174,6 +176,14 @@ run_tests() {
   # name: with credentials in ~/.Renviron they otherwise ran live on every push
   # and blocked a merge on 2026-09-09. run_osv and run_security run them
   # deliberately in the `full` and `cran` tiers (SEOR-fftbjnpl).
+  #
+  # The stage's result is Rscript's exit status and nothing else: no summary
+  # file is written or read back. stop_on_failure makes a failing or erroring
+  # test exit 1, and so does the check reporter failing to save
+  # testthat-problems.rds; `set -e` then stops the gate. A full-disk run was
+  # reported to print `[ FAIL 7 ... ]` and pass, which did not reproduce
+  # (PSLR-vacblucj); scripts/verify-self-test.sh pins all three, and runs on a
+  # push that changes this file.
   Rscript -e 'testthat::test_local(reporter = "check", stop_on_failure = TRUE, filter = "^(security|osv)$", invert = TRUE)'
   ok "tests passed"
 }
@@ -577,6 +587,12 @@ case "$tier" in
   --staleness)
     report_staleness
     exit 0
+    ;;
+
+  tests)
+    need_cmd Rscript
+    run_tests
+    printf '\n%stests verify passed%s\n' "$c_green" "$c_reset"
     ;;
 
   standard)
