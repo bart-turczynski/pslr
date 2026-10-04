@@ -89,13 +89,13 @@ test_that("section filtering happens before prevailing-rule selection", {
 
 # ---- targeted prevailing-rule oracle (value-checked) ------------------------
 # The trie is the sole matcher, so there is no second implementation to
-# cross-check; the differential oracle (test-oracle.R, D16) and the query tests are
-# the correctness net. This block pins the tricky selection cases by VALUE so it is
-# a real oracle, not a tautology: longest-normal-wins (x.a.com beats com), a
-# wildcard exception (!www.ck), a bare wildcard base falling through to default
-# (ck), and a deep wildcard vs its exception (*.kobe.jp / !city.kobe.jp). The
-# expected vectors are literals read off a known-good run (section_code 2,
-# "all").
+# cross-check; the differential oracle (test-oracle.R, D16) and the query tests
+# are the correctness net. This block pins the tricky selection cases by VALUE
+# so it is a real oracle, not a tautology: longest-normal-wins (x.a.com beats
+# com), a wildcard exception (!www.ck), a bare wildcard base falling through to
+# default (ck), and a deep wildcard vs its exception (*.kobe.jp /
+# !city.kobe.jp). The expected vectors are literals read off a known-good run
+# (section_code 2, "all").
 
 test_that("synthetic matcher selects the prevailing rule by value", {
   m <- synthetic_matcher()
