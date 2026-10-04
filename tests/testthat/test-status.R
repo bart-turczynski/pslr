@@ -163,6 +163,7 @@ test_that("a custom path snapshot is untracked", {
   expect_identical(status$state, "untracked")
   expect_identical(status$source_kind, "path")
   expect_identical(status$request_url, NA_character_)
+  expect_not_called_outdated(status)
 })
 
 test_that("a known source with no successful check is never_checked", {
@@ -178,6 +179,7 @@ test_that("a known source with no successful check is never_checked", {
   expect_true(is.na(status$checked_at))
   expect_true(is.na(status$check_age_days))
   expect_match(status_lines(status), "Never checked")
+  expect_not_called_outdated(status)
 })
 
 test_that("a confirmed checksum inside the interval is confirmed_current", {
@@ -200,11 +202,9 @@ test_that("an elapsed interval is check_due and never reads as an update", {
   expect_identical(status$state, "check_due")
   expect_true(status$check_due)
   expect_equal(status$check_age_days, 9)
-  printed <- status_lines(status)
-  expect_match(printed, "Freshness check due")
+  expect_match(status_lines(status), "Freshness check due")
   # The whole point of the redesign: age alone is never phrased as an update.
-  expect_no_match(printed, "outdated", ignore.case = TRUE)
-  expect_no_match(printed, "update available", ignore.case = TRUE)
+  expect_not_called_outdated(status)
   expect_identical(status$message, NA_character_)
 })
 
@@ -235,9 +235,8 @@ test_that("an observed different source checksum is update_available", {
   expect_identical(status$checksum, selected)
   expect_identical(status$source_checksum, newer)
   expect_false(status$check_due)
-  printed <- status_lines(status)
-  expect_match(printed, "A newer snapshot was downloaded")
-  expect_no_match(printed, "outdated", ignore.case = TRUE)
+  expect_match(status_lines(status), "A newer snapshot was downloaded")
+  expect_not_called_outdated(status)
 })
 
 test_that("the active engine reports its own cached snapshot", {
@@ -362,6 +361,35 @@ test_that("an unmigrated v1 cache reports never_checked and is not rewritten", {
   expect_false(dir.exists(psl_selection_stream_dir()))
   expect_false(dir.exists(file.path(cache, "sources")))
   expect_false(dir.exists(psl_snapshot_dir()))
+})
+
+test_that("a mixed-case v1 marker checksum activates and reads canonical", {
+  # PSLR-nffupurr: `SHA256:<UPPERHEX>` used to fail activation as an
+  # unsupported algorithm, and status showed the raw spelling.
+  cache <- local_pslr_clean()
+  seed_legacy_cache(
+    cache,
+    spell = \(x) chartr("abcdefsh", "ABCDEFSH", x)
+  )
+  canonical <- psl_source_checksum(bundled_dat_path())
+  expect_match(readRDS(psl_cache_marker())$meta$checksum, "^SHA256:[0-9A-F]+$")
+
+  version <- psl_use("cache")
+  expect_identical(version$source, "cache")
+  expect_identical(version$checksum, canonical)
+
+  for (selector in c("active", "cache")) {
+    status <- psl_status(selector, now = status_now)
+    expect_identical(status$checksum, canonical, info = selector)
+    expect_identical(status$state, "never_checked", info = selector)
+    expect_match(
+      format(status),
+      substr(canonical, 1L, 19L),
+      fixed = TRUE,
+      all = FALSE,
+      info = selector
+    )
+  }
 })
 
 test_that("inspection writes nothing to the cache directory", {

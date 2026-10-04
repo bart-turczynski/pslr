@@ -33,7 +33,6 @@ Imports:
 LinkingTo:
     cpp11
 Suggests:
-    cucumber (>= 2.0.0),
     curl,
     knitr,
     oysteR,

@@ -248,9 +248,11 @@ psl_status_inspect_legacy <- function() {
       message = psl_status_missing_message()
     ))
   }
+  # The marker may spell the checksum in mixed case; the row carries the
+  # canonical form, so the column and the printed form agree (PSLR-nffupurr).
   psl_status_snapshot_fields(
     "cache",
-    current$meta$checksum,
+    psl_canonical_checksum(current$meta$checksum),
     retrieved_at = psl_parse_list_date(current$meta$retrieved_at)
   )
 }
@@ -369,10 +371,16 @@ psl_status_source_scan <- function(checksum) {
 # Does the v1 marker name exactly these bytes? v1 recorded no request URL, so
 # a marker match attributes the snapshot to the canonical endpoint -- the same
 # attribution migration makes, and safe for the same reason: there is no
-# `checked_at`, so the answer can only ever be `never_checked`.
+# `checked_at`, so the answer can only ever be `never_checked`. Both sides are
+# compared in canonical form, since the marker may spell its checksum in mixed
+# case (PSLR-nffupurr).
 psl_status_legacy_match <- function(checksum) {
   current <- psl_status_legacy_marker()
-  !is.null(current) && identical(current$meta$checksum, checksum)
+  !is.null(current) &&
+    identical(
+      psl_canonical_checksum(current$meta$checksum),
+      psl_canonical_checksum(checksum)
+    )
 }
 
 # Associate cached bytes with a source, in normative order: the selection's

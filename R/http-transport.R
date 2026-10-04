@@ -324,8 +324,12 @@ psl_require_response_status <- function(response, request_url = NA_character_) {
 # deliberately dropped rather than attached to the condition: it is the one
 # string in this layer that can quote server-supplied text, and refresh errors
 # must never carry transport traces. The token still tells timeout, DNS, TLS,
-# and connection failures apart.
+# and connection failures apart. The message is reduced to ASCII first, with
+# every other byte written as `<xx>`: quoted server bytes need not be valid
+# UTF-8, and both the lowercasing and the matching fail on such input
+# (PSLR-ejksqarh).
 psl_curl_reason <- function(message) {
+  message <- iconv(message, to = "ASCII", sub = "byte")
   message <- psl_ascii_lower(message)
   patterns <- c(
     limit = "file ?size|maximum file size",

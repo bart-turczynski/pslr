@@ -57,10 +57,19 @@ psl_checksum <- function(path, algorithm) {
 # Verify a file against a recorded, algorithm-prefixed checksum. Recomputes the
 # SAME algorithm named by the prefix and compares, so a match/mismatch reflects
 # genuine content -- a legacy MD5-recorded cache verifies against MD5, while
-# every newly recorded identity verifies against SHA-256.
+# every newly recorded identity verifies against SHA-256. The recorded value is
+# read with psl_parse_checksum(), the one prefix parser, so a mixed-case
+# spelling verifies against its canonical form and a value it cannot read
+# fails verification rather than erroring (PSLR-nffupurr).
 psl_verify_checksum <- function(path, expected) {
-  algorithm <- sub(":.*$", "", expected)
-  identical(psl_checksum(path, algorithm), expected)
+  parsed <- psl_parse_checksum(expected)
+  if (is.null(parsed)) {
+    return(FALSE)
+  }
+  identical(
+    psl_checksum(path, parsed$algorithm),
+    paste0(parsed$algorithm, ":", parsed$hex)
+  )
 }
 
 # Validate, parse, and index a PSL source file under the runtime normalizer.
@@ -104,7 +113,7 @@ psl_cache_meta <- function(dat, current) {
     path = dat,
     retrieved_at = current$meta$retrieved_at,
     size = current$meta$size,
-    checksum = current$meta$checksum
+    checksum = psl_canonical_checksum(current$meta$checksum)
   )
 }
 
