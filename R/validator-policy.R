@@ -126,12 +126,30 @@ psl_validator_request <- function(etag, last_modified) {
 }
 
 # The validators to persist after a response. A server may rotate a validator
-# on any response, including a `304`, so a usable value in the response wins;
-# an absent or unusable one leaves the stored value untouched rather than
-# clearing it, because a single malformed header should not cost the next
-# request its conditional.
-psl_validator_update <- function(etag, last_modified, headers) {
+# on any response, including a `304`, so a usable value in the response wins.
+# What happens without one depends on `replace`:
+#
+#   * `replace = FALSE` (a `304`): the body is the one already held, and the
+#     stored validator still names it, so an absent or unusable value leaves
+#     the stored one untouched -- a single malformed header should not cost
+#     the next request its conditional.
+#   * `replace = TRUE` (a `200`): the body is new, and a stored validator
+#     names the old one. Kept beside the new body, a stale ETag would also win
+#     over a fresh Last-Modified, so a field the response lacks or cannot use
+#     is cleared instead (PSLR-tiugfvxh).
+psl_validator_update <- function(
+  etag,
+  last_modified,
+  headers,
+  ...,
+  replace = FALSE
+) {
+  psl_check_empty_dots(...)
   headers <- psl_normalize_headers(headers)
+  if (isTRUE(replace)) {
+    etag <- NA_character_
+    last_modified <- NA_character_
+  }
   list(
     etag = psl_rotated_validator(etag, headers, "etag"),
     last_modified = psl_rotated_validator(

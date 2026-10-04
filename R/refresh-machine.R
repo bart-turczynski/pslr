@@ -179,14 +179,17 @@ psl_accept_body <- function(response, request_url) {
 # The validators to persist after a response. A stored validator is carried
 # forward only when the response came from the URL that issued it: a redirect
 # to a different target invalidates the scope, so keeping the old token under
-# the new issuer would be a lie about who minted it.
+# the new issuer would be a lie about who minted it. Nor does it outlive the
+# body it names: a `200` brings a new body, and only its own validators are
+# kept (PSLR-tiugfvxh).
 psl_plan_validators <- function(state, fetched) {
   issuer <- psl_state_field(state, "validator_url")
   same <- identical(fetched$effective_url, issuer)
   psl_validator_update(
     if (same) psl_state_field(state, "etag") else NA_character_,
     if (same) psl_state_field(state, "last_modified") else NA_character_,
-    fetched$response$headers
+    fetched$response$headers,
+    replace = identical(psl_response_class(fetched$response), "ok")
   )
 }
 
