@@ -542,6 +542,16 @@ psl_legacy_cache_snapshot <- function() {
       call. = FALSE
     )
   }
+  # A recorded checksum pslr cannot read was never compared with anything, so
+  # it is not reported as a mismatch; migration and status call it unreadable
+  # too (PSLR-izeypfus).
+  if (is.null(psl_parse_checksum(current$meta$checksum))) {
+    stop(
+      "PSL cache is corrupt: recorded checksum is unreadable. ",
+      "Run psl_refresh(force = TRUE).",
+      call. = FALSE
+    )
+  }
   if (!psl_verify_checksum(dat, current$meta$checksum)) {
     stop(
       "PSL cache is corrupt: checksum mismatch. ",

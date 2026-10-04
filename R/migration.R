@@ -118,7 +118,7 @@ psl_migration_result <- function(
 psl_migration_faults <- c(
   marker_malformed = "its commit marker is unreadable or malformed",
   bytes_missing = "the snapshot file it names is missing",
-  checksum_unreadable = "its recorded checksum is not a checksum pslr wrote",
+  checksum_unreadable = "its recorded checksum is unreadable",
   checksum_mismatch = "the snapshot file does not match its recorded checksum",
   invalid_list = "the snapshot file is not a valid Public Suffix List"
 )

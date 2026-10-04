@@ -392,23 +392,43 @@ test_that("a mixed-case v1 marker checksum activates and reads canonical", {
   }
 })
 
-test_that("a v1 marker checksum that is not UTF-8 reads as malformed", {
-  # PSLR-vqrwsjar: activation and status failed with base R's "input string 1
-  # is invalid". They now treat it as any checksum they cannot read, such as
-  # `SHA256:nothex`: activation refuses the cache as corrupt and status keeps
-  # the value as recorded, printing its bytes escaped as `<xx>`.
-  local_utf8_ctype()
+# A v1 marker whose recorded checksum pslr cannot read gets one diagnosis:
+# activation refuses the cache because that checksum is unreadable, never as a
+# mismatch it did not compute, and status is `unknown` with a corruption
+# message rather than `never_checked` against the canonical source, as for an
+# unreadable selection (PSLR-izeypfus). The row keeps the value as recorded.
+expect_legacy_checksum_unreadable <- function(recorded) {
   cache <- local_pslr_clean()
-  recorded <- "SHA256:\xff"
   seed_legacy_cache(cache, spell = \(x) recorded)
 
-  expect_error(psl_use("cache"), "checksum mismatch", fixed = TRUE)
+  err <- expect_error(psl_use("cache"), "cache is corrupt", fixed = TRUE)
+  expect_match(conditionMessage(err), "recorded checksum is unreadable")
+  expect_no_match(conditionMessage(err), "mismatch")
 
   status <- psl_status("cache", now = status_now)
   expect_identical(status$checksum, recorded)
-  expect_identical(status$state, "never_checked")
+  expect_identical(status$state, "unknown")
+  expect_identical(status$request_url, NA_character_)
+  expect_match(
+    status$message,
+    "could not read the recorded checksum of the legacy cache",
+    fixed = TRUE
+  )
   lines <- format(status)
   expect_true(all(validUTF8(lines)))
+  invisible(lines)
+}
+
+test_that("a v1 marker checksum that is not hex is unreadable", {
+  lines <- expect_legacy_checksum_unreadable("SHA256:nothex")
+  expect_match(lines, "checksum: +SHA256:nothex$", all = FALSE)
+})
+
+test_that("a v1 marker checksum that is not UTF-8 is unreadable", {
+  # PSLR-vqrwsjar: activation and status failed with base R's "input string 1
+  # is invalid". Status prints the recorded bytes escaped as `<xx>`.
+  local_utf8_ctype()
+  lines <- expect_legacy_checksum_unreadable("SHA256:\xff")
   expect_match(lines, "checksum: +SHA256:<ff>$", all = FALSE)
 })
 

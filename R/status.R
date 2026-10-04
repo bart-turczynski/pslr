@@ -248,6 +248,19 @@ psl_status_inspect_legacy <- function() {
       message = psl_status_missing_message()
     ))
   }
+  # A recorded checksum pslr cannot read names no bytes, so no source claim can
+  # rest on it: `unknown`, as for an unreadable selection (PSLR-izeypfus). The
+  # row keeps the value as recorded.
+  if (is.null(psl_parse_checksum(current$meta$checksum))) {
+    return(psl_status_snapshot_fields(
+      "cache",
+      current$meta$checksum,
+      state = "unknown",
+      message = psl_status_corrupt_message(
+        "the recorded checksum of the legacy cache"
+      )
+    ))
+  }
   # The marker may spell the checksum in mixed case; the row carries the
   # canonical form, so the column and the printed form agree (PSLR-nffupurr).
   psl_status_snapshot_fields(
@@ -373,10 +386,12 @@ psl_status_source_scan <- function(checksum) {
 # attribution migration makes, and safe for the same reason: there is no
 # `checked_at`, so the answer can only ever be `never_checked`. Both sides are
 # compared in canonical form, since the marker may spell its checksum in mixed
-# case (PSLR-nffupurr).
+# case (PSLR-nffupurr). A marker checksum pslr cannot read matches nothing, not
+# even the same unread string (PSLR-izeypfus).
 psl_status_legacy_match <- function(checksum) {
   current <- psl_status_legacy_marker()
   !is.null(current) &&
+    !is.null(psl_parse_checksum(current$meta$checksum)) &&
     identical(
       psl_canonical_checksum(current$meta$checksum),
       psl_canonical_checksum(checksum)
