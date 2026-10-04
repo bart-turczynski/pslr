@@ -269,6 +269,16 @@ test_that("an unreadable recorded checksum is unprovable", {
   expect_identical(result$reason, "checksum_unreadable")
 })
 
+test_that("a recorded checksum that is not UTF-8 is unreadable, not an error", {
+  # PSLR-vqrwsjar: it failed with base R's "input string 1 is invalid".
+  local_utf8_ctype()
+  cache <- local_migration_cache()
+  write_legacy_cache(cache, checksum = "SHA256:\xff")
+  result <- psl_migrate_legacy_cache(quiet = TRUE)
+  expect_identical(result$status, "unprovable")
+  expect_identical(result$reason, "checksum_unreadable")
+})
+
 test_that("checksum-clean bytes that are not a valid PSL are not imported", {
   cache <- local_migration_cache()
   # ICANN section only: the checksum verifies, full PSL validation does not.

@@ -91,6 +91,23 @@ test_that("the compatibility reader returns NULL for unreadable values", {
   expect_null(psl_parse_checksum(NA_character_))
 })
 
+test_that("a checksum holding bytes that are not UTF-8 reads as unreadable", {
+  # PSLR-vqrwsjar: such a value got past psl_ascii_lower() and failed in sub()
+  # with "input string 1 is invalid". Under the C locale every byte is a valid
+  # character, so this passes there with or without the fix.
+  local_utf8_ctype()
+  values <- c(
+    "SHA256:\xff",
+    paste0("sha256:", strrep("a", 63L), "\xfe"),
+    "md5\xff:abc"
+  )
+  for (value in values) {
+    info <- psl_escape_invalid_utf8(value)
+    expect_null(psl_parse_checksum(value), info = info)
+    expect_identical(psl_canonical_checksum(value), value, info = info)
+  }
+})
+
 test_that("source stream names hash the url and never contain url text", {
   url <- "https://publicsuffix.org/list/public_suffix_list.dat"
   name <- psl_source_stream_name(url)
