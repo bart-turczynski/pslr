@@ -26,10 +26,10 @@ the release checklist call it too, so running the underlying `lintr` and
 `rcmdcheck` commands by hand checks less than a push does. See
 [docs/git-workflow.md](docs/git-workflow.md#the-verify-gate) for all four tiers.
 
-The test suite holds both the testthat tests and the Cucumber behavior specs,
-so `R CMD check` verifies the specs too. A performance benchmark and its release
-gate, kept out of CRAN, live in [`bench/benchmark.R`](bench/benchmark.R); the
-recorded reference results are in [`docs/benchmarks.md`](docs/benchmarks.md).
+The test suite is plain testthat, run by `R CMD check`. A performance benchmark
+and its release gate, kept out of CRAN, live in
+[`bench/benchmark.R`](bench/benchmark.R); the recorded reference results are in
+[`docs/benchmarks.md`](docs/benchmarks.md).
 
 Format R sources with [Air](https://posit-dev.github.io/air/) (a fast,
 R-free formatter; config in `air.toml`):

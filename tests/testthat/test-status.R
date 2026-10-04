@@ -163,6 +163,7 @@ test_that("a custom path snapshot is untracked", {
   expect_identical(status$state, "untracked")
   expect_identical(status$source_kind, "path")
   expect_identical(status$request_url, NA_character_)
+  expect_not_called_outdated(status)
 })
 
 test_that("a known source with no successful check is never_checked", {
@@ -178,6 +179,7 @@ test_that("a known source with no successful check is never_checked", {
   expect_true(is.na(status$checked_at))
   expect_true(is.na(status$check_age_days))
   expect_match(status_lines(status), "Never checked")
+  expect_not_called_outdated(status)
 })
 
 test_that("a confirmed checksum inside the interval is confirmed_current", {
@@ -200,11 +202,9 @@ test_that("an elapsed interval is check_due and never reads as an update", {
   expect_identical(status$state, "check_due")
   expect_true(status$check_due)
   expect_equal(status$check_age_days, 9)
-  printed <- status_lines(status)
-  expect_match(printed, "Freshness check due")
+  expect_match(status_lines(status), "Freshness check due")
   # The whole point of the redesign: age alone is never phrased as an update.
-  expect_no_match(printed, "outdated", ignore.case = TRUE)
-  expect_no_match(printed, "update available", ignore.case = TRUE)
+  expect_not_called_outdated(status)
   expect_identical(status$message, NA_character_)
 })
 
@@ -235,9 +235,8 @@ test_that("an observed different source checksum is update_available", {
   expect_identical(status$checksum, selected)
   expect_identical(status$source_checksum, newer)
   expect_false(status$check_due)
-  printed <- status_lines(status)
-  expect_match(printed, "A newer snapshot was downloaded")
-  expect_no_match(printed, "outdated", ignore.case = TRUE)
+  expect_match(status_lines(status), "A newer snapshot was downloaded")
+  expect_not_called_outdated(status)
 })
 
 test_that("the active engine reports its own cached snapshot", {
