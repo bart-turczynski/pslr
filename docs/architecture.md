@@ -337,7 +337,9 @@ edit them by hand; regenerate with `cpp11::cpp_register()` after changing a
 - **Helpers**: `helper-active.R` provides `local_fake_transport()` (the injected
   network double, scripted per request with status, headers, and body),
   `seed_legacy_cache()` (a v1 cache to migrate from), and `local_pslr_clean()`
-  (isolates the cache and config dirs and resets active state per test).
+  (isolates the cache and config dirs and resets active state per test);
+  `helper-status.R` provides `expect_not_called_outdated()` (the printed status
+  never phrases age as the list being out of date).
 - Coverage is 100%; the one unreachable spot is `src/matcher.cpp:97`, a closing
   brace to which gcov attributes an epilogue basic block no test can reach —
   excluded with `// # nocov` rather than chased.

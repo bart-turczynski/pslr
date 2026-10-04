@@ -163,6 +163,7 @@ test_that("a custom path snapshot is untracked", {
   expect_identical(status$state, "untracked")
   expect_identical(status$source_kind, "path")
   expect_identical(status$request_url, NA_character_)
+  expect_not_called_outdated(status)
 })
 
 test_that("a known source with no successful check is never_checked", {
@@ -178,6 +179,7 @@ test_that("a known source with no successful check is never_checked", {
   expect_true(is.na(status$checked_at))
   expect_true(is.na(status$check_age_days))
   expect_match(status_lines(status), "Never checked")
+  expect_not_called_outdated(status)
 })
 
 test_that("a confirmed checksum inside the interval is confirmed_current", {
@@ -200,11 +202,9 @@ test_that("an elapsed interval is check_due and never reads as an update", {
   expect_identical(status$state, "check_due")
   expect_true(status$check_due)
   expect_equal(status$check_age_days, 9)
-  printed <- status_lines(status)
-  expect_match(printed, "Freshness check due")
+  expect_match(status_lines(status), "Freshness check due")
   # The whole point of the redesign: age alone is never phrased as an update.
-  expect_no_match(printed, "outdated", ignore.case = TRUE)
-  expect_no_match(printed, "update available", ignore.case = TRUE)
+  expect_not_called_outdated(status)
   expect_identical(status$message, NA_character_)
 })
 
@@ -235,9 +235,8 @@ test_that("an observed different source checksum is update_available", {
   expect_identical(status$checksum, selected)
   expect_identical(status$source_checksum, newer)
   expect_false(status$check_due)
-  printed <- status_lines(status)
-  expect_match(printed, "A newer snapshot was downloaded")
-  expect_no_match(printed, "outdated", ignore.case = TRUE)
+  expect_match(status_lines(status), "A newer snapshot was downloaded")
+  expect_not_called_outdated(status)
 })
 
 test_that("the active engine reports its own cached snapshot", {
@@ -385,83 +384,4 @@ test_that("printing returns the row invisibly and shows the source", {
   expect_match(printed, psl_official_url, fixed = TRUE)
   expect_match(printed, "checked:", fixed = TRUE)
   expect_type(format(status), "character")
-})
-
-# The freshness advice the retired freshness.feature stated, end to end through
-# psl_status() and its printed report: elapsed time alone means a check is due,
-# never that the list is out of date (PSLR-lohhvukn).
-expect_not_called_outdated <- function(status) {
-  printed <- status_lines(status)
-  expect_no_match(printed, "outdated", ignore.case = TRUE)
-  expect_no_match(printed, "update available", ignore.case = TRUE)
-}
-
-# Publish bytes, a source record for them, and a selection naming them; the
-# source record carries a confirmation only when `days` is given.
-seed_feature_cache <- function(text, days = NULL) {
-  checksum <- publish_status_bytes(text)
-  if (is.null(days)) {
-    publish_status_source(checksum)
-  } else {
-    confirmed <- psl_format_time(status_now - days * 86400)
-    publish_status_source(
-      checksum,
-      checked_at = confirmed,
-      retrieved_at = confirmed
-    )
-  }
-  publish_status_selection(checksum)
-  checksum
-}
-
-test_that("a cached snapshot no check ever confirmed is never_checked", {
-  local_pslr_clean()
-  seed_feature_cache("// unchecked bytes\n")
-  status <- psl_status("cache", now = status_now)
-  expect_identical(status$state, "never_checked")
-  expect_not_called_outdated(status)
-})
-
-test_that("a snapshot confirmed inside the reminder interval is current", {
-  local_pslr_clean()
-  seed_feature_cache("// confirmed bytes\n", days = 2)
-  status <- psl_status("cache", now = status_now)
-  expect_identical(status$state, "confirmed_current")
-  expect_match(status_lines(status), "Confirmed current", fixed = TRUE)
-})
-
-test_that("a confirmation older than the reminder interval is check_due", {
-  local_pslr_clean()
-  seed_feature_cache("// confirmed bytes\n", days = 9)
-  status <- psl_status("cache", now = status_now)
-  expect_identical(status$state, "check_due")
-  expect_match(status_lines(status), "Freshness check due", fixed = TRUE)
-  expect_not_called_outdated(status)
-})
-
-test_that("newer bytes downloaded but not activated are update_available", {
-  local_pslr_clean()
-  seed_feature_cache("// confirmed bytes\n", days = 1)
-  # The source now knows about newer bytes; the selection still names the
-  # snapshot from before, which is exactly "downloaded but not activated".
-  newer <- publish_status_bytes("// newer bytes\n")
-  publish_status_source(
-    newer,
-    checked_at = psl_format_time(status_now - 3600)
-  )
-  status <- psl_status("cache", now = status_now)
-  expect_identical(status$state, "update_available")
-  expect_match(
-    status_lines(status),
-    "A newer snapshot was downloaded",
-    fixed = TRUE
-  )
-})
-
-test_that("a list loaded from a file of one's own is untracked", {
-  local_pslr_clean()
-  psl_use("path", path = write_test_list())
-  status <- psl_status("active", now = status_now)
-  expect_identical(status$state, "untracked")
-  expect_not_called_outdated(status)
 })

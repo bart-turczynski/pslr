@@ -17,12 +17,29 @@ test_that("wildcard, exception, and default rules behave per spec", {
 })
 
 test_that("section filters before prevailing-rule selection", {
-  # foo.github.io: PRIVATE rule github.io, but ICANN only sees 'io'.
-  expect_identical(public_suffix("foo.github.io", section = "all"), "github.io")
-  expect_identical(public_suffix("foo.github.io", section = "icann"), "io")
+  local_pslr_clean()
+  # blog.github.io: PRIVATE rule github.io, but ICANN only sees 'io'.
   expect_identical(
-    public_suffix("foo.github.io", section = "private"),
+    public_suffix("blog.github.io", section = "all"),
     "github.io"
+  )
+  expect_identical(public_suffix("blog.github.io", section = "icann"), "io")
+  expect_identical(
+    public_suffix("blog.github.io", section = "private"),
+    "github.io"
+  )
+  # The registrable domain follows the rule each section selects.
+  expect_identical(
+    registrable_domain("blog.github.io", section = "all"),
+    "blog.github.io"
+  )
+  expect_identical(
+    registrable_domain("blog.github.io", section = "icann"),
+    "github.io"
+  )
+  expect_identical(
+    registrable_domain("blog.github.io", section = "private"),
+    "blog.github.io"
   )
   # An ICANN host under section = "private" falls through to the default rule.
   expect_identical(public_suffix("example.com", section = "private"), "com")
@@ -89,8 +106,10 @@ test_that("is_public_suffix is TRUE exactly when host equals its suffix", {
 })
 
 test_that("invalid policy returns NA by default and aborts on error", {
+  local_pslr_clean()
   out <- public_suffix(c("ok.com", "1.2.3.4", "[::1]", "a..b", NA))
   expect_identical(out, c("com", NA, NA, NA, NA))
+  expect_identical(public_suffix("not a host"), NA_character_)
   expect_error(
     public_suffix(c("ok.com", "1.2.3.4"), invalid = "error"),
     "position 2"
@@ -192,31 +211,4 @@ test_that("zero-length non-character input is a type error, not empty output", {
   expect_error(is_public_suffix(NULL), "must be a character vector")
   expect_error(suffix_extract(numeric(0)), "must be a character vector")
   expect_error(public_suffix_rule(logical(0)), "must be a character vector")
-})
-
-# The user-level query outcomes the retired public-api.feature stated, one
-# host per prevailing-rule shape (PSLR-lohhvukn).
-test_that("a host answers with its suffix and registrable domain", {
-  expect_identical(public_suffix("shop.example.co.uk"), "co.uk")
-  expect_identical(registrable_domain("shop.example.co.uk"), "example.co.uk")
-
-  # A private-section rule prevails over its ICANN parent ...
-  expect_identical(public_suffix("blog.github.io"), "github.io")
-  expect_identical(registrable_domain("blog.github.io"), "blog.github.io")
-  # ... and restricting to the ICANN section ignores it.
-  expect_identical(public_suffix("blog.github.io", section = "icann"), "io")
-  expect_identical(
-    registrable_domain("blog.github.io", section = "icann"),
-    "github.io"
-  )
-
-  # An unlisted name falls through to the implicit default rule.
-  expect_identical(public_suffix("example.madeuptld"), "madeuptld")
-  expect_identical(
-    registrable_domain("example.madeuptld"),
-    "example.madeuptld"
-  )
-
-  # Invalid input is missing, not an error.
-  expect_identical(public_suffix("not a host"), NA_character_)
 })

@@ -53,9 +53,10 @@ Documented deviations from the goodpractice set — test-idiom and public-API
 reasons a real package hits as it grows:
 
 - `object_name_linter` / `object_usage_linter`: not part of the goodpractice set
-  and deliberately NOT added. The testthat helpers read as undefined globals to `object_usage_linter`, and
-  packages commonly expose mixed-case or dotted public parameters plus
-  `._`-prefixed internal helpers that `object_name_linter` would flag.
+  and deliberately NOT added. The testthat helpers read as undefined globals
+  to `object_usage_linter`, and packages commonly expose mixed-case or dotted
+  public parameters plus `._`-prefixed internal helpers that
+  `object_name_linter` would flag.
 - `expect_identical_linter`: off. Suites routinely rely on `expect_equal()`'s
   numeric tolerance (`expect_equal(nrow(x), 2)` compares integer vs double) and
   its string-encoding normalization, both of which `identical()` rejects; a
