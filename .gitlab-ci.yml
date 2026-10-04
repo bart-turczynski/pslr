@@ -340,6 +340,48 @@ variables:
         *) echo "Expected a dated or latest P3M repo, or CRAN, in Rprofile.site; found '$current'. The image changed shape."; exit 1 ;;
       esac
       Rscript -e 'print(getOption("repos"))'
+    # The case-folding legs of tests/testthat/test-parser.R (PSLR-yomylzid)
+    # run only where R can switch LC_CTYPE to each locale listed in
+    # tests/testthat/fixtures/case-folding-locales.txt, the one list of them,
+    # and rocker/r-ver generates none of them (PSLR-mgqnsbjz). So every job
+    # that installs the package builds them here, check, coverage and every
+    # full-check leg alike, with the ssrfr recipe (SSRF-erprjgmv): localedef
+    # against the locale sources the image already ships. Naming the `locales`
+    # package in apt-get upgraded glibc under R in ssrfr's probes, so it is not
+    # installed. `-c` writes the locale even when the source draws a warning,
+    # and localedef then exits 1; only a status above 1 means nothing was
+    # written. Each locale is also registered in /etc/locale.gen, so a later
+    # locale-gen (a `locales` package trigger) regenerates it instead of
+    # dropping it. The session locale is unchanged.
+    - |
+      while IFS= read -r l; do
+        [ -n "$l" ] || continue
+        status=0
+        localedef -c -i "${l%%.*}" -f "${l#*.}" "$l" || status=$?
+        if [ "$status" -gt 1 ]; then
+          echo "localedef could not build $l (exit $status)"
+          exit 1
+        fi
+        printf '%s %s\n' "$l" "${l#*.}" >> /etc/locale.gen
+      done < tests/testthat/fixtures/case-folding-locales.txt
+    # An early probe, before any dependency install: it exists to fail in
+    # seconds, not after the long R CMD check. R must switch to each locale the
+    # way the tests detect it, Sys.setlocale() returning the exact name, and
+    # each must fold "I" to the dotless U+0131, the mapping the legs exist to
+    # survive. The legs themselves are proven after the check, by
+    # scripts/check-locale-legs.R.
+    - |
+      Rscript -e '
+        for (l in readLines("tests/testthat/fixtures/case-folding-locales.txt")) {
+          old <- Sys.getlocale("LC_CTYPE")
+          active <- suppressWarnings(Sys.setlocale("LC_CTYPE", l))
+          folds <- identical(tolower("I"), intToUtf8(0x131L))
+          invisible(Sys.setlocale("LC_CTYPE", old))
+          if (!identical(active, l)) stop("R cannot switch LC_CTYPE to ", l, call. = FALSE)
+          if (!folds) stop(l, " does not fold I to dotless i; the test leg would prove nothing", call. = FALSE)
+          cat(l, "usable in R\n")
+        }
+      '
     - >-
       Rscript -e 'if (!requireNamespace("pak", quietly = TRUE))
       install.packages("pak", repos = sprintf(
@@ -466,7 +508,14 @@ check:
         if (!any(grepl("^Status:", log))) {
           stop("R CMD check did not run to completion: no Status line in 00check.log")
         }
+        rout <- readLines(file.path(chk[["checkdir"]], "tests", "testthat.Rout"), warn = FALSE)
+        writeLines(tail(grep("^[[] FAIL", rout, value = TRUE), 1L))
       '
+    # R CMD check counts a skipped test as a pass, so prove the case-folding
+    # locale legs ran: every locale in the shared list must have run its leg
+    # and passed, against the package the check installed in
+    # check/pslr.Rcheck. Any skipped leg fails the job (PSLR-mgqnsbjz).
+    - Rscript scripts/check-locale-legs.R check/pslr.Rcheck
   artifacts:
     when: on_failure
     expire_in: 1 week
@@ -568,7 +617,12 @@ full-check:
         if (!any(grepl("^Status:", log))) {
           stop("R CMD check did not run to completion: no Status line in 00check.log")
         }
+        rout <- readLines(file.path(chk[["checkdir"]], "tests", "testthat.Rout"), warn = FALSE)
+        writeLines(tail(grep("^[[] FAIL", rout, value = TRUE), 1L))
       '
+    # The same proof as in `check`: every case-folding locale leg ran and
+    # passed on this R version (PSLR-mgqnsbjz).
+    - Rscript scripts/check-locale-legs.R check/pslr.Rcheck
   artifacts:
     when: on_failure
     expire_in: 1 week

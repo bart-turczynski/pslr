@@ -315,7 +315,11 @@ test_that("read_psl_file reads UTF-8 without native transcoding", {
 # names lowercase as ASCII only, so they parse the same in any locale. A
 # machine without the locale skips; macOS's libc does not map "I" specially
 # anyway, and .lintr bans tolower() on every machine.
-for (locale in c("tr_TR.UTF-8", "az_AZ.UTF-8")) {
+#
+# The locales are listed once, in fixtures/case-folding-locales.txt. CI reads
+# the same file to build them, and scripts/check-locale-legs.R fails the job
+# unless every leg named there ran and passed (PSLR-mgqnsbjz).
+for (locale in readLines(test_path("fixtures", "case-folding-locales.txt"))) {
   test_that(paste("section names parse the same under", locale), {
     active <- suppressWarnings(
       withr::with_locale(c(LC_CTYPE = locale), Sys.getlocale("LC_CTYPE"))
