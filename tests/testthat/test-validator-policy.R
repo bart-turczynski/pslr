@@ -112,34 +112,11 @@ test_that("an unusable rotated validator does not clobber the stored one", {
   expect_equal(updated$etag, "\"old\"")
 })
 
-test_that("a 200's validators replace the stored ones", {
-  # The stored validators name the old body. On a 200, a field the response
-  # lacks or cannot use is cleared rather than kept (PSLR-tiugfvxh).
-  stamp <- "Wed, 01 Jul 2026 00:00:00 GMT"
-  updated <- psl_validator_update(
-    "\"old\"",
-    "Tue, 30 Jun 2026 00:00:00 GMT",
-    c(etag = "\"b\x01\"", "last-modified" = stamp),
-    replace = TRUE
-  )
-  expect_equal(updated$etag, NA_character_)
-  expect_equal(updated$last_modified, stamp)
-
-  bare <- psl_validator_update(
-    "\"old\"",
-    stamp,
-    psl_empty_headers(),
-    replace = TRUE
-  )
-  expect_equal(bare, list(etag = NA_character_, last_modified = NA_character_))
-})
-
-test_that("an unusable rotated validator on a 304 keeps the stored one", {
+test_that("an unusable rotated validator keeps the stored one", {
   updated <- psl_validator_update(
     "\"old\"",
     NA_character_,
-    c(etag = "\"b\x01\""),
-    replace = FALSE
+    c(etag = "\"b\x01\"")
   )
   expect_equal(updated$etag, "\"old\"")
 })

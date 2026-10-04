@@ -180,16 +180,18 @@ psl_accept_body <- function(response, request_url) {
 # forward only when the response came from the URL that issued it: a redirect
 # to a different target invalidates the scope, so keeping the old token under
 # the new issuer would be a lie about who minted it. Nor does it outlive the
-# body it names: a `200` brings a new body, and only its own validators are
-# kept (PSLR-tiugfvxh).
-psl_plan_validators <- function(state, fetched) {
+# body it names: after an `updated` outcome the stored token names the old
+# bytes, and kept beside the new ones it would win over a fresh Last-Modified,
+# so only the response's own validators stand. A `304` or an unchanged
+# SHA-256 shows the stored token still names the bytes held (PSLR-tiugfvxh).
+psl_plan_validators <- function(state, fetched, outcome) {
   issuer <- psl_state_field(state, "validator_url")
-  same <- identical(fetched$effective_url, issuer)
+  keep <- identical(fetched$effective_url, issuer) &&
+    !identical(outcome, "updated")
   psl_validator_update(
-    if (same) psl_state_field(state, "etag") else NA_character_,
-    if (same) psl_state_field(state, "last_modified") else NA_character_,
-    fetched$response$headers,
-    replace = identical(psl_response_class(fetched$response), "ok")
+    if (keep) psl_state_field(state, "etag") else NA_character_,
+    if (keep) psl_state_field(state, "last_modified") else NA_character_,
+    fetched$response$headers
   )
 }
 
@@ -228,7 +230,7 @@ psl_plan_state <- function(
   retrieved_at
 ) {
   psl_check_empty_dots(...)
-  validators <- psl_plan_validators(state, fetched)
+  validators <- psl_plan_validators(state, fetched, outcome)
   stamp <- psl_format_time(now)
   list(
     effective_url = fetched$effective_url,

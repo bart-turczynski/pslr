@@ -51,14 +51,17 @@ psl_transport <- function() {
 # Headers
 # ---------------------------------------------------------------------------
 
-# Fields that carry a validator: the two response fields pslr stores, and the
-# two request fields it sends them back in.
-psl_validator_fields <- c(
-  "etag",
-  "last-modified",
-  "if-none-match",
-  "if-modified-since"
-)
+# Fields that hold an entity tag: the response's ETag and the request's
+# If-None-Match. RFC 9110 lets an entity tag carry obs-text (bytes 0x80-0xFF),
+# so these keep their exact bytes.
+psl_entity_tag_fields <- c("etag", "if-none-match")
+
+# Fields that hold an HTTP-date, which is ASCII by definition.
+psl_date_validator_fields <- c("last-modified", "if-modified-since")
+
+# Validator fields a response sends once. Repeated, neither value can be told
+# from the other, so the field is unusable.
+psl_singleton_validator_fields <- c("etag", "last-modified")
 
 psl_empty_headers <- function() {
   out <- character()
@@ -68,18 +71,19 @@ psl_empty_headers <- function() {
 
 # Normalize headers to a named character vector with lowercase field names.
 # Accepts the named list `curl::parse_headers_list()` returns as well as a
-# plain named character vector, so a test double can hand over either. Repeated
-# fields collapse into one comma-separated value, which is how HTTP defines a
-# repeated field anyway; a list is flattened into one value per element first,
-# so both shapes combine the same way.
+# plain named character vector, so a test double can hand over either; a list
+# is flattened into one value per element first, so both shapes read the same.
+# Repeated fields collapse into one comma-separated value, which is how HTTP
+# defines a repeated field anyway. A repeated ETag or Last-Modified is the
+# exception: it names one value, so it is dropped as unusable (PSLR-tiugfvxh).
 #
 # A name or value that is not valid UTF-8 is reduced to ASCII first, so server
-# bytes reach no string function that would fail on them. A validator is the
-# exception: pslr stores it and sends it back byte for byte
-# (R/validator-policy.R), and an escaped one would never match on the server.
-# RFC 9110 allows bytes 0x80-0xFF in an entity tag, so a validator value is
-# trimmed byte-wise and carried exactly as it came, whatever its encoding
-# (PSLR-tiugfvxh).
+# bytes reach no string function that would fail on them. An entity tag is
+# the exception: pslr stores it and sends it back byte for byte
+# (R/validator-policy.R), and an escaped one would never match on the server,
+# so it is marked as "bytes" -- no paste, regex or curl call then re-encodes
+# or chokes on it. A Last-Modified that is not ASCII is no HTTP-date, and is
+# dropped as unusable (PSLR-mlnfdltl, PSLR-tiugfvxh).
 psl_normalize_headers <- function(headers) {
   if (is.null(headers) || !length(headers)) {
     return(psl_empty_headers())
@@ -92,13 +96,20 @@ psl_normalize_headers <- function(headers) {
   if (!is.character(headers) || is.null(names(headers))) {
     stop("Headers must be a named character vector.", call. = FALSE)
   }
-  if (!length(headers)) {
-    return(psl_empty_headers())
-  }
   fields <- psl_ascii_lower(trimws(psl_escape_invalid_utf8(names(headers))))
   values <- psl_trim_bytes(unname(headers))
-  escape <- !fields %in% psl_validator_fields
-  values[escape] <- psl_escape_invalid_utf8(values[escape])
+  singleton <- fields %in% psl_singleton_validator_fields
+  repeated <- singleton & fields %in% fields[duplicated(fields)]
+  garbled <- fields %in% psl_date_validator_fields & !psl_is_ascii(values)
+  keep <- !repeated & !garbled
+  fields <- fields[keep]
+  values <- values[keep]
+  if (!length(fields)) {
+    return(psl_empty_headers())
+  }
+  tag <- fields %in% psl_entity_tag_fields
+  Encoding(values[tag]) <- "bytes"
+  values[!tag] <- psl_escape_invalid_utf8(values[!tag])
   unique_fields <- unique(fields)
   out <- vapply(
     unique_fields,
@@ -110,9 +121,19 @@ psl_normalize_headers <- function(headers) {
 }
 
 # `x` without leading or trailing whitespace, matched byte by byte so a value
-# that is not valid UTF-8 keeps every other byte as it was.
+# that is not valid UTF-8 keeps every other byte as it was. A byte-wise
+# substitution drops the encoding mark, so it is put back: a UTF-8 Location
+# must stay UTF-8 in a session that is not.
 psl_trim_bytes <- function(x) {
-  gsub("^[ \t\r\n]+|[ \t\r\n]+$", "", x, useBytes = TRUE)
+  out <- gsub("^[ \t\r\n]+|[ \t\r\n]+$", "", x, useBytes = TRUE)
+  Encoding(out) <- Encoding(x)
+  out
+}
+
+# Does each element of `x` hold only ASCII bytes?
+psl_is_ascii <- function(x) {
+  ascii <- vapply(x, \(v) all(charToRaw(v) < as.raw(0x80)), logical(1))
+  unname(ascii)
 }
 
 # One header value, or `NA` when the field is absent.
@@ -128,10 +149,10 @@ psl_response_header <- function(response, name) {
 # A field name must be an HTTP token and a value must contain no CR, LF, NUL,
 # or other ASCII control character: a header pslr *sends* is assembled from
 # stored state, and an unchecked control character there is request splitting.
-# Values are also capped, matching the validator size rule. Both checks read
-# bytes, as the validator rules do: a stored validator may hold obs-text bytes
-# that are not valid UTF-8, and a byte from 0x80 to 0x9F is obs-text on the
-# wire, not a control character (PSLR-tiugfvxh).
+# Values are also capped, matching the validator size rule. The control check
+# is the validator rule itself (psl_has_control_bytes()), so a value that is
+# not valid UTF-8 -- an obs-text entity tag -- is read byte by byte, and one
+# that is valid UTF-8 is also refused a C1 control (PSLR-tiugfvxh).
 psl_check_request_headers <- function(headers) {
   if (!length(headers)) {
     return(invisible(NULL))
@@ -425,23 +446,9 @@ psl_curl_handle <- function(request) {
     accept_encoding = "gzip"
   )
   if (length(request$headers)) {
-    psl_curl_setheaders(handle, request$headers)
+    curl::handle_setheaders(handle, .list = as.list(request$headers))
   }
   handle
-}
-
-# Hand the request headers to libcurl, which sends each value's bytes as they
-# are. curl::handle_setheaders() first runs a regex over every value, and
-# under a UTF-8 ctype that warns on a validator holding bytes that are not
-# valid UTF-8, so such headers are set under the C ctype, where every byte is
-# a character of its own (PSLR-tiugfvxh).
-psl_curl_setheaders <- function(handle, headers) {
-  if (!all(validUTF8(headers))) {
-    ctype <- Sys.getlocale("LC_CTYPE")
-    on.exit(Sys.setlocale("LC_CTYPE", ctype), add = TRUE)
-    Sys.setlocale("LC_CTYPE", "C")
-  }
-  curl::handle_setheaders(handle, .list = as.list(headers))
 }
 
 # Redirect hops libcurl actually followed, or `NA` when it cannot be read.
