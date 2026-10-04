@@ -582,3 +582,43 @@ test_that("a valid UTF-8 header block parses as before", {
   expect_equal(psl_response_header(response, "etag"), "\"v5\"")
   expect_equal(psl_response_header(response, "x-name"), value)
 })
+
+test_that("a valid UTF-8 header beside an invalid one is read as sent", {
+  # The escape is per header: one bad byte elsewhere in the block must not
+  # rewrite the characters of another header (PSLR-mlnfdltl).
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+  request <- local_request()
+  writeLines("", request$destfile)
+  etag <- enc2utf8(paste0("\"caf", intToUtf8(0xE9), "\""))
+  block <- c(
+    charToRaw("HTTP/1.1 200 OK\r\nETag: "),
+    charToRaw(etag),
+    charToRaw("\r\nX-A: "),
+    as.raw(0xff),
+    charToRaw("\r\n\r\n")
+  )
+  fetched <- list(status_code = 200L, url = request$url, headers = block)
+
+  response <- psl_curl_response(fetched, NULL, request)
+
+  expect_identical(
+    charToRaw(psl_response_header(response, "etag")),
+    charToRaw(etag)
+  )
+  expect_equal(psl_response_header(response, "x-a"), "<ff>")
+})
+
+test_that("an empty or missing header block reads as no headers", {
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+
+  expect_length(psl_curl_headers(raw()), 0L)
+  expect_length(psl_curl_headers(NULL), 0L)
+
+  request <- local_request()
+  writeLines("", request$destfile)
+  fetched <- list(status_code = 304L, url = request$url, headers = raw())
+  response <- psl_curl_response(fetched, NULL, request)
+  expect_length(response$headers, 0L)
+})

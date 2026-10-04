@@ -475,16 +475,18 @@ psl_curl_response <- function(fetched, handle, request) {
 }
 
 # The response's header block as the named list curl::parse_headers_list()
-# returns. That function matches the whole block as one string, and under a
-# UTF-8 ctype one header byte that is not valid UTF-8 makes it return an empty
-# list: ETag, Last-Modified and Retry-After vanish with it. Such a block is
-# reduced to ASCII first, every non-ASCII byte in it written as `<xx>`
-# (PSLR-mlnfdltl).
+# returns, each value holding the bytes the server sent. That function matches
+# the whole block as one string, and under a UTF-8 ctype one header byte that
+# is not valid UTF-8 makes it return an empty list: ETag, Last-Modified and
+# Retry-After vanish with it. Under the C ctype every byte is a character of
+# its own, so the block is parsed there, header by header, and
+# psl_normalize_headers() deals with the bytes of each header on its own: a
+# header that is valid UTF-8 is read exactly as sent (PSLR-mlnfdltl).
 psl_curl_headers <- function(headers) {
-  if (is.raw(headers)) {
-    headers <- rawToChar(headers)
-  }
-  curl::parse_headers_list(psl_escape_invalid_utf8(headers))
+  ctype <- Sys.getlocale("LC_CTYPE")
+  on.exit(Sys.setlocale("LC_CTYPE", ctype), add = TRUE)
+  Sys.setlocale("LC_CTYPE", "C")
+  curl::parse_headers_list(headers)
 }
 
 # Perform one request through the transport in force and validate what came
