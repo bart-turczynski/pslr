@@ -53,8 +53,7 @@ Documented deviations from the goodpractice set — test-idiom and public-API
 reasons a real package hits as it grows:
 
 - `object_name_linter` / `object_usage_linter`: not part of the goodpractice set
-  and deliberately NOT added. The cucumber DSL (`when`/`then`/`context`) and the
-  testthat helpers read as undefined globals to `object_usage_linter`, and
+  and deliberately NOT added. The testthat helpers read as undefined globals to `object_usage_linter`, and
   packages commonly expose mixed-case or dotted public parameters plus
   `._`-prefixed internal helpers that `object_name_linter` would flag.
 - `expect_identical_linter`: off. Suites routinely rely on `expect_equal()`'s
@@ -82,9 +81,6 @@ reasons a real package hits as it grows:
 - Prefer specific expectations over `expect_true()` / `expect_false()`.
 - Use `expect_snapshot()` for printed output and `expect_snapshot(error = TRUE)`
   for errors.
-- Behavior specs are Cucumber `.feature` files under `tests/testthat/`, with
-  steps in `setup-steps.R` run via `test-cucumber.R`; `R CMD check` exercises
-  them.
 - New code requires tests.
 
 ## Documentation

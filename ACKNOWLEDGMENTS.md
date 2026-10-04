@@ -51,7 +51,7 @@ The third-party libraries I import at runtime:
 
 And the tooling that keeps all of this tested, documented, and honest:
 **testthat**, **knitr**, **rmarkdown**, **withr**, **roxygen2**, **pkgdown**,
-**lintr**, **goodpractice**, **covr**, **cucumber**, **digest**, **air**, and
+**lintr**, **goodpractice**, **covr**, **digest**, **air**, and
 the **oysteR** / **rosv** vulnerability auditors.
 
 ## The data I serve

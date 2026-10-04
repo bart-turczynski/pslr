@@ -352,7 +352,8 @@ second-order factor in the default cache-served path (D11), so the win is most
 visible on cache-cold, large-batch, and cache-disabled workloads; the hash-set
 baseline it replaced was already comfortably under the 2 s release gate, so this
 is a headroom improvement, not a fix for a hot spot. The differential oracle
-(D16) and Cucumber remain the correctness net now that the cross-check against a
+(D16) and the acceptance specs (Cucumber then, plain testthat since
+PSLR-lohhvukn) remain the correctness net now that the cross-check against a
 second matcher is gone. Ref: the measurement table above is the durable
 evidence; the retired prototype (both matchers side by side, and the deleted
 `bench/trie-vs-hashset.R`) lives in the git history of branch

@@ -31,7 +31,7 @@ into `site/`):
   `NAMESPACE`.
 - `src/`: the `cpp11` matcher core.
 - `man/`: generated help pages (`devtools::document()`).
-- `tests/testthat/`: testthat tests and Cucumber feature specs.
+- `tests/testthat/`: testthat tests.
 - `vignettes/`: long-form documentation.
 - `data-raw/`: the deterministic snapshot regeneration pipeline.
 - `bench/`: the performance benchmark, kept out of the package build.

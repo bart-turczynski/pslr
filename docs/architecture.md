@@ -320,7 +320,7 @@ edit them by hand; regenerate with `cpp11::cpp_register()` after changing a
 
 ## Testing architecture
 
-- `R CMD check` runs everything below — the behavior specs included.
+- `R CMD check` runs everything below.
 - **Unit tests** (`tests/testthat/test-*.R`) cover each module: parser, dedup,
   duplicates, canonicalize, matcher, cache, query, extract, refresh, use,
   version/rules, bundled-data, profile-rebuild, and the official PSL vectors
@@ -330,10 +330,10 @@ edit them by hand; regenerate with `cpp11::cpp_register()` after changing a
   checked-in RDS baseline, so refactors can *prove* they did not change
   observable behavior. The corpus is authored ASCII-only via `intToUtf8()` for
   byte-stable regeneration.
-- **Cucumber / BDD** (`*.feature` + `setup-steps.R` run by `test-cucumber.R`):
-  acceptance scenarios executed inside the normal test pass, guarded on
-  `cucumber` being installed so `_R_CHECK_DEPENDS_ONLY_=true` degrades
-  gracefully.
+- **Acceptance** (`test-acceptance.R`): cross-cutting freshness scenarios that
+  exercise refresh, publication, selection, status, reminders and pruning
+  together. The user-level outcomes the retired Cucumber specs stated are plain
+  testthat checks in `test-query.R` and `test-status.R` (PSLR-lohhvukn).
 - **Helpers**: `helper-active.R` provides `local_fake_transport()` (the injected
   network double, scripted per request with status, headers, and body),
   `seed_legacy_cache()` (a v1 cache to migrate from), and `local_pslr_clean()`
