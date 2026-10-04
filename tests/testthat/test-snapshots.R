@@ -315,6 +315,24 @@ test_that("an unreadable selection stream flags no snapshot as selected", {
   expect_identical(sum(psl_snapshots()$selected_cache), 0L)
 })
 
+test_that("a selection naming a checksum that is not UTF-8 warns nothing", {
+  # PSLR-vqrwsjar: reading such a record warned "unable to translate" and
+  # "input string 1 is invalid" from the identity check. Only the warnings are
+  # pinned here; how activation resolves the bad selection is not.
+  local_utf8_ctype()
+  cache <- local_pslr_clean()
+  seed_legacy_cache(cache)
+  psl_migrate_legacy_cache(quiet = TRUE)
+  path <- file.path(psl_selection_stream_dir(), psl_generation_name(1L))
+  record <- readRDS(path)
+  record$checksum <- "sha256:\xff"
+  saveRDS(record, path)
+
+  expect_no_warning(snapshots <- psl_snapshots())
+  expect_identical(sum(snapshots$selected_cache), 0L)
+  expect_no_warning(tryCatch(psl_use("cache"), error = \(e) NULL))
+})
+
 test_that("the active cache snapshot is flagged", {
   local_pslr_clean()
   path <- write_test_list()
