@@ -69,6 +69,74 @@ test_that("headers collapse repeated fields and accept curl's list shape", {
   expect_length(psl_normalize_headers(NULL), 0L)
 })
 
+test_that("a header holding bytes that are not valid UTF-8 still normalizes", {
+  # A transport may hand over raw server bytes. trimws() and chartr() both fail
+  # on them under a UTF-8 ctype, so each such name or value is reduced to
+  # ASCII with every other byte written as `<xx>` (PSLR-mlnfdltl).
+  local_utf8_ctype()
+  headers <- c(" X-B\xffD " = " v\xfe ", ETag = " \"a\" ")
+
+  expect_no_condition(normalized <- psl_normalize_headers(headers))
+  expect_named(normalized, c("x-b<ff>d", "etag"))
+  expect_equal(unname(normalized), c("v<fe>", "\"a\""))
+})
+
+test_that("a valid UTF-8 header keeps its characters", {
+  local_utf8_ctype()
+  value <- intToUtf8(c(0x7A, 0xF3, 0x142, 0x77))
+
+  expect_equal(
+    unname(psl_normalize_headers(c("X-Name" = paste0(" ", value, " ")))),
+    value
+  )
+})
+
+test_that("a response header holding a 0xff byte leaves the others readable", {
+  local_utf8_ctype()
+  response <- new_psl_transport_response(
+    503L,
+    headers = c(ETag = "\"v\xff\"", "Retry-After" = "30")
+  )
+
+  expect_equal(psl_response_header(response, "etag"), NA_character_)
+  expect_equal(psl_response_retry_after(response), 30L)
+})
+
+test_that("a validator that needed escaping reads as absent", {
+  # pslr sends a validator back byte for byte, so an escaped one would never
+  # match on the server; it is dropped and the stored one kept (PSLR-mlnfdltl).
+  local_utf8_ctype()
+  headers <- c(
+    ETag = "\"v\xff\"",
+    "Last-Modified" = "Mon, 05 Oct 2026 10:00:00 GMT\xff",
+    "Retry-After" = "3\xff",
+    "Cache-Control" = "max-age=60"
+  )
+
+  normalized <- psl_normalize_headers(headers)
+
+  expect_named(normalized, c("retry-after", "cache-control"))
+  expect_equal(unname(normalized), c("3<ff>", "max-age=60"))
+})
+
+test_that("a curl validator holding a 0xff byte reads as absent", {
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+  request <- local_request()
+  writeLines("", request$destfile)
+  block <- c(
+    charToRaw("HTTP/1.1 304 Not Modified\r\nETag: \"v"),
+    as.raw(0xff),
+    charToRaw("\"\r\nRetry-After: 30\r\n\r\n")
+  )
+  fetched <- list(status_code = 304L, url = request$url, headers = block)
+
+  response <- psl_curl_response(fetched, NULL, request)
+
+  expect_equal(psl_response_header(response, "etag"), NA_character_)
+  expect_equal(psl_response_header(response, "retry-after"), "30")
+})
+
 test_that("a response exposes status, headers, effective URL, and body", {
   response <- new_psl_transport_response(
     200L,
@@ -258,6 +326,189 @@ test_that("a libcurl message holding invalid UTF-8 still gets a token", {
   expect_equal(psl_curl_reason("\xff\xfe\xfd"), "transport")
 })
 
+test_that("a host name quoted in a libcurl message does not pick the reason", {
+  # The host can come from a redirect target, so a name holding "filesize",
+  # "timeout" or "ssl" must not turn a DNS or connect failure into a limit,
+  # timeout or TLS one (PSLR-mlnfdltl).
+  for (host in c("filesize.example", "timeout.example", "ssl.example.org")) {
+    expect_equal(
+      psl_curl_reason(paste("Could not resolve host:", host)),
+      "dns",
+      label = host
+    )
+    expect_equal(
+      psl_curl_reason(sprintf(
+        "Failed to connect to %s port 443 after 3 ms: Connection refused",
+        host
+      )),
+      "connect",
+      label = host
+    )
+    expect_equal(
+      psl_curl_reason(sprintf(
+        "Could not resolve hostname [%s]:\nCould not resolve host: %s",
+        host,
+        host
+      )),
+      "dns",
+      label = host
+    )
+    # Older libcurl quotes the host after an apostrophe of its own.
+    expect_equal(
+      psl_curl_reason(sprintf("Couldn't resolve host '%s'", host)),
+      "dns",
+      label = host
+    )
+  }
+  expect_equal(
+    psl_curl_reason(paste(
+      "OpenSSL SSL_connect: SSL_ERROR_SYSCALL",
+      "in connection to timeout.example:443"
+    )),
+    "tls"
+  )
+  expect_equal(
+    psl_curl_reason(paste(
+      "SSL: certificate subject name (filesize.example)",
+      "does not match target host name 'timeout.example'"
+    )),
+    "tls"
+  )
+  expect_equal(
+    psl_curl_reason(paste(
+      "Failed to connect to ssl.example.org port 443 after 10001 ms:",
+      "Timeout was reached"
+    )),
+    "timeout"
+  )
+})
+
+test_that("parenthesized text that names no host still picks the reason", {
+  expect_equal(
+    psl_curl_reason("Recv failure (Connection timed out)"),
+    "timeout"
+  )
+  expect_equal(psl_curl_reason("Recv failure (SSL_ERROR_SYSCALL)"), "tls")
+})
+
+test_that("curl's bracketed host suffix does not pick the reason", {
+  # curl >= 6.0.0 appends ` [host]` to libcurl's text before its detail line;
+  # a code with no token of its own still reads the message (PSLR-mlnfdltl).
+  expect_equal(
+    psl_curl_reason(
+      paste(
+        "Failure when receiving data from the peer [filesize.example]:",
+        "Recv failure: Connection reset by peer",
+        sep = "\n"
+      ),
+      "curl_error_recv_error"
+    ),
+    "connect"
+  )
+})
+
+test_that("a host curl 5.x brackets mid-message does not pick the reason", {
+  # curl < 6.0.0 raises a plain simpleError, so the message alone decides.
+  expect_equal(
+    psl_curl_reason(paste(
+      "Timeout was reached: [filesize.example]",
+      "Resolving timed out after 10000 milliseconds"
+    )),
+    "timeout"
+  )
+  expect_equal(
+    psl_curl_reason(paste(
+      "SSL peer certificate or SSH remote key was not OK: [timeout.example]",
+      "SSL: no alternative certificate subject name matches"
+    )),
+    "tls"
+  )
+})
+
+test_that("a quoted URL with no host marker does not pick the reason", {
+  expect_equal(
+    psl_curl_reason("Unsupported proxy syntax in 'http://filesize.example'"),
+    "transport"
+  )
+})
+
+# A condition shaped like the ones curl >= 6.0.0 raises: its class names the
+# libcurl error code, and its message quotes the host in brackets.
+curl_condition <- function(code, message) {
+  structure(
+    class = c(paste0("curl_error_", code), "curl_error", "error", "condition"),
+    list(message = message, call = NULL)
+  )
+}
+
+test_that("curl's error class picks the reason over the message", {
+  expect_equal(
+    psl_curl_reason("Timeout was reached", "curl_error_couldnt_resolve_host"),
+    "dns"
+  )
+  expect_equal(
+    psl_curl_reason("anything", "curl_error_couldnt_resolve_proxy"),
+    "dns"
+  )
+  expect_equal(
+    psl_curl_reason("anything", "curl_error_operation_timedout"),
+    "timeout"
+  )
+  expect_equal(
+    psl_curl_reason("anything", "curl_error_peer_failed_verification"),
+    "tls"
+  )
+  expect_equal(
+    psl_curl_reason("anything", "curl_error_ssl_connect_error"),
+    "tls"
+  )
+  expect_equal(
+    psl_curl_reason("Could not resolve host", "curl_error_couldnt_connect"),
+    "connect"
+  )
+  expect_equal(
+    psl_curl_reason("anything", "curl_error_filesize_exceeded"),
+    "limit"
+  )
+  # A code with no mapping of its own falls back to the message.
+  expect_equal(
+    psl_curl_reason("Recv failure: Connection reset", "curl_error_recv_error"),
+    "connect"
+  )
+})
+
+test_that("a DNS failure for a misleading host name stays a DNS failure", {
+  request <- local_request()
+  for (host in c("filesize.example", "timeout.example", "ssl.example.org")) {
+    message <- sprintf(
+      "Could not resolve hostname [%s]:\nCould not resolve host: %s",
+      host,
+      host
+    )
+    for (cnd in list(
+      simpleError(message),
+      curl_condition("couldnt_resolve_host", message)
+    )) {
+      out <- tryCatch(psl_curl_failed(cnd, request), condition = identity)
+      expect_s3_class(out, "pslr_refresh_transport_error")
+      expect_equal(out$reason, "dns", label = host)
+    }
+  }
+})
+
+test_that("curl's size-ceiling class is a limit error whatever the message", {
+  request <- local_request()
+  cnd <- tryCatch(
+    psl_curl_failed(
+      curl_condition("filesize_exceeded", "Exceeded the maximum allowed size"),
+      request
+    ),
+    condition = identity
+  )
+
+  expect_s3_class(cnd, "pslr_refresh_response_limit_error")
+})
+
 test_that("a timeout becomes a transport error carrying no raw trace", {
   request <- local_request()
   writeLines("partial", request$destfile)
@@ -367,4 +618,91 @@ test_that("a 200 response reports the staged body and its byte count", {
   expect_equal(response$body_path, request$destfile)
   expect_equal(response$bytes_downloaded, 10L)
   expect_equal(response$effective_url, "https://cdn.example.org/list.dat")
+})
+
+test_that("one header byte that is not valid UTF-8 drops no other header", {
+  # curl::parse_headers_list() returns an empty list for the whole block when
+  # any header holds such a byte under a UTF-8 ctype, which lost the
+  # validators and Retry-After (PSLR-mlnfdltl).
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+  request <- local_request()
+  writeLines("", request$destfile)
+  block <- c(
+    charToRaw("HTTP/1.1 503 Service Unavailable\r\nETag: \"v4\"\r\n"),
+    charToRaw("Last-Modified: Mon, 05 Oct 2026 10:00:00 GMT\r\nX-B"),
+    as.raw(0xff),
+    charToRaw("d: v"),
+    as.raw(0xfe),
+    charToRaw("\r\nRetry-After: 30\r\n\r\n")
+  )
+  fetched <- list(status_code = 503L, url = request$url, headers = block)
+
+  expect_no_condition(response <- psl_curl_response(fetched, NULL, request))
+  expect_equal(psl_response_header(response, "etag"), "\"v4\"")
+  expect_equal(
+    psl_response_header(response, "last-modified"),
+    "Mon, 05 Oct 2026 10:00:00 GMT"
+  )
+  expect_equal(psl_response_retry_after(response), 30L)
+  expect_equal(psl_response_header(response, "x-b<ff>d"), "v<fe>")
+})
+
+test_that("a valid UTF-8 header block parses as before", {
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+  request <- local_request()
+  writeLines("", request$destfile)
+  value <- intToUtf8(c(0x7A, 0xF3, 0x142, 0x77))
+  block <- charToRaw(enc2utf8(paste0(
+    "HTTP/1.1 304 Not Modified\r\nETag: \"v5\"\r\nX-Name: ",
+    value,
+    "\r\n\r\n"
+  )))
+  fetched <- list(status_code = 304L, url = request$url, headers = block)
+
+  response <- psl_curl_response(fetched, NULL, request)
+
+  expect_equal(psl_response_header(response, "etag"), "\"v5\"")
+  expect_equal(psl_response_header(response, "x-name"), value)
+})
+
+test_that("a valid UTF-8 header beside an invalid one is read as sent", {
+  # The escape is per header: one bad byte elsewhere in the block must not
+  # rewrite the characters of another header (PSLR-mlnfdltl).
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+  request <- local_request()
+  writeLines("", request$destfile)
+  etag <- enc2utf8(paste0("\"caf", intToUtf8(0xE9), "\""))
+  block <- c(
+    charToRaw("HTTP/1.1 200 OK\r\nETag: "),
+    charToRaw(etag),
+    charToRaw("\r\nX-A: "),
+    as.raw(0xff),
+    charToRaw("\r\n\r\n")
+  )
+  fetched <- list(status_code = 200L, url = request$url, headers = block)
+
+  response <- psl_curl_response(fetched, NULL, request)
+
+  expect_identical(
+    charToRaw(psl_response_header(response, "etag")),
+    charToRaw(etag)
+  )
+  expect_equal(psl_response_header(response, "x-a"), "<ff>")
+})
+
+test_that("an empty or missing header block reads as no headers", {
+  skip_if_not_installed("curl")
+  local_utf8_ctype()
+
+  expect_length(psl_curl_headers(raw()), 0L)
+  expect_length(psl_curl_headers(NULL), 0L)
+
+  request <- local_request()
+  writeLines("", request$destfile)
+  fetched <- list(status_code = 304L, url = request$url, headers = raw())
+  response <- psl_curl_response(fetched, NULL, request)
+  expect_length(response$headers, 0L)
 })

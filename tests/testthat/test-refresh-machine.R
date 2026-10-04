@@ -655,3 +655,34 @@ test_that("a misspelled optional argument is rejected", {
     "Unexpected argument"
   )
 })
+
+test_that("a rotated validator that needed escaping keeps the stored one", {
+  # A server ETag holding a byte that is not valid UTF-8 cannot be sent back as
+  # issued, so the stored validator survives and the next request still
+  # carries it (PSLR-mlnfdltl).
+  local_utf8_ctype()
+  transport <- local_machine_transport(list(
+    list(status = 304L, headers = c(etag = "\"v\xff\"")),
+    list(status = 304L)
+  ))
+  state <- machine_state(next_check_at = NA)
+  plan <- psl_refresh_transition(
+    machine_url,
+    machine_destfile(),
+    state = state,
+    now = machine_now(),
+    verify = verify_known(state$checksum)
+  )
+  expect_equal(plan$state$etag, "\"v1\"")
+
+  psl_refresh_transition(
+    machine_url,
+    machine_destfile(),
+    state = do.call(machine_state, plan$state),
+    now = machine_now(),
+    force = TRUE,
+    verify = verify_known(state$checksum)
+  )
+  expect_equal(request_count(transport), 2L)
+  expect_equal(machine_request_header(transport, 2L, "if-none-match"), "\"v1\"")
+})

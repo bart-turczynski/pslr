@@ -51,6 +51,9 @@ psl_transport <- function() {
 # Headers
 # ---------------------------------------------------------------------------
 
+# Response fields pslr stores and sends back as validators.
+psl_validator_fields <- c("etag", "last-modified")
+
 psl_empty_headers <- function() {
   out <- character()
   names(out) <- character()
@@ -62,6 +65,13 @@ psl_empty_headers <- function() {
 # plain named character vector, so a test double can hand over either. Repeated
 # fields collapse into one comma-separated value, which is how HTTP defines a
 # repeated field anyway.
+#
+# A name or value that is not valid UTF-8 is reduced to ASCII first, so server
+# bytes reach no string function that would fail on them. A validator is the
+# exception: pslr stores it and sends it back byte for byte
+# (R/validator-policy.R), and an escaped one would never match on the server,
+# so a validator that needed escaping is dropped as if absent, and the stored
+# validator is kept (PSLR-mlnfdltl).
 psl_normalize_headers <- function(headers) {
   if (is.null(headers) || !length(headers)) {
     return(psl_empty_headers())
@@ -72,8 +82,14 @@ psl_normalize_headers <- function(headers) {
   if (!is.character(headers) || is.null(names(headers))) {
     stop("Headers must be a named character vector.", call. = FALSE)
   }
-  fields <- psl_ascii_lower(trimws(names(headers)))
-  values <- trimws(unname(headers))
+  fields <- psl_ascii_lower(trimws(psl_escape_invalid_utf8(names(headers))))
+  values <- unname(headers)
+  garbled <- !validUTF8(values) & fields %in% psl_validator_fields
+  fields <- fields[!garbled]
+  values <- trimws(psl_escape_invalid_utf8(values[!garbled]))
+  if (!length(fields)) {
+    return(psl_empty_headers())
+  }
   unique_fields <- unique(fields)
   out <- vapply(
     unique_fields,
@@ -328,9 +344,27 @@ psl_require_response_status <- function(response, request_url = NA_character_) {
 # every other byte written as `<xx>`: quoted server bytes need not be valid
 # UTF-8, and both the lowercasing and the matching fail on such input
 # (PSLR-ejksqarh).
-psl_curl_reason <- function(message) {
+#
+# `class` is the condition's class. curl >= 6.0.0 names the libcurl error code
+# there (`curl_error_couldnt_resolve_host`), and a code with a token of its own
+# decides the reason outright. Otherwise the message decides, with the host
+# names it quotes taken out first: a host can come from a redirect target, and
+# "Could not resolve host: filesize.example" is a DNS failure, not a size limit
+# (PSLR-mlnfdltl).
+psl_curl_reason <- function(message, class = character()) {
+  codes <- c(
+    limit = "^curl_error_filesize_exceeded$",
+    timeout = "^curl_error_operation_timedout$",
+    dns = "^curl_error_couldnt_resolve_(host|proxy)$",
+    tls = "^curl_error_(ssl_|peer_failed_verification$|use_ssl_failed$)",
+    connect = "^curl_error_couldnt_connect$"
+  )
+  hit <- names(codes)[vapply(codes, \(re) any(grepl(re, class)), logical(1))]
+  if (length(hit)) {
+    return(hit[[1L]])
+  }
   message <- iconv(message, to = "ASCII", sub = "byte")
-  message <- psl_ascii_lower(message)
+  message <- psl_curl_strip_hosts(psl_ascii_lower(message))
   patterns <- c(
     limit = "file ?size|maximum file size",
     timeout = "timed out|timeout|operation too slow",
@@ -340,6 +374,25 @@ psl_curl_reason <- function(message) {
   )
   hit <- names(patterns)[vapply(patterns, grepl, logical(1), x = message)]
   if (length(hit)) hit[[1L]] else "transport"
+}
+
+# A lowercased libcurl message without the host names it quotes: every
+# bracketed span (curl writes the host as `[host]`, after the strerror text in
+# curl 5.x and ahead of its `:` detail line from 6.0.0), every quoted span
+# (libcurl quotes hosts and URLs, as in "proxy syntax in 'http://...'"; an
+# apostrophe inside a word such as "Couldn't" opens none), and the bare token
+# right after "host:", "proxy:", "resolve host", "host name", "subject name",
+# "connect to" or "connection to". Parenthesized detail such as
+# "(Connection timed out)" or "(SSL_ERROR_SYSCALL)" stays: it names the reason.
+psl_curl_strip_hosts <- function(message) {
+  message <- gsub("\\[[^]]*\\]", "", message)
+  message <- gsub("(^|[^[:alnum:]])('[^']*'|\"[^\"]*\")", "\\1", message)
+  markers <- paste0(
+    "(host:|proxy:|resolve host|host name|subject name|connect to|",
+    "connection to)"
+  )
+  token <- "(\\([^)]*\\)|[^[:space:]]+)"
+  gsub(paste0(markers, "[[:space:]]+", token), "\\1", message)
 }
 
 # Build the libcurl handle for one request. No automatic retries are configured
@@ -395,7 +448,7 @@ psl_curl_transport <- function(request) {
 # transport one.
 psl_curl_failed <- function(cnd, request) {
   unlink(request$destfile)
-  reason <- psl_curl_reason(conditionMessage(cnd))
+  reason <- psl_curl_reason(conditionMessage(cnd), class(cnd))
   if (identical(reason, "limit")) {
     stop(psl_refresh_response_limit_error(
       NA_real_,
@@ -432,12 +485,31 @@ psl_curl_response <- function(fetched, handle, request) {
   }
   new_psl_transport_response(
     status = status,
-    headers = psl_normalize_headers(curl::parse_headers_list(fetched$headers)),
+    headers = psl_normalize_headers(psl_curl_headers(fetched$headers)),
     effective_url = fetched$url,
     body_path = if (has_body) request$destfile else NA_character_,
     bytes_downloaded = if (has_body) as.integer(size) else 0L,
     redirects = psl_curl_redirects(handle)
   )
+}
+
+# The response's header block as the named list curl::parse_headers_list()
+# returns, each value holding the bytes the server sent. That function matches
+# the whole block as one string, and under a UTF-8 ctype one header byte that
+# is not valid UTF-8 makes it return an empty list: ETag, Last-Modified and
+# Retry-After vanish with it. Under the C ctype every byte is a character of
+# its own, so a block holding any byte at or above 0x80 is parsed there,
+# header by header, and psl_normalize_headers() deals with the bytes of each
+# header on its own: a header that is valid UTF-8 is read exactly as sent. An
+# all-ASCII block, the usual case, is parsed without touching the session's
+# locale (PSLR-mlnfdltl).
+psl_curl_headers <- function(headers) {
+  if (is.raw(headers) && any(headers >= as.raw(0x80))) {
+    ctype <- Sys.getlocale("LC_CTYPE")
+    on.exit(Sys.setlocale("LC_CTYPE", ctype), add = TRUE)
+    Sys.setlocale("LC_CTYPE", "C")
+  }
+  curl::parse_headers_list(headers)
 }
 
 # Perform one request through the transport in force and validate what came
