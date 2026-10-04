@@ -101,6 +101,18 @@ psl_status_integrity_message <- function(integrity) {
   )
 }
 
+psl_status_legacy_checksum_message <- function() {
+  sprintf(
+    paste0(
+      "The legacy cache in %s cannot be trusted because %s. ",
+      "Run psl_refresh(force = TRUE) to publish a fresh snapshot; the legacy ",
+      "files can then be removed by hand."
+    ),
+    psl_cache_dir(),
+    psl_checksum_unreadable
+  )
+}
+
 psl_status_ambiguous_message <- function() {
   paste(
     "More than one source records these exact bytes, so no single source",
@@ -248,11 +260,23 @@ psl_status_inspect_legacy <- function() {
       message = psl_status_missing_message()
     ))
   }
+  # A recorded checksum pslr cannot verify names no bytes, so no source claim
+  # can rest on it: `unknown`, keeping the value as recorded, as a selected
+  # snapshot that fails its integrity check keeps its checksum (PSLR-izeypfus).
+  parsed <- psl_parse_checksum(current$meta$checksum)
+  if (is.null(parsed)) {
+    return(psl_status_snapshot_fields(
+      "cache",
+      current$meta$checksum,
+      state = "unknown",
+      message = psl_status_legacy_checksum_message()
+    ))
+  }
   # The marker may spell the checksum in mixed case; the row carries the
   # canonical form, so the column and the printed form agree (PSLR-nffupurr).
   psl_status_snapshot_fields(
     "cache",
-    psl_canonical_checksum(current$meta$checksum),
+    paste0(parsed$algorithm, ":", parsed$hex),
     retrieved_at = psl_parse_list_date(current$meta$retrieved_at)
   )
 }

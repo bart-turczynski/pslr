@@ -118,7 +118,7 @@ psl_migration_result <- function(
 psl_migration_faults <- c(
   marker_malformed = "its commit marker is unreadable or malformed",
   bytes_missing = "the snapshot file it names is missing",
-  checksum_unreadable = "its recorded checksum is not a checksum pslr wrote",
+  checksum_unreadable = psl_checksum_unreadable,
   checksum_mismatch = "the snapshot file does not match its recorded checksum",
   invalid_list = "the snapshot file is not a valid Public Suffix List"
 )
@@ -158,13 +158,9 @@ psl_migration_verify <- function(path, recorded) {
   if (!file.exists(path)) {
     return("bytes_missing")
   }
-  parsed <- psl_parse_checksum(recorded)
-  if (is.null(parsed)) {
-    return("checksum_unreadable")
-  }
-  actual <- psl_checksum(path, parsed$algorithm)
-  if (!identical(actual, paste0(parsed$algorithm, ":", parsed$hex))) {
-    return("checksum_mismatch")
+  fault <- psl_checksum_fault(path, recorded)
+  if (!identical(fault, "ok")) {
+    return(fault)
   }
   ok <- tryCatch(
     {

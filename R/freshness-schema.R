@@ -88,6 +88,12 @@ psl_parse_checksum <- function(x) {
   list(algorithm = algorithm, hex = hex)
 }
 
+# What every surface says about a recorded checksum psl_parse_checksum() cannot
+# read -- bytes that are not hex or not UTF-8, or an algorithm pslr does not
+# hash -- so activation, migration and status cannot drift apart
+# (PSLR-izeypfus). Nothing was compared, so it is never called a mismatch.
+psl_checksum_unreadable <- "its recorded checksum is not one pslr can verify"
+
 # The canonical `<algorithm>:<lowercase hex>` spelling of a checksum reference,
 # or `x` unchanged when psl_parse_checksum() cannot read it, so an unreadable
 # value still shows as recorded (PSLR-nffupurr).

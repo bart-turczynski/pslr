@@ -110,7 +110,8 @@ test_that("an sha256-recorded checksum verifies against the recorded bytes", {
 test_that("a recorded checksum verifies in any prefix or hex case", {
   # PSLR-nffupurr: verification reads the value with psl_parse_checksum(), so
   # an upper- or mixed-case spelling is neither an unsupported algorithm nor a
-  # false mismatch, and an unreadable value fails without erroring.
+  # false mismatch. An unreadable value is its own fault, never a mismatch
+  # (PSLR-izeypfus).
   path <- bundled_dat_path()
   hex <- sub("^sha256:", "", psl_source_checksum(path))
   upper <- chartr("abcdef", "ABCDEF", hex)
@@ -125,8 +126,21 @@ test_that("a recorded checksum verifies in any prefix or hex case", {
     expect_true(psl_verify_checksum(path, spelling), info = spelling)
   }
   for (spelling in c("sha1:abc", "SHA256:nothex", NA_character_)) {
-    expect_false(psl_verify_checksum(path, spelling), info = spelling)
+    expect_identical(
+      psl_checksum_fault(path, spelling),
+      "checksum_unreadable",
+      info = spelling
+    )
+    expect_error(
+      psl_verify_checksum(path, spelling),
+      "not a checksum pslr can verify",
+      info = spelling
+    )
   }
+  expect_identical(
+    psl_checksum_fault(path, paste0("sha256:", strrep("0", 64L))),
+    "checksum_mismatch"
+  )
 })
 
 test_that("an unreadable source file is rejected before parsing", {
