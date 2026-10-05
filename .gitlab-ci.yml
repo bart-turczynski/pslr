@@ -260,9 +260,11 @@ variables:
     # the two templates below for the same `!reference` reason as the apt
     # lines.
     #
-    # `apt-mark hold pandoc`, only after a successful `dpkg -i`, keeps the pin
-    # through any later apt step that would replace it with apt's pandoc. A
-    # failed hold only warns, so it never stops a gate (seor
+    # `apt-mark hold pandoc`, only after a successful `dpkg -i`: no later apt
+    # step replaces the pin. An upgrade leaves it, and an install that needs
+    # another pandoc fails loudly. Where apt's pandoc is older than the pin, as
+    # on rocker images, apt would not replace it anyway; the hold is the fleet's
+    # canonical shape. A failed hold only warns, so it never stops a gate (seor
     # design/fleet-standard.md; SEOR-vzupmeqj).
     - |
       ARCH=$(dpkg --print-architecture)
