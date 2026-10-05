@@ -24,7 +24,7 @@
 <dc:relation>https://bart-turczynski.r-universe.dev/pslr</dc:relation>
 <dc:relation>https://bart-turczynski.gitlab.io/pslr/</dc:relation>
 <dc:relation>https://doi.org/10.5281/zenodo.20973660</dc:relation>
-<dc:subject><rdf:Bag><rdf:li>R</rdf:li><rdf:li>rstats</rdf:li><rdf:li>R package</rdf:li><rdf:li>SEO</rdf:li><rdf:li>Public Suffix List</rdf:li><rdf:li>domains</rdf:li><rdf:li>eTLD</rdf:li></rdf:Bag></dc:subject>
+<dc:subject><rdf:Bag><rdf:li>R</rdf:li><rdf:li>rstats</rdf:li><rdf:li>R package</rdf:li><rdf:li>public suffix list</rdf:li><rdf:li>PSL</rdf:li><rdf:li>eTLD</rdf:li><rdf:li>eTLD+1</rdf:li><rdf:li>registrable domain</rdf:li><rdf:li>ICANN</rdf:li><rdf:li>domain parsing</rdf:li><rdf:li>domain extraction</rdf:li><rdf:li>domain names</rdf:li><rdf:li>TLD</rdf:li><rdf:li>cookie domains</rdf:li><rdf:li>IDNA</rdf:li><rdf:li>public suffix</rdf:li></rdf:Bag></dc:subject>
 <dc:contributor>Name set in IBM Plex Mono (SIL Open Font License 1.1), converted to outlines.</dc:contributor>
 <dcterms:alternative>pslr logo</dcterms:alternative>
 <dcterms:created>2026-10-04</dcterms:created>
@@ -48,7 +48,7 @@
 <dc:publisher><rdf:Bag><rdf:li>Bart Turczynski</rdf:li></rdf:Bag></dc:publisher>
 <dc:contributor><rdf:Bag><rdf:li>Name set in IBM Plex Mono (SIL Open Font License 1.1), converted to outlines.</rdf:li></rdf:Bag></dc:contributor>
 <dc:rights><rdf:Alt><rdf:li xml:lang="x-default">&#169; 2026 Bart Turczynski. MIT License.</rdf:li></rdf:Alt></dc:rights>
-<dc:subject><rdf:Bag><rdf:li>R</rdf:li><rdf:li>rstats</rdf:li><rdf:li>R package</rdf:li><rdf:li>SEO</rdf:li><rdf:li>Public Suffix List</rdf:li><rdf:li>domains</rdf:li><rdf:li>eTLD</rdf:li></rdf:Bag></dc:subject>
+<dc:subject><rdf:Bag><rdf:li>R</rdf:li><rdf:li>rstats</rdf:li><rdf:li>R package</rdf:li><rdf:li>public suffix list</rdf:li><rdf:li>PSL</rdf:li><rdf:li>eTLD</rdf:li><rdf:li>eTLD+1</rdf:li><rdf:li>registrable domain</rdf:li><rdf:li>ICANN</rdf:li><rdf:li>domain parsing</rdf:li><rdf:li>domain extraction</rdf:li><rdf:li>domain names</rdf:li><rdf:li>TLD</rdf:li><rdf:li>cookie domains</rdf:li><rdf:li>IDNA</rdf:li><rdf:li>public suffix</rdf:li></rdf:Bag></dc:subject>
 <dc:source>https://gitlab.com/bart-turczynski/pslr</dc:source>
 <dc:relation><rdf:Bag><rdf:li>https://gitlab.com/bart-turczynski/pslr</rdf:li><rdf:li>https://github.com/bart-turczynski/pslr</rdf:li><rdf:li>https://CRAN.R-project.org/package=pslr</rdf:li><rdf:li>https://bart-turczynski.r-universe.dev/pslr</rdf:li><rdf:li>https://bart-turczynski.gitlab.io/pslr/</rdf:li><rdf:li>https://doi.org/10.5281/zenodo.20973660</rdf:li></rdf:Bag></dc:relation>
 <dc:identifier>pslr</dc:identifier>
@@ -69,7 +69,7 @@
 <xmpRights:Owner><rdf:Bag><rdf:li>Bart Turczynski</rdf:li></rdf:Bag></xmpRights:Owner>
 <xmpMM:DocumentID>uuid:76af13a3-1c73-5cc3-958d-7725ff9f0491</xmpMM:DocumentID>
 <xmpMM:OriginalDocumentID>uuid:76af13a3-1c73-5cc3-958d-7725ff9f0491</xmpMM:OriginalDocumentID>
-<xmpMM:InstanceID>uuid:5f0b9f2d-4a83-5da8-b039-25c4b05a5000</xmpMM:InstanceID>
+<xmpMM:InstanceID>uuid:42fbaea1-1745-57b9-9615-a947d6044b4b</xmpMM:InstanceID>
 <photoshop:Headline>pslr: Public Suffix List library for R</photoshop:Headline>
 <photoshop:Credit>Bart Turczynski</photoshop:Credit>
 <photoshop:Source>Bart Turczynski</photoshop:Source>
