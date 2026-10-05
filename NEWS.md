@@ -1,74 +1,15 @@
 # pslr (development version)
 
-* The bundled index is now built under `punycoder` 1.3.0 (profile `uts46-nontransitional-std3-v2`, Unicode 17.0.0), and `Imports:` raises its floor to `punycoder (>= 1.3.0)`, so loading pslr no longer rebuilds the index in memory, which cost about 2.75 s per session under `punycoder` 1.3.0. The rules themselves are unchanged: all 10,323 are identical under both Unicode versions (PSLR-fjkaqckg).
-
-* CI installs pandoc 3.10 in every R job with the fleet's checked install: the `.deb` is checked against the release's published `sha256` digest before `dpkg -i` installs it, and a failed or mismatched download warns instead of installing anything unverified. `scripts/check-toolchain.R` now also fails the pre-push gate when the pandoc `rmarkdown` uses locally differs from `PANDOC_VERSION` in `.gitlab-ci.yml`, so a `README.md` knit locally matches what CI's `readme` job knits (SEOR-dpjdwhbi).
-
-* A v1 cache whose recorded checksum is not one pslr can verify, such as `SHA256:nothex`, `crc32:deadbeef` or a value holding bytes that are not valid UTF-8, gets one diagnosis in one wording. `psl_use("cache")` still refuses it, but for that reason instead of a checksum mismatch it never computed, migration gives the same reason, and `psl_status("cache")` reports `unknown`, keeping the recorded value, instead of `never_checked` against `publicsuffix.org` (PSLR-izeypfus).
-
-* `psl_refresh()` sends an `ETag` back exactly as the server issued it, byte for byte, even when it holds bytes that are not valid UTF-8, since RFC 9110 allows any byte at or above 0x80 in an entity tag: a server with Latin-1 ETags such as `"caf\xe9"` gets conditional requests again. A `Last-Modified` holding such bytes, or any byte outside ASCII, is no HTTP-date and counts as absent, as does an `ETag` or `Last-Modified` sent twice in one response, whatever shape the transport hands the headers over in. An absent or unusable validator on a `304` keeps the stored one. On a `200` with a new body it now clears the stored one instead, which named the previous body: a stale `ETag` used to win over a fresh `Last-Modified` and ask about the old body on every later check. A `200` whose bytes match the stored checksum keeps the stored validator (PSLR-tiugfvxh).
-
-* A cache whose recorded checksum holds bytes that are not valid UTF-8 is read as any other malformed checksum. Under a UTF-8 locale, `psl_use("cache")`, `psl_status()` and the migration of a v1 cache used to fail with base R's "input string 1 is invalid", and a cache selection naming such a checksum made `psl_snapshots()` and `psl_use("cache")` warn "unable to translate ... to a wide string"; now activation refuses the cache as corrupt, migration reports the checksum as unreadable, nothing warns, and status prints the checksum with those bytes written as `<xx>` (PSLR-vqrwsjar).
-
-* `psl_refresh()` reads response headers that hold bytes which are not valid UTF-8. One such byte used to make libcurl's header block read as empty, losing `ETag`, `Last-Modified` and `Retry-After` and with them conditional refresh and the retry delay a server asked for, and a transport passing such a header failed with base R's "invalid input multibyte string" or "input string 1 is invalid UTF-8"; now every other header is read exactly as sent, and a name or value holding such bytes keeps its ASCII with every other byte written as `<xx>`. Validators are the exception; the PSLR-tiugfvxh entry above says how they are read. A libcurl failure also takes its reason from curl's error class where curl provides one, and no longer from the host name in the message: a DNS failure for a host named `filesize.example`, `timeout.example` or `ssl.example.org` is the `dns` transport error, not a response-limit, `timeout` or `tls` one (PSLR-mlnfdltl).
-
-* pslr has a logo, the fleet's black hex, in `man/figures/logo.svg` and `logo.png`. r-universe shows it on the package card and the documentation site in its header, and the `README.md` heading carries it with the alt text "hex logo, white on black" (`SEOR-wxjuxbtu`, `SEOR-wfleahtg`).
-
-* The HTML help page (`?pslr` under `help_type = "html"`, and the pkgdown reference) shows the logo too: `man/pslr-package.Rd` is regenerated now that `man/figures/logo.svg` exists (`SEOR-oopopupm`).
-
-* The logo files carry full metadata: every project link (GitLab, GitHub, CRAN, r-universe, the documentation site and, where one exists, the Zenodo DOI), a screen-reader description and the standard image metadata fields, written by `scripts/logo-metadata.py` in the `seor` repository (`SEOR-eyfiidrv`).
-
-* The logo's keywords are this package's `X-schema.org-keywords` tags, the ones r-universe indexes, as written in `DESCRIPTION` and after `R`, `rstats` and `R package` (`SEOR-qoqmestu`).
-
-* A cache whose recorded checksum is spelled in upper or mixed case (`SHA256:<hex>`, `sha256:<HEX>`, `MD5:<hex>`) now reads as that checksum everywhere. `psl_use("cache")` on a v1 cache not yet migrated used to fail with "unsupported checksum algorithm" or a false checksum mismatch, migration classed an upper-case prefix as unreadable, and `psl_status()` showed the raw spelling; activation, migration and status now all read it, and status shows it in lowercase. pslr itself still writes only lowercase `sha256:<hex>` (PSLR-nffupurr).
-
-* `psl_refresh()` reports a libcurl failure whose message quotes bytes that are not valid UTF-8 as the classed transport error with its `timeout`, `dns`, `tls`, `connect` or `transport` reason, instead of failing with base R's "invalid input multibyte string" (PSLR-ejksqarh).
-
-* The README is for users: it installs from CRAN or from r-universe (`install.packages("pslr", repos = c("https://bart-turczynski.r-universe.dev", "https://cloud.r-project.org"))`), which replaces the GitLab `pak` command, and it summarizes how pslr compares to other PSL libraries in a few lines. The full comparison table, with what pslr does differently and its trade-offs, is the new `vignette("comparison")`. The Development section moved to `CONTRIBUTING.md` and its project layout to `ARCHITECTURE.md` (SEOR-kqmqosji).
-
-* The bundled list loads, and every lowercase comparison holds, under a Turkish or Azerbaijani locale on Linux. Base R's `tolower()` follows the locale, and there glibc maps `I` to `ı`, so the section marker `ICANN` became `ıcann` and loading the list failed with "subscript out of bounds", taking down every caller that touches the PSL (`rurl` included). Section names, checksums, header field names, and the scheme and host of the refresh URL now lowercase as ASCII only (PSLR-yomylzid).
-
-* The human-facing tracker metadata now points at `https://gitlab.com/bart-turczynski/pslr/-/work_items`, the address GitLab actually serves: `.bestpractices.json`, `codemeta.json` and the GitHub pull-request template. `DESCRIPTION`'s `BugReports:` deliberately stays on `https://gitlab.com/bart-turczynski/pslr/-/issues` -- R's CRAN incoming check inspects that field alone and demands that form, and declaring `/-/work_items` there is what got the first pslr 1.2.1 upload archived at the pretest on 2026-09-12 (PSLR-kjkmhrok).
-
-* The release checklist in `CONTRIBUTING.md` now covers archiving a release on Zenodo. The Zenodo archive is produced by a **GitHub Release** on the read-only mirror, not by the tag: a `v*` tag only reaches GitHub if the GitLab project has a `v*` protected-tag rule, and only a published GitHub Release fires the Zenodo webhook. The step stays manual, because automating it from the tag pipeline would need a second GitHub credential with Contents write and the push mirror is meant to be the only writer (SEOR-bzqbjxxo).
-
-* `CITATION.cff` names the version DOI of the release it describes. It still carried the 1.0.2 version DOI at version 1.2.1, and a `date-released` of 2026-07-11 rather than the 2026-09-14 CRAN publication. pslr 1.2.1 is archived at [10.5281/zenodo.22857031](https://doi.org/10.5281/zenodo.22857031); the concept DOI and the README badge are unchanged, as they always resolve to the newest version (SEOR-bzqbjxxo).
-
-* The README and `NEWS.md` are spelled in US English throughout, matching `Language: en-US`, and the British spellings are gone from `inst/WORDLIST`, so the spelling check now rejects them (SEOR-kfiqpymb).
-
-* Project metadata follows the fleet standard: `DESCRIPTION` lists Bart Turczynski as copyright holder (`cph`) and links the r-universe page (`https://bart-turczynski.r-universe.dev/pslr`) ahead of CRAN, `SECURITY.md` adds a confidential GitLab issue as the second reporting channel, the Code of Conduct names `bartek@turczynski.pl` as its contact, and the repository gains `ARCHITECTURE.md`, `SECURITY-INSIGHTS.yml` and GitLab issue and merge request templates (SEOR-twxjxogh).
-
-## Internal
-
-* The test stage of the pre-push gate fails closed on its own. Besides the `stop_on_failure` option of testthat, it reads the results testthat returns and fails unless at least one test ran and none of them failed or raised an error, so `[ FAIL n ]` can no longer be followed by "passed". A run on a full disk was reported doing exactly that; it did not reproduce, and now it cannot happen whatever the cause. `scripts/verify-self-test.sh` pins this on every push in a few seconds: it runs a copy of `tools/verify.sh` against throwaway packages, through a new `tests` tier (the suite alone) and through `standard`, some cases with `stop_on_failure` switched off (PSLR-vacblucj).
-
-* CI builds the `tr_TR.UTF-8` and `az_AZ.UTF-8` locales in the setup every package-installing job shares, so the Turkish and Azerbaijani legs of the parser tests run in `check`, `coverage` and every `full-check` R version instead of skipping. `check` and each `full-check` leg then fail unless every locale leg ran and passed (PSLR-mgqnsbjz).
-
-* The Cucumber behavior specs are plain testthat checks of the same outcomes, in `test-query.R` and `test-status.R`, and `cucumber` is gone from `Suggests` (PSLR-lohhvukn).
-
-* The pre-push gate (`tools/verify.sh`, every tier) fetches every URL the package declares and fails on a dead one, which `R CMD check --as-cran` reports only as a NOTE. `tools/check-urls.R` is the URL check from `sitemapr`: an unreachable host only warns, and the `BugReports:` `/-/issues` 404 is the one exemption (SEOR-twxjxogh).
-
-* CI follows the fleet standard. Every push to `main` runs `R CMD check --as-cran`, coverage (failing below 95%), lint, spelling, the NEWS/version, citation and README drift guards, and the pages deploy. A weekly `deep-check` schedule runs the R devel, release and oldrel legs, an R 4.1.3 leg for the declared `R (>= 4.1.0)` floor, and an ASAN + UBSAN job over the C++ matcher. Every leg resolves current CRAN packages, since the R 4.5 image's dated package snapshot predates `punycoder`, and the coverage figure leaves out the cached library CI keeps inside the package root (SEOR-twxjxogh).
-
-* The `R CMD check` gates (CI's check jobs, `tools/verify.sh` in its `full` and `cran` tiers, and the verify command in the README) also fail when `R CMD check` exits non-zero. `rcmdcheck` reads a check that halted partway as 0 errors, 0 warnings and 0 notes; the `00check.log` guard already caught most such halts, and the exit status is now checked first, the same way across the fleet (`SEOR-maavnxdm`).
-
-* `AGENTS.md` points at the house `agent-workflow` and `fp` skills for the git workflow (SEOR-ipwcbcov).
-
-* The fp-generated agent files `FP_AGENTS.md` and `FP_CLAUDE.md` are gone, along with the `@FP_AGENTS.md` import in `AGENTS.md`. They loaded on every agent request and carried tracker guidance the maintainer's fp skills now replace; `.Rbuildignore` still lists both names, so a regenerated copy stays out of the tarball (PSLR-yqrdpnpk).
-
-* `.bestpractices.json` no longer claims pslr makes no network connections. `psl_refresh()` downloads the list over https, so the silver answers `crypto_used_network`, `crypto_tls12`, `crypto_certificate_verification` and `crypto_verification_private` are now Met, each describing what the refresh path does and what it leaves to libcurl's defaults. `hardening` is Unmet rather than N/A: the C++ matcher is built with the R installation's flags, and pslr adds none of its own (PSLR-sswcufbk).
-
-* CI's `readme` job ignores blank-line-only differences in `README.md`. pandoc versions disagree about the blank line after the badges marker, so a README rendered with a newer local pandoc passed the pre-push gate and then failed CI, as it did in seor (SEOR-kaqtnovh).
-
-* `scripts/bestpractices-url.py` is vendored from seor, with a pre-push hook that runs its offline self-test when the script changes. bestpractices.dev never imports `.bestpractices.json` from a GitLab repository, so the script turns the file into edit links the maintainer opens and saves, and `--check` compares the live entry with the file. `.bestpractices.json` now names GitLab throughout and describes today's CI: the hosted pipeline runs only when started by hand, `static_analysis_common_vulnerabilities` is answered Unmet, the leaked-credentials answer cites a gitleaks scan rather than FOSSA, and the retired `homepage_url` and `report_url` fields are gone (SEOR-grrcptww).
-
-* The OSS Index audit in `tests/testthat/test-security.R` now requires every reported advisory to have an explicit disposition in an allow-list (`helper-security.R`, empty today because the audit reports none) and fails on stale rows. The `security-audit` CI job and the `full` tier of `tools/verify.sh` set `OSSINDEX_AUDIT_REQUIRED=true`, so a missing credential, missing `oysteR`, no network or an empty audit fails there instead of skipping. The pre-push `standard` tier no longer runs the OSS Index and OSV audits: `testthat::test_local()` sets `NOT_CRAN=true` itself, so they had been running live on every push (`SEOR-fftbjnpl`).
-
-* `scripts/check-bugreports.py`, ported from pagerankr, keeps the tracker-link split from drifting back: `DESCRIPTION`'s `BugReports:` must stay on the `/-/issues` form CRAN's incoming check requires, `codemeta.json`, `.bestpractices.json` and the GitHub pull-request template must name `/-/work_items`, and no other human-facing file may link `/-/issues`. It runs as its own pre-push hook and in the `citation-version` CI job (`SEOR-ocbtrrnl`).
-
-* The manual `codemeta` CI job is gone, and with it the only use of `PSL_BOT_TOKEN` besides `psl-upstream-check`. `codemetar` rewrites `issueTracker` to `BugReports`' `/-/issues` form and drops hand-set fields, so running it would have undone the tracker split `check-bugreports.py` enforces; `codemeta.json` is maintained by hand (`SEOR-tzxuisnf`).
-
-* The `osv-audit` and `security-audit` CI jobs now also run from a pipeline schedule on `main` that sets `SCHEDULE_KIND=dependency-audit`, where both are blocking; the `workflow:` rules admit that schedule and nothing else new. They still run in the `CRAN_PREP` pipeline exactly as before, and nowhere else (`SEOR-fftbjnpl`).
+* The bundled index is built under `punycoder` 1.3.0, and `Imports:` now requires `punycoder (>= 1.3.0)`, so loading pslr no longer rebuilds it (PSLR-fjkaqckg).
+* A v1 cache whose recorded checksum pslr cannot verify, such as `SHA256:nothex`, gets one diagnosis everywhere, and `psl_status("cache")` reports it as `unknown` (PSLR-izeypfus).
+* `psl_refresh()` sends an `ETag` back byte for byte, even one that is not valid UTF-8, and a `200` with a new body drops the old body's validator (PSLR-tiugfvxh).
+* A cache whose recorded checksum is not valid UTF-8 is refused as corrupt instead of failing with an encoding error (PSLR-vqrwsjar).
+* `psl_refresh()` reads response headers that are not valid UTF-8, and classes a libcurl failure by curl's error class, not by the host name (PSLR-mlnfdltl).
+* A cache checksum spelled in upper or mixed case, such as `SHA256:<hex>`, now reads as that checksum in activation, migration and status (PSLR-nffupurr).
+* `psl_refresh()` reports a libcurl failure whose message is not valid UTF-8 as a classed transport error (PSLR-ejksqarh).
+* The bundled list loads, and lowercase comparisons hold, under a Turkish or Azerbaijani locale (PSLR-yomylzid).
+* New `vignette("comparison")` compares pslr with other PSL libraries (SEOR-kqmqosji).
+* `cucumber` is no longer in `Suggests` (PSLR-lohhvukn).
 
 # pslr 1.2.1
 
