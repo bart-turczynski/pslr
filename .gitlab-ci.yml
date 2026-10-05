@@ -917,8 +917,9 @@ psl-upstream-check:
       1. **Review the upstream diff** -- \`git diff inst/extdata/public_suffix_list.dat\`.
          A rule that moves the registrable-domain boundary is a behavior change.
       2. **Check \`normalizer_version\` above.** It records whatever the runner
-         resolved. While the temporary \`punycoder\` \`Remotes:\` pin is in place this
-         will be a development version, which must not ship to CRAN (PSLR-fjkaqckg).
+         resolved, and should equal the \`punycoder\` floor in \`DESCRIPTION\`'s
+         \`Imports:\`. A different version means the index must be regenerated
+         before it ships to CRAN (PSLR-fjkaqckg).
       3. **Add the \`NEWS.md\` entry** recording the new \`list_date\`, \`commit\`, and
          \`checksum\`, and decide the version bump.
       4. Run the \`full-check\` matrix on this MR manually; the CC0 conformance vectors
