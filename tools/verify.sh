@@ -15,7 +15,8 @@
 #   tests     the test suite alone, exactly as `standard` runs it.  What
 #             scripts/verify-self-test.sh runs against a throwaway package.
 #   docs      the generated-docs drift check alone, exactly as `standard`
-#             runs it: man/ and NAMESPACE in HEAD against a fresh roxygen run.
+#             runs it: man/ and NAMESPACE in the pushed commit
+#             ($PRE_COMMIT_TO_REF, else HEAD) against a fresh roxygen run.
 #   standard  lint + generated-docs drift + spelling + declared URLs + the
 #             test suite.  The per-push gate; what the pre-push hook runs.
 #             About two minutes, most of it the 2000-odd tests.
@@ -153,21 +154,42 @@ run_lint() {
 # fails, printing the diff, when they differ from what is committed. It runs
 # ahead of spelling, which reads man/ as it is.
 #
-# It runs against its OWN `git archive HEAD` export, never the working tree:
-# roxygen loads the package through pkgload, which compiles src/ in place and
-# leaves .o files and a .so behind that a later rcmdcheck build of the working
-# tree would pick up. An export of HEAD is also exactly what a push sends, so
-# an uncommitted roxygen edit is not seen until it is committed.
+# It checks the commit being pushed, in its OWN `git archive` export, never the
+# working tree: roxygen loads the package through pkgload, which compiles src/
+# in place and leaves .o files and a .so behind that a later rcmdcheck build of
+# the working tree would pick up. pre-commit exports the pushed commit to a
+# pre-push hook as PRE_COMMIT_TO_REF, so `git push origin other-branch` checks
+# other-branch rather than whatever is checked out; outside a push (or for a
+# push pre-commit hands no ref, such as a whole history down to its root
+# commit) it is HEAD. An uncommitted roxygen edit is therefore not seen until
+# it is committed.
+#
+# The export lives in a subshell with its own EXIT trap, so it is removed on
+# every way out: a pass, drift, a failed export, a roxygen error, Ctrl-C. The
+# INT/TERM/HUP traps turn a signal into an ordinary exit, which is what runs
+# the EXIT trap. Being a subshell, it leaves this script's own traps alone.
+# `set -e` does not apply inside a subshell whose status is tested, so each
+# step checks its own status.
 run_docs_drift() {
-  step "generated docs in sync (scripts/check-docs-drift.R)"
+  local ref="${PRE_COMMIT_TO_REF:-HEAD}" status=0
+  step "generated docs in sync at ${ref} (scripts/check-docs-drift.R)"
   need_cmd git
-  local docsdir status=0
-  docsdir="$(mktemp -d "${TMPDIR:-/tmp}/pslr-docs-drift.XXXXXX")"
-  git archive HEAD | tar -x -C "$docsdir"
-  Rscript scripts/check-docs-drift.R "$docsdir" || status=$?
-  rm -rf "$docsdir"
-  if [ "$status" -ne 0 ]; then
-    fail "man/ or NAMESPACE is out of date — run devtools::document() and commit the result"
+  (
+    docsdir="$(mktemp -d "${TMPDIR:-/tmp}/pslr-docs-drift.XXXXXX")" || exit 3
+    trap 'rm -rf "$docsdir"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap 'exit 129' HUP
+    if ! git archive "$ref" | tar -x -C "$docsdir"; then
+      fail "could not export ${ref} with git archive"
+      exit 3
+    fi
+    Rscript scripts/check-docs-drift.R "$docsdir"
+  ) || status=$?
+  if [ "$status" -eq 3 ] || [ "$status" -ge 128 ]; then
+    return "$status"
+  elif [ "$status" -ne 0 ]; then
+    fail "man/ or NAMESPACE is out of date at ${ref} — run devtools::document() and commit the result"
     return 1
   fi
   ok "man/ and NAMESPACE match the roxygen comments in R/"

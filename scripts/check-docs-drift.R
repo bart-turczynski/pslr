@@ -25,7 +25,8 @@
 # The compile also means this must not run in a directory that rcmdcheck builds
 # from: pkgload leaves .o files and a .so behind in src/ (and may rewrite the
 # cpp11 glue), which would contaminate the build. tools/verify.sh therefore
-# runs it against its own `git archive HEAD` export, never the working tree.
+# runs it against its own `git archive` export of the commit being pushed
+# (PRE_COMMIT_TO_REF, else HEAD), never the working tree.
 #
 # Usage (from the package root):
 #   Rscript scripts/check-docs-drift.R [package-dir]

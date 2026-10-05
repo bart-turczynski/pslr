@@ -63,12 +63,16 @@ the diff, when they differ from what is committed. It runs in `standard`,
 `full` and `cran`, after lint and ahead of spelling, and alone as
 `tools/verify.sh docs`; it takes about ten seconds.
 
-It runs against a `git archive HEAD` export, not the working tree, for two
-reasons. Roxygen loads the package through pkgload, which compiles `src/` in
-place and leaves `.o` files and a `.so` behind that a later `R CMD check` of the
-working tree would pick up. And the export is exactly what a push sends, so the
-stage checks the commit being pushed: an uncommitted roxygen edit is not seen
-until it is committed. It refuses to run when the installed roxygen2 differs
+It runs against a `git archive` export of the commit being pushed, not the
+working tree, for two reasons. Roxygen loads the package through pkgload, which
+compiles `src/` in place and leaves `.o` files and a `.so` behind that a later
+`R CMD check` of the working tree would pick up. And the export is exactly what
+a push sends: pre-commit hands a pre-push hook the pushed commit as
+`PRE_COMMIT_TO_REF`, so `git push origin other-branch` checks `other-branch`
+rather than whatever is checked out. Outside a push it is `HEAD`, as it is for
+a push pre-commit passes no ref for (a history pushed down to its root commit).
+An uncommitted roxygen edit is not seen until it is committed, and the export is
+removed on every exit, Ctrl-C included. It refuses to run when the installed roxygen2 differs
 from `Config/roxygen2/version`, so a failure is real drift rather than version
 skew; the `check-toolchain` hook names that skew first. Run against a working
 tree (`Rscript scripts/check-docs-drift.R`), it leaves the regenerated files in

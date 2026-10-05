@@ -16,7 +16,7 @@
 
 * The HTML help page (`?pslr` under `help_type = "html"`, and the pkgdown reference) shows the logo too: `man/pslr-package.Rd` is regenerated now that `man/figures/logo.svg` exists (`SEOR-oopopupm`).
 
-* The pre-push gate (`tools/verify.sh` in its `standard`, `full` and `cran` tiers, and alone as the new `docs` tier) fails when `man/` or `NAMESPACE` differ from what roxygen2 regenerates from the commit being pushed, and prints the diff. A stale `.Rd` is still valid `.Rd`, so lint, spelling and `R CMD check` all passed the `man/pslr-package.Rd` the logo sweep left stale, and it was fixed by hand. `scripts/check-docs-drift.R` is the check from `robotstxtr`, run against a `git archive` export so the compile roxygen triggers never leaves objects in the working tree (`SEOR-nwfmerhu`).
+* The pre-push gate (`tools/verify.sh` in its `standard`, `full` and `cran` tiers, and alone as the new `docs` tier) fails when `man/` or `NAMESPACE` differ from what roxygen2 regenerates from the commit being pushed, and prints the diff. A stale `.Rd` is still valid `.Rd`, so lint, spelling and `R CMD check` all passed the `man/pslr-package.Rd` the logo sweep left stale, and it was fixed by hand. `scripts/check-docs-drift.R` is the check from `robotstxtr`, run against a `git archive` export of the pushed commit (`PRE_COMMIT_TO_REF`, else `HEAD`), removed on every exit, so the compile roxygen triggers never leaves objects in the working tree (`SEOR-nwfmerhu`).
 
 * The logo files carry full metadata: every project link (GitLab, GitHub, CRAN, r-universe, the documentation site and, where one exists, the Zenodo DOI), a screen-reader description and the standard image metadata fields, written by `scripts/logo-metadata.py` in the `seor` repository (`SEOR-eyfiidrv`).
 
