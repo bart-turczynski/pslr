@@ -25,20 +25,47 @@ test_that("the shipped index rebuilds exactly on a profile mismatch", {
   expect_identical(the_matcher$state$snapshot$rebuilt, expected)
 })
 
-# The test above holds under any punycoder. This one pins the release contract:
-# the shipped index is built under the punycoder that `Imports:` names as its
-# floor, so a released punycoder takes the no-rebuild path, which saves every
-# session about 2.75 s (PSLR-fjkaqckg). A call to the rebuild fails the test
-# outright. It skips on CRAN, where a later punycoder that moves its Unicode pin
-# makes loading slower without making pslr wrong, so the reverse-dependency
-# check PSLR-rnfnzwqu protects stays green. It also skips under a development
-# punycoder, whose pin can run ahead of the shipped index.
+# The release contract (PSLR-fjkaqckg): the shipped index is built under the
+# punycoder that `Imports:` names as its floor, so a user at that floor takes
+# the no-rebuild path and saves every session about 2.75 s. This half needs no
+# particular punycoder installed, so it runs everywhere, CRAN included: it
+# catches an index regenerated under a newer punycoder while `Imports:` still
+# names the old floor, and a floor raised without regenerating the index.
+test_that("the shipped index is built under the punycoder Imports floor", {
+  imports <- utils::packageDescription("pslr")$Imports
+  imports_floor <- regmatches(
+    imports,
+    regexec("punycoder[[:space:]]*\\(>=[[:space:]]*([0-9.-]+)\\)", imports)
+  )[[1]][2]
+
+  expect_identical(pslr_bundled$meta$normalizer_version, imports_floor)
+})
+
+# The other half: against that punycoder, `bundled_snapshot()` never calls the
+# rebuild, which fails the test outright. It runs only where the installed
+# punycoder is the one the index records. It skips on CRAN and under any other
+# punycoder, since a later one that moves its Unicode pin makes loading slower
+# without making pslr wrong; failing there would redden CRAN's
+# reverse-dependency check (PSLR-rnfnzwqu) and the gate on every unrelated
+# branch. A development build (last version component 9000 or above) skips
+# too, as its pin can run ahead of the shipped index.
 test_that("the shipped index takes the no-rebuild path", {
   skip_on_cran()
   installed <- utils::packageVersion("punycoder")
+  components <- unlist(installed)
   skip_if(
-    length(unlist(installed)) > 3L,
+    components[length(components)] >= 9000L,
     paste("punycoder", installed, "is a development build")
+  )
+  skip_if_not(
+    installed == pslr_bundled$meta$normalizer_version,
+    paste(
+      "punycoder",
+      installed,
+      "is not the",
+      pslr_bundled$meta$normalizer_version,
+      "the index was built under"
+    )
   )
   testthat::local_mocked_bindings(
     rebuild_bundled_rules = function() {
@@ -49,7 +76,6 @@ test_that("the shipped index takes the no-rebuild path", {
   snapshot <- bundled_snapshot()
 
   expect_false(snapshot$rebuilt)
-  expect_identical(snapshot$rules, pslr_bundled$rules)
 })
 
 test_that("a mismatched Unicode version rebuilds from source", {

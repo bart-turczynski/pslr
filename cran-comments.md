@@ -123,18 +123,13 @@ column nor `psl_diff()` is on any path it uses.
 
 pslr's bundled index records the normalization profile it was generated under
 and rebuilds in memory if the installed 'punycoder' reports a different one.
-This release ships an index built under the 'punycoder' CRAN currently serves
-(1.2.1), so no rebuild occurs for any user, and the examples run in well under a
-second in total.
+'punycoder' 1.3.0 moved its pinned Unicode version to 17.0.0 and its profile
+token to `uts46-nontransitional-std3-v2`, so the previous pslr rebuilt its index
+on load under it -- correctly, with an identical rule set, but slowly enough to
+put the `psl_diff` example over the 5s examples threshold. This release reships
+the index built under 'punycoder' 1.3.0 (Unicode 17.0.0), so no rebuild occurs,
+and the examples run in well under a second in total.
 
-A future 'punycoder' will move its pinned Unicode version, at which point pslr
-will rebuild on load -- correctly, and with a byte-identical rule set -- until a
-subsequent pslr reships the index. Disclosed so it is not a surprise: measured
-against that unreleased 'punycoder', the rebuild puts the `psl_diff` example at
-roughly 8.5s, over the 5s threshold, so this package may begin drawing an
-examples-timing NOTE on CRAN's machines once that 'punycoder' is published,
-without pslr itself changing. A pslr release reshipping the index under the new
-pin is already prepared for that point.
-
-The `Imports` floor deliberately stays at `punycoder (>= 1.1.0)`: no behavior
-here requires a newer one.
+The `Imports` floor is raised to `punycoder (>= 1.3.0)` to match: an older
+'punycoder' would still give correct answers, but would pay that rebuild on
+every load.

@@ -151,8 +151,10 @@ repository triggers no nudge at all.
 
 One review point specific to the automated MR: the regenerated index records
 whichever normalizer the runner resolved, reported as `normalizer_version` in
-the MR body. While the temporary `punycoder` `Remotes:` pin is in place that
-will be a development version, which must not ship to CRAN.
+the MR body. It should equal the `punycoder` floor in `DESCRIPTION`'s
+`Imports:`, which `test-profile-rebuild.R` also checks. A different version,
+such as a development build, means the index must be regenerated before it
+ships to CRAN.
 
 `data-raw/psl_snapshot_meta.R` prints a snapshot's provenance as `KEY=VALUE`
 lines straight from `R/sysdata.rda`. The job uses it to build that summary,
