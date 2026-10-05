@@ -14,7 +14,7 @@
 # the copy in its own process, under the script's own `set -euo pipefail`, the
 # way the pre-push hook runs it. Most cases use the `tests` tier, which runs
 # run_tests alone; one runs `standard`, the pre-push tier, with its lint,
-# spelling and URL steps stubbed out. A case that should fail also names a line
+# docs-drift, spelling and URL steps stubbed out. A case that should fail also names a line
 # its log must contain, so it proves its scenario happened rather than failing
 # for some other reason.
 #
@@ -102,15 +102,17 @@ disable_stop_on_failure() {
   grep -q 'reporter = "check", stop_on_failure = FALSE' "$copy"
 }
 
-# Stubs the standard tier's lint, spelling and URL steps in the fixture's copy:
-# they are not what this tests, and lint alone takes longer than every case
-# here together. Later definitions win, so the stubs go just above the tier
-# dispatch.
+# Stubs the standard tier's lint, docs-drift, spelling and URL steps in the
+# fixture's copy: they are not what this tests, and lint alone takes longer
+# than every case here together (docs-drift also needs a git repository and a
+# roxygen2 pin the fixture lacks). Later definitions win, so the stubs go just
+# above the tier dispatch.
 stub_standard_steps() {
   local copy="$1/tools/verify.sh"
   awk '
     $0 == "tier=\"${1:-standard}\"" {
       print "run_lint() { :; }"
+      print "run_docs_drift() { :; }"
       print "run_spelling() { :; }"
       print "run_urls() { :; }"
       found = 1
