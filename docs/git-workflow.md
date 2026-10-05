@@ -62,7 +62,8 @@ lint, spelling and `R CMD check` all pass it. The logo sweep added
 the diff, when they or `DESCRIPTION` (whose `Collate` roxygen2 writes from
 `@include` tags) differ from what is committed. It runs in `standard`,
 `full` and `cran`, after lint and ahead of spelling, and alone as
-`tools/verify.sh docs`; it takes about ten seconds.
+`tools/verify.sh docs`; it takes about ten seconds. CI's `docs-drift` job runs
+it too, on every push to `main` (SEOR-yufxgcre).
 
 It runs against a `git archive` export of the commit being pushed, not the
 working tree, for two reasons. Roxygen loads the package through pkgload, which
@@ -159,8 +160,8 @@ leg that can check macOS behavior, because that is the machine it runs on.
 
 **Remote** — `.gitlab-ci.yml`, per the fleet standard (seor's
 `design/fleet-standard.md`). Every push to `main` runs lint, spelling, the
-NEWS/version and citation guards, `R CMD check --as-cran`, the README drift
-check, coverage (failing below 95%) and the pages deploy. Both weekly schedules
+NEWS/version and citation guards, `R CMD check --as-cran`, the README and
+generated-docs drift checks, coverage (failing below 95%) and the pages deploy. Both weekly schedules
 run those jobs too, as every fleet repository's schedules do, so the coverage
 badge always has a successful pipeline on `main` to read. The schedule whose
 variables include `SCHEDULE_KIND=deep-check` adds the R devel / 4.6 / 4.5
@@ -176,7 +177,7 @@ A run with neither variable creates no pipeline at all; GitLab reports it as
 filtered out by workflow rules, and the fix is to pass the variable.
 
 `CRAN_PREP=1` runs lint, the NEWS/version guard, `R CMD check --as-cran`, the
-README drift check, coverage, the R 4.5 / 4.6 / devel matrix, and the OSV, OSS
+README and generated-docs drift checks, coverage, the R 4.5 / 4.6 / devel matrix, and the OSV, OSS
 Index and upstream-PSL audits. Its value is not that it repeats the local check —
 it is that it repeats it *somewhere else*: three R versions, a dependency
 closure resolved from scratch, and a machine where your `~/.Renviron` does not

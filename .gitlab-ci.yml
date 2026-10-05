@@ -620,8 +620,9 @@ readme:
 # The pin is usually not the current CRAN release, so pak installs it by
 # version, from P3M or by building it (seor's job built 8.0.0 from source in
 # 7s). roxygen2 loads pslr with pkgload, which compiles src/ and runs
-# cpp11::cpp_register(); brio, cli, decor, desc, glue, tibble and vctrs are
-# what that needs and pslr does not declare. Its own cache: the roxygen2 here
+# cpp11::cpp_register(); what that needs, and pslr does not declare, is read
+# from the installed cpp11's own Config/Needs/cpp11/cpp_register field, so a
+# cpp11 release that adds one needs no edit here. Its own cache: the roxygen2 here
 # is the pin, not whatever `readme`'s devtools pulls. The script regenerates
 # in place, which is safe in this job's throwaway clone.
 docs-drift:
@@ -635,7 +636,9 @@ docs-drift:
     - >-
       Rscript -e 'v <- read.dcf("DESCRIPTION", "Config/roxygen2/version")[[1]];
       if (is.na(v)) stop("DESCRIPTION has no Config/roxygen2/version, the roxygen2 pin this job installs", call. = FALSE);
-      pak::pkg_install(c(paste0("roxygen2@", v), "brio", "cli", "decor", "desc", "glue", "tibble", "vctrs"))'
+      needs <- read.dcf(system.file("DESCRIPTION", package = "cpp11"), "Config/Needs/cpp11/cpp_register")[[1]];
+      if (is.na(needs)) stop("cpp11 declares no Config/Needs/cpp11/cpp_register; check what cpp_register() needs", call. = FALSE);
+      pak::pkg_install(c(paste0("roxygen2@", v), trimws(strsplit(needs, ",")[[1]])))'
     - Rscript scripts/check-docs-drift.R
 
 # The fleet's 95% floor (ADR 0007 in seor): never lowered; a drop below it
