@@ -259,6 +259,11 @@ variables:
     # that warning is the download's, not the package's. Repeated verbatim in
     # the two templates below for the same `!reference` reason as the apt
     # lines.
+    #
+    # `apt-mark hold pandoc`, only after a successful `dpkg -i`, keeps the pin
+    # through any later apt step that would replace it with apt's pandoc. A
+    # failed hold only warns, so it never stops a gate (seor
+    # design/fleet-standard.md; SEOR-vzupmeqj).
     - |
       ARCH=$(dpkg --print-architecture)
       case "$ARCH" in
@@ -270,6 +275,7 @@ variables:
         -o /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${ARCH}.deb" \
         && echo "${PANDOC_SHA256}  /tmp/pandoc.deb" | sha256sum -c - \
         && dpkg -i /tmp/pandoc.deb; then
+        apt-mark hold pandoc || echo "WARNING: pandoc ${PANDOC_VERSION} installed but not held; a later apt step may replace it"
         echo "pandoc ${PANDOC_VERSION} installed"
       else
         echo "WARNING: pandoc ${PANDOC_VERSION} not installed; this job has no pandoc"
@@ -309,6 +315,7 @@ variables:
         -o /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${ARCH}.deb" \
         && echo "${PANDOC_SHA256}  /tmp/pandoc.deb" | sha256sum -c - \
         && dpkg -i /tmp/pandoc.deb; then
+        apt-mark hold pandoc || echo "WARNING: pandoc ${PANDOC_VERSION} installed but not held; a later apt step may replace it"
         echo "pandoc ${PANDOC_VERSION} installed"
       else
         echo "WARNING: pandoc ${PANDOC_VERSION} not installed; this job has no pandoc"
@@ -367,6 +374,7 @@ variables:
         -o /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${ARCH}.deb" \
         && echo "${PANDOC_SHA256}  /tmp/pandoc.deb" | sha256sum -c - \
         && dpkg -i /tmp/pandoc.deb; then
+        apt-mark hold pandoc || echo "WARNING: pandoc ${PANDOC_VERSION} installed but not held; a later apt step may replace it"
         echo "pandoc ${PANDOC_VERSION} installed"
       else
         echo "WARNING: pandoc ${PANDOC_VERSION} not installed; this job has no pandoc"
