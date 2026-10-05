@@ -24,12 +24,12 @@
 #    NOTHING. The fleet standard (seor design/fleet-standard.md, SEOR-twxjxogh)
 #    has every push to the default branch run `R CMD check --as-cran`
 #    (`error_on = "warning"`), coverage with a 95% floor, the cheap gates (lint,
-#    spelling, NEWS/version, citation, README drift) and the pages deploy. The
-#    jobs run on the maintainer's self-hosted runner (`default: tags`), so the
-#    shared-runner quota this file used to ration is no longer what pays for
-#    them. Both schedules (item 4) run these jobs too. Branch pushes and merge
-#    requests still start no pipeline: the per-branch gate is local
-#    (`tools/verify.sh standard` in the pre-push hook).
+#    spelling, NEWS/version, citation, README drift, docs drift) and the pages
+#    deploy. The jobs run on the maintainer's self-hosted runner (`default:
+#    tags`), so the shared-runner quota this file used to ration is no longer
+#    what pays for them. Both schedules (item 4) run these jobs too. Branch
+#    pushes and merge requests still start no pipeline: the per-branch gate is
+#    local (`tools/verify.sh standard` in the pre-push hook).
 #
 # 3. NO R-HUB JOB. rhub v2 (`rhub::rhub_check()`) dispatches to the maintainer's
 #    own GitHub Actions runners and requires a GitHub repository. There is no
@@ -609,6 +609,37 @@ readme:
         echo "ERROR: README.md is out of sync with README.Rmd. Run devtools::build_readme() and commit the result."
         exit 1
       fi
+
+# Generated-docs drift, on every push to main (SEOR-yufxgcre): man/,
+# NAMESPACE and DESCRIPTION must match what the roxygen2 DESCRIPTION pins in
+# Config/roxygen2/version regenerates from R/. tools/verify.sh runs the same
+# check before a push, but a server-side merge, a web edit or a `--no-verify`
+# push never passes through it. scripts/check-docs-drift.R refuses any other
+# roxygen2, because its output changes between releases.
+#
+# The pin is usually not the current CRAN release, so pak installs it by
+# version, from P3M or by building it (seor's job built 8.0.0 from source in
+# 7s). roxygen2 loads pslr with pkgload, which compiles src/ and runs
+# cpp11::cpp_register(); what that needs, and pslr does not declare, is read
+# from the installed cpp11's own Config/Needs/cpp11/cpp_register field, so a
+# cpp11 release that adds one needs no edit here. Its own cache: the roxygen2 here
+# is the pin, not whatever `readme`'s devtools pulls. The script regenerates
+# in place, which is safe in this job's throwaway clone.
+docs-drift:
+  extends: [.r-deps, .rules-main]
+  stage: check
+  needs: []
+  cache:
+    key:
+      prefix: "docs-drift-${R_VERSION}"
+  script:
+    - >-
+      Rscript -e 'v <- read.dcf("DESCRIPTION", "Config/roxygen2/version")[[1]];
+      if (is.na(v)) stop("DESCRIPTION has no Config/roxygen2/version, the roxygen2 pin this job installs", call. = FALSE);
+      needs <- read.dcf(system.file("DESCRIPTION", package = "cpp11"), "Config/Needs/cpp11/cpp_register")[[1]];
+      if (is.na(needs)) stop("cpp11 declares no Config/Needs/cpp11/cpp_register; check what cpp_register() needs", call. = FALSE);
+      pak::pkg_install(c(paste0("roxygen2@", v), trimws(strsplit(needs, ",")[[1]])))'
+    - Rscript scripts/check-docs-drift.R
 
 # The fleet's 95% floor (ADR 0007 in seor): never lowered; a drop below it
 # is fixed with tests.
