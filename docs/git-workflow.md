@@ -39,8 +39,9 @@ reformat code unrelated to your change. The linter set and its deviations are in
 dev loop and the release checklist all call it rather than restating the command:
 
 ```sh
-tools/verify.sh            # standard: lint + spelling + URLs + tests (the pre-push gate, ~2 min)
+tools/verify.sh            # standard: lint + docs drift + spelling + URLs + tests (the pre-push gate, ~2 min)
 tools/verify.sh tests      # the test stage alone, exactly as standard runs it
+tools/verify.sh docs       # the docs-drift stage alone, exactly as standard runs it
 tools/verify.sh full       # + R CMD check --as-cran, NEWS/version, README, coverage, audits, PSL
 tools/verify.sh matrix     # R 4.5 / 4.6 / devel via Docker
 tools/verify.sh sanitize   # the suite over src/ under ASAN+UBSAN, then valgrind
@@ -50,6 +51,33 @@ tools/verify.sh cran       # full + matrix + sanitize + remote incoming; pre-sub
 `R CMD check --as-cran` sits in `full`, not `standard`, on purpose: at ~5 minutes
 it made the pre-push hook something to be skipped rather than run, and a gate
 that is habitually bypassed protects nothing.
+
+### The docs-drift stage
+
+`man/` and `NAMESPACE` are generated, and a stale `.Rd` is still valid `.Rd`, so
+lint, spelling and `R CMD check` all pass it. The logo sweep added
+`man/figures/logo.svg` without re-running `devtools::document()`, and
+`man/pslr-package.Rd` stayed stale until it was fixed by hand (SEOR-nwfmerhu).
+`scripts/check-docs-drift.R` regenerates both with roxygen2 and fails, printing
+the diff, when they or `DESCRIPTION` (whose `Collate` roxygen2 writes from
+`@include` tags) differ from what is committed. It runs in `standard`,
+`full` and `cran`, after lint and ahead of spelling, and alone as
+`tools/verify.sh docs`; it takes about ten seconds.
+
+It runs against a `git archive` export of the commit being pushed, not the
+working tree, for two reasons. Roxygen loads the package through pkgload, which
+compiles `src/` in place and leaves `.o` files and a `.so` behind that a later
+`R CMD check` of the working tree would pick up. And the export is exactly what
+a push sends: pre-commit hands a pre-push hook the pushed commit as
+`PRE_COMMIT_TO_REF`, so `git push origin other-branch` checks `other-branch`
+rather than whatever is checked out. Outside a push it is `HEAD`, as it is for
+a push pre-commit passes no ref for (a history pushed down to its root commit).
+An uncommitted roxygen edit is not seen until it is committed, and the export is
+removed on every exit, Ctrl-C included. It refuses to run when the installed roxygen2 differs
+from `Config/roxygen2/version`, so a failure is real drift rather than version
+skew; the `check-toolchain` hook names that skew first. Run against a working
+tree (`Rscript scripts/check-docs-drift.R`), it leaves the regenerated files in
+place, so the fix only needs committing.
 
 ### The sanitize tier
 
@@ -83,9 +111,9 @@ pointer arithmetic.
 
 ### Pre-push
 
-On `git push`, the `verify` hook runs `tools/verify.sh standard` — lint,
-spelling, the declared-URL check and the test suite, about two minutes — and then prints a staleness
-line for the `full` tier.
+On `git push`, the `verify` hook runs `tools/verify.sh standard` — lint, the
+docs-drift check, spelling, the declared-URL check and the test suite, about two
+minutes — and then prints a staleness line for the `full` tier.
 
 The test stage fails closed on its own. testthat's `stop_on_failure` aborts on
 a failing test, and the stage also reads the results testthat returns and exits
@@ -95,7 +123,7 @@ full-disk run was reported doing exactly that; it did not reproduce
 (PSLR-vacblucj). The `verify-self-test` hook pins this on every push, in about
 seven seconds: `scripts/verify-self-test.sh` builds throwaway packages, runs a
 copy of `tools/verify.sh` against them (the `tests` tier, plus `standard` with
-lint, spelling and URLs stubbed), and switches `stop_on_failure` off in some
+lint, docs drift, spelling and URLs stubbed), and switches `stop_on_failure` off in some
 cases to show that the result check alone still fails the gate. It runs on
 every push rather than only when the gate changes, because a testthat upgrade
 can change what `stop_on_failure` does without touching a file here.
