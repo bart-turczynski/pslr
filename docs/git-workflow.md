@@ -59,7 +59,8 @@ lint, spelling and `R CMD check` all pass it. The logo sweep added
 `man/figures/logo.svg` without re-running `devtools::document()`, and
 `man/pslr-package.Rd` stayed stale until it was fixed by hand (SEOR-nwfmerhu).
 `scripts/check-docs-drift.R` regenerates both with roxygen2 and fails, printing
-the diff, when they differ from what is committed. It runs in `standard`,
+the diff, when they or `DESCRIPTION` (whose `Collate` roxygen2 writes from
+`@include` tags) differ from what is committed. It runs in `standard`,
 `full` and `cran`, after lint and ahead of spelling, and alone as
 `tools/verify.sh docs`; it takes about ten seconds.
 

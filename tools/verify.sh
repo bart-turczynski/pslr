@@ -175,7 +175,10 @@ run_docs_drift() {
   step "generated docs in sync at ${ref} (scripts/check-docs-drift.R)"
   need_cmd git
   (
-    docsdir="$(mktemp -d "${TMPDIR:-/tmp}/pslr-docs-drift.XXXXXX")" || exit 3
+    if ! docsdir="$(mktemp -d "${TMPDIR:-/tmp}/pslr-docs-drift.XXXXXX")"; then
+      fail "could not create a temporary directory for the docs export"
+      exit 3
+    fi
     trap 'rm -rf "$docsdir"' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
@@ -189,7 +192,7 @@ run_docs_drift() {
   if [ "$status" -eq 3 ] || [ "$status" -ge 128 ]; then
     return "$status"
   elif [ "$status" -ne 0 ]; then
-    fail "man/ or NAMESPACE is out of date at ${ref} — run devtools::document() and commit the result"
+    fail "the generated docs at ${ref} are out of date (or the check could not run; see the output above) — if they are stale, run devtools::document() and commit the result"
     return 1
   fi
   ok "man/ and NAMESPACE match the roxygen comments in R/"
