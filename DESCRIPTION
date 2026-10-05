@@ -27,7 +27,7 @@ Depends:
     R (>= 4.1.0)
 Imports:
     digest,
-    punycoder (>= 1.1.0),
+    punycoder (>= 1.3.0),
     tools,
     utils
 LinkingTo:

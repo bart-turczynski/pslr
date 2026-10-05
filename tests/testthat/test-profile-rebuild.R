@@ -25,6 +25,33 @@ test_that("the shipped index rebuilds exactly on a profile mismatch", {
   expect_identical(the_matcher$state$snapshot$rebuilt, expected)
 })
 
+# The test above holds under any punycoder. This one pins the release contract:
+# the shipped index is built under the punycoder that `Imports:` names as its
+# floor, so a released punycoder takes the no-rebuild path, which saves every
+# session about 2.75 s (PSLR-fjkaqckg). A call to the rebuild fails the test
+# outright. It skips on CRAN, where a later punycoder that moves its Unicode pin
+# makes loading slower without making pslr wrong, so the reverse-dependency
+# check PSLR-rnfnzwqu protects stays green. It also skips under a development
+# punycoder, whose pin can run ahead of the shipped index.
+test_that("the shipped index takes the no-rebuild path", {
+  skip_on_cran()
+  installed <- utils::packageVersion("punycoder")
+  skip_if(
+    length(unlist(installed)) > 3L,
+    paste("punycoder", installed, "is a development build")
+  )
+  testthat::local_mocked_bindings(
+    rebuild_bundled_rules = function() {
+      stop("bundled_snapshot() rebuilt the shipped index", call. = FALSE)
+    }
+  )
+
+  snapshot <- bundled_snapshot()
+
+  expect_false(snapshot$rebuilt)
+  expect_identical(snapshot$rules, pslr_bundled$rules)
+})
+
 test_that("a mismatched Unicode version rebuilds from source", {
   local_pslr_clean()
   testthat::local_mocked_bindings(

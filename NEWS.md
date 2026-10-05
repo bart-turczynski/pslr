@@ -1,5 +1,7 @@
 # pslr (development version)
 
+* The bundled index is now built under `punycoder` 1.3.0 (profile `uts46-nontransitional-std3-v2`, Unicode 17.0.0), and `Imports:` raises its floor to `punycoder (>= 1.3.0)`, so loading pslr no longer rebuilds the index in memory, which cost about 2.75 s per session under `punycoder` 1.3.0. The rules themselves are unchanged: all 10,323 are identical under both Unicode versions (PSLR-fjkaqckg).
+
 * CI installs pandoc 3.10 in every R job with the fleet's checked install: the `.deb` is checked against the release's published `sha256` digest before `dpkg -i` installs it, and a failed or mismatched download warns instead of installing anything unverified. `scripts/check-toolchain.R` now also fails the pre-push gate when the pandoc `rmarkdown` uses locally differs from `PANDOC_VERSION` in `.gitlab-ci.yml`, so a `README.md` knit locally matches what CI's `readme` job knits (SEOR-dpjdwhbi).
 
 * A v1 cache whose recorded checksum is not one pslr can verify, such as `SHA256:nothex`, `crc32:deadbeef` or a value holding bytes that are not valid UTF-8, gets one diagnosis in one wording. `psl_use("cache")` still refuses it, but for that reason instead of a checksum mismatch it never computed, migration gives the same reason, and `psl_status("cache")` reports `unknown`, keeping the recorded value, instead of `never_checked` against `publicsuffix.org` (PSLR-izeypfus).
