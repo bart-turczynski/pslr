@@ -195,7 +195,7 @@ run_docs_drift() {
     fail "the generated docs at ${ref} are out of date (or the check could not run; see the output above) — if they are stale, run devtools::document() and commit the result"
     return 1
   fi
-  ok "man/ and NAMESPACE match the roxygen comments in R/"
+  ok "man/, NAMESPACE and DESCRIPTION match the roxygen comments in R/"
 }
 
 # `R CMD check` skips its DESCRIPTION spelling check on a machine without an
