@@ -14,7 +14,7 @@
 
 * pslr has a logo, the fleet's black hex, in `man/figures/logo.svg` and `logo.png`. r-universe shows it on the package card and the documentation site in its header, and the `README.md` heading carries it with the alt text "hex logo, white on black" (`SEOR-wxjuxbtu`, `SEOR-wfleahtg`).
 
-* The package help page (`?pslr`) shows the logo too: `man/pslr-package.Rd` is regenerated now that `man/figures/logo.svg` exists (`SEOR-oopopupm`).
+* The HTML help page (`?pslr` under `help_type = "html"`, and the pkgdown reference) shows the logo too: `man/pslr-package.Rd` is regenerated now that `man/figures/logo.svg` exists (`SEOR-oopopupm`).
 
 * The logo files carry full metadata: every project link (GitLab, GitHub, CRAN, r-universe, the documentation site and, where one exists, the Zenodo DOI), a screen-reader description and the standard image metadata fields, written by `scripts/logo-metadata.py` in the `seor` repository (`SEOR-eyfiidrv`).
 
