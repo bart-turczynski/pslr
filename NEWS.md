@@ -3,7 +3,7 @@
 * The bundled index is built under `punycoder` 1.3.0, and `Imports:` now requires `punycoder (>= 1.3.0)`, so loading pslr no longer rebuilds it (PSLR-fjkaqckg).
 * A v1 cache whose recorded checksum pslr cannot verify, such as `SHA256:nothex`, gets one diagnosis everywhere, and `psl_status("cache")` reports it as `unknown` (PSLR-izeypfus).
 * `psl_refresh()` sends an `ETag` back byte for byte, even one that is not valid UTF-8, and a `200` with a new body drops the old body's validator (PSLR-tiugfvxh).
-* A cache whose recorded checksum is not valid UTF-8 is refused as corrupt instead of failing with an encoding error (PSLR-vqrwsjar).
+* A cache whose recorded checksum is not valid UTF-8 is read as a malformed checksum instead of failing with an encoding error (PSLR-vqrwsjar).
 * `psl_refresh()` reads response headers that are not valid UTF-8, and classes a libcurl failure by curl's error class, not by the host name (PSLR-mlnfdltl).
 * A cache checksum spelled in upper or mixed case, such as `SHA256:<hex>`, now reads as that checksum in activation, migration and status (PSLR-nffupurr).
 * `psl_refresh()` reports a libcurl failure whose message is not valid UTF-8 as a classed transport error (PSLR-ejksqarh).
