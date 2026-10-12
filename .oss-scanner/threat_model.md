@@ -29,7 +29,8 @@ Trusted: the calling R code and its arguments other than the host vector
 (`section`, `output`, `unknown`, `invalid`, `engine`), R options (`pslr.*`,
 including `pslr.transport`, `pslr.cache_dir`, `pslr.config_dir`,
 `pslr.max_bytes`), the URL passed to `psl_refresh()`, files the caller names
-through `psl_use(path =)`, `psl_engine(path =)` or `psl_diff()`, the package's
+through `psl_use("path", path = file)`, `psl_engine("path", path = file)` (both
+refuse `path` under any other `source`) or `psl_diff()`, the package's
 bundled data (`R/sysdata.rda`, `inst/extdata/public_suffix_list.dat`), and the
 user's own cache and config directories. Cache files are data, not code
 (`docs/PRD.md` s9): malformed cache content must fail cleanly, but an attacker
@@ -57,7 +58,18 @@ Most:
   fragment, same-origin redirects, at most five hops, validator scoping),
   `R/http-transport.R` (header normalization, request-header injection checks,
   the size ceiling), `R/validator-policy.R`, `R/refresh-machine.R`,
-  `R/parser.R`, `R/duplicates.R` and `R/publication.R`.
+  `R/parser.R`, `R/duplicates.R` and `R/publication.R`. Also `R/refresh.R`:
+  `psl_refresh()` builds the complete candidate engine before anything is
+  committed and activates it only after publication, and `psl_load_source()`
+  refuses a source file over `pslr.max_bytes` (16 MiB by default) before it is
+  parsed and requires both official sections. `R/generation-store.R`: state,
+  cache selection and reminder records are append-only generation files,
+  written to a temporary file and renamed onto a name that does not yet exist,
+  never overwritten; a reader validates every generation and takes the newest
+  valid one, and compaction never removes the only valid or a newer corrupt
+  generation. `R/locking.R`: one lock per source held across the whole
+  refresh, a publish lock for publication, the source-then-publish order
+  enforced in-process, a bounded wait, and one reclaim of a stale lock.
 
 Less: `R/status.R`, `R/reminder.R`, `R/snapshots.R`, `R/prune.R`,
 `R/diff.R`, `R/metadata.R` (offline, over trusted local state).
@@ -72,17 +84,25 @@ is in scope.
 
 The image has the source at `/src`, `pslr` installed from it with `-g -O1
 -fno-omit-frame-pointer`, Imports and Suggests installed, `gdb` and
-`valgrind` installed, and no network.
-Network-dependent tests (`test-security.R`, `test-osv.R`) skip offline; all
+`valgrind` installed, the `tr_TR.UTF-8` and `az_AZ.UTF-8` locales the
+case-folding tests need, and no network at audit time. The build itself has
+network, so its smoke test leaves the live advisory audits (`test-osv.R`,
+`test-security.R`) out; in the offline audit they skip on their own. All
 refresh tests use an injected fake transport (`local_fake_transport()` in
 `tests/testthat/helper-active.R`).
+
+After patching any file under `src/` (C++ source or header), rebuild with
+`R CMD INSTALL --preclean /src`: the build and `test_local()`'s `load_all()`
+leave object files in `/src/src`, and R's build rules (the package has no
+`src/Makevars`) declare no header dependencies, so a plain reinstall can link
+stale objects.
 
 ```sh
 Rscript -e 'testthat::test_local("/src")'
 Rscript -e 'pslr::registrable_domain(c("www.example.co.uk", "a.b.ck", "www.ck"))'
 Rscript -e 'pslr::suffix_extract("x.github.io", section = "private")'
 Rscript -e 'system.time(pslr::public_suffix_rule(strrep("a.", 1e5)))'
-R -d gdb -e 'pslr::public_suffix(c("", ".", "a..b", "1.2.3.4."))'
+R -d gdb --debugger-args='-batch -ex run -ex bt' -e 'pslr::public_suffix(c("", ".", "a..b", "1.2.3.4."))'
 R -d valgrind -e 'pslr::registrable_domain(rawToChar(as.raw(c(0x61, 0xff, 0x2e, 0x63, 0x6f, 0x6d))))'
 ```
 
@@ -126,8 +146,10 @@ bundled list `inst/extdata/public_suffix_list.dat`.
   R error). A failed refresh that corrupts or replaces the working cache or
   active matcher.
 - **Low**: wrong results with no security consequence, including
-  nonconformance with the PSL algorithm on lists the caller supplies;
-  problems that need `:::` internals, a hand-built `psl_engine` object, a
+  nonconformance with the PSL algorithm on lists the caller supplies; an
+  allowlist bypass, for a caller using `pslr` directly, through a
+  non-canonical IPv4 string matched as a host name (see below); problems that
+  need `:::` internals, a hand-built `psl_engine` object, a
   hostile R option, or a hostile file the caller chose to load.
 
 ## Anything to leave alone
@@ -139,9 +161,13 @@ Documented design choices (`docs/PRD.md`, `docs/decisions.md`):
   default `invalid = "na"`.
 - `unknown = "default"` applies the implicit `*` rule, so an unlisted TLD is
   its own public suffix; `unknown = "na"` is the opt-out.
-- `"999.1.1.1"` and `"01.2.3.4"` are not IPv4 literals and are matched as
-  host names; only canonical dotted-decimal IPv4 is rejected (PRD s5.2). IP
-  parsing and URL parsing are non-goals; URL syntax is invalid input.
+- `"999.1.1.1"`, `"01.2.3.4"` and `"127.1"` are not canonical IPv4 literals
+  and are matched as host names; only canonical dotted-decimal IPv4 is
+  rejected (PRD s5.2). IP parsing and URL parsing are non-goals; URL syntax is
+  invalid input. Keep that behavior. A caller that uses `pslr` directly and
+  keys an allowlist on its result can still be misled by such a string, which
+  a fetching client may read as an address: report that as Low, not as out of
+  scope.
 - The terminal root dot is kept on outputs: `public_suffix("example.com.")`
   is `"com."`.
 - Under `section = "all"`, ICANN wins a cross-section tie.
@@ -154,6 +180,7 @@ Patches: a minimal R or C++ fix in the package's style (roxygen-documented R,
 Air formatting, no new dependencies); a `testthat` regression test in the
 matching `tests/testthat/test-*.R` file (`test-matcher.R` for the C++,
 `test-canonicalize.R` for input handling, `test-url-policy.R` or
-`test-http-transport.R` for refresh); and a `NEWS.md` bullet under the
-development version, citing the PSL format or algorithm clause, or the RFC
-and section, when the fix is a conformance fix.
+`test-http-transport.R` for refresh); and a one-line `NEWS.md` bullet under
+the development version that ends with the issue id in parentheses, as every
+bullet there does (`pslr`'s `AGENTS.md`), and cites the PSL format or
+algorithm clause, or the RFC and section, when the fix is a conformance fix.
