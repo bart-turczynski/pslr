@@ -71,7 +71,8 @@ is in scope.
 ## How to exercise it
 
 The image has the source at `/src`, `pslr` installed from it with `-g -O1
--fno-omit-frame-pointer`, Imports and Suggests installed, and no network.
+-fno-omit-frame-pointer`, Imports and Suggests installed, `gdb` and
+`valgrind` installed, and no network.
 Network-dependent tests (`test-security.R`, `test-osv.R`) skip offline; all
 refresh tests use an injected fake transport (`local_fake_transport()` in
 `tests/testthat/helper-active.R`).
@@ -80,7 +81,7 @@ refresh tests use an injected fake transport (`local_fake_transport()` in
 Rscript -e 'testthat::test_local("/src")'
 Rscript -e 'pslr::registrable_domain(c("www.example.co.uk", "a.b.ck", "www.ck"))'
 Rscript -e 'pslr::suffix_extract("x.github.io", section = "private")'
-Rscript -e 'pslr::public_suffix_rule(strrep("a.", 1e5))'
+Rscript -e 'system.time(pslr::public_suffix_rule(strrep("a.", 1e5)))'
 R -d gdb -e 'pslr::public_suffix(c("", ".", "a..b", "1.2.3.4."))'
 R -d valgrind -e 'pslr::registrable_domain(rawToChar(as.raw(c(0x61, 0xff, 0x2e, 0x63, 0x6f, 0x6d))))'
 ```

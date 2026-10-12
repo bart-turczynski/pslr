@@ -8,6 +8,12 @@ FROM rocker/r-ver:4.6.1
 RUN mkdir -p /root/.R && for v in CFLAGS CXXFLAGS CXX11FLAGS CXX14FLAGS CXX17FLAGS CXX20FLAGS; do \
       echo "$v = -g -O1 -fno-omit-frame-pointer" >> /root/.R/Makevars; done
 
+# The debuggers the threat model names (`R -d gdb`, `R -d valgrind`); the base
+# image ships neither, and the audit has no network to fetch them.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends gdb valgrind \
+ && rm -rf /var/lib/apt/lists/*
+
 # scanner contract: the checkout lives inside the image, at /src
 COPY . /src
 WORKDIR /src
