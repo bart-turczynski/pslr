@@ -42,6 +42,7 @@
 ^\.claude$
 ^\.fossa$
 ^\.fossa\.yml$
+^\.oss-scanner$
 ^\.mailmap$
 ^FP_CLAUDE\.md$
 ^FP_AGENTS\.md$
