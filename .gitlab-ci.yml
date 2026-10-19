@@ -533,7 +533,7 @@ news-version:
 citation-version:
   extends: .rules-main
   stage: lint
-  image: python:3.13-alpine
+  image: python:3.14-alpine
   script:
     - python3 scripts/check-citation.py --self-test
     - python3 scripts/check-citation.py

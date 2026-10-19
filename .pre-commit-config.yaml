@@ -4,7 +4,7 @@
 # tools/verify.sh, so there is no R source in this file to quote at all.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
         args: ['--maxkb=5120']
@@ -28,7 +28,7 @@ repos:
   # auto-fixes; layout is Air's job, while lintr (in the verify gate) owns
   # logic/best-practice lints. https://posit-dev.github.io/air/
   - repo: https://github.com/posit-dev/air-pre-commit
-    rev: 0.8.2
+    rev: 0.12.0
     hooks:
       - id: air-format
   # British spellings in code, comments, string literals and tooling, which

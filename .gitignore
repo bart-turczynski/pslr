@@ -4,7 +4,6 @@
 *.log
 .DS_Store
 
-.fp/
 _scratch/
 
 # Heavy artifacts — never commit (a big blob bloats .git history even after deletion).
