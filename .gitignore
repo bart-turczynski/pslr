@@ -41,7 +41,8 @@ Meta/
 # started from ignored it; that was a mistake, not a policy.
 
 # Fiberplane local issue tracking
-.fp/
+.fp/*
+!.fp/remote.toml
 
 # Timestamp of the last successful `tools/verify.sh full`. Local state about
 # one machine's checkout, not a property of the source.
