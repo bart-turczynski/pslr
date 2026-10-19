@@ -4,7 +4,6 @@
 *.log
 .DS_Store
 
-.fp/
 _scratch/
 
 # Heavy artifacts — never commit (a big blob bloats .git history even after deletion).
@@ -41,8 +40,7 @@ Meta/
 # started from ignored it; that was a mistake, not a policy.
 
 # Fiberplane local issue tracking
-.fp/*
-!.fp/remote.toml
+.fp/
 
 # Timestamp of the last successful `tools/verify.sh full`. Local state about
 # one machine's checkout, not a property of the source.
