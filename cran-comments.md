@@ -9,14 +9,6 @@ them. The test suite ran in 25s. A second `R CMD check`, against 'punycoder'
 1.3.0 built from source with libidn2 2.3.8 as on CRAN's Debian flavors,
 returned Status OK.
 
-## Test environments
-
-* win-builder: R-devel (2026-10-21 r90733), R 4.6.1 and R 4.5.3: 1 NOTE each,
-  the `BugReports:` 404 below.
-* macOS builder: R 4.6.1, macOS 26.6 arm64: Status OK.
-* R-hub: Linux, macOS arm64, clang ASAN, clang UBSAN, valgrind and rchk
-  (R-devel): OK.
-
 * `checking CRAN incoming feasibility` reports the `BugReports:` address as a
   404:
 
@@ -31,6 +23,14 @@ returned Status OK.
   every project on the site; a browser is redirected (302) to `/-/work_items`,
   so the link works for a reader. The previous submission's comments explain
   why no gitlab.com address clears both checks.
+
+## Test environments
+
+* win-builder: R-devel (2026-10-21 r90733), R 4.6.1 and R 4.5.3: 1 NOTE each,
+  the `BugReports:` 404 above.
+* macOS builder: R 4.6.1, macOS 26.6 arm64: Status OK.
+* R-hub: Linux, macOS arm64, clang ASAN, clang UBSAN, valgrind and rchk
+  (R-devel): OK.
 
 ## Reason for this release
 
