@@ -2,11 +2,20 @@
 
 0 errors | 0 warnings | 1 note
 
-Measured on 2026-10-21 with `R CMD check --as-cran` on macOS aarch64 (R 4.6.1),
-with the remote incoming checks on, against a library whose dependencies are
-the versions CRAN serves today, 'punycoder' 1.3.0 among them. The test suite
-ran in 28s. A second `R CMD check`, against 'punycoder' 1.3.0 built from
-source with libidn2 2.3.8 as on CRAN's Debian flavors, returned Status OK.
+Measured on 2026-10-22 with `R CMD check --as-cran` on the 1.2.2 tarball on
+macOS aarch64 (R 4.6.1), with the remote incoming checks on, against a
+library holding only the versions CRAN serves today, 'punycoder' 1.3.0 among
+them. The test suite ran in 25s. A second `R CMD check`, against 'punycoder'
+1.3.0 built from source with libidn2 2.3.8 as on CRAN's Debian flavors,
+returned Status OK.
+
+## Test environments
+
+* win-builder: R-devel (2026-10-21 r90733), R 4.6.1 and R 4.5.3: 1 NOTE each,
+  the `BugReports:` 404 below.
+* macOS builder: R 4.6.1, macOS 26.6 arm64: Status OK.
+* R-hub: Linux, macOS arm64, clang ASAN, clang UBSAN, valgrind and rchk
+  (R-devel): OK.
 
 * `checking CRAN incoming feasibility` reports the `BugReports:` address as a
   404:
