@@ -8,7 +8,7 @@
   "codeRepository": "https://gitlab.com/bart-turczynski/pslr",
   "issueTracker": "https://gitlab.com/bart-turczynski/pslr/-/work_items",
   "license": "https://spdx.org/licenses/MIT",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "programmingLanguage": {
     "@type": "ComputerLanguage",
     "name": "R",

@@ -1,4 +1,4 @@
-# pslr (development version)
+# pslr 1.2.2
 
 * The bundled index is built under `punycoder` 1.3.0, and `Imports:` now requires `punycoder (>= 1.3.0)`, so loading pslr no longer rebuilds it (PSLR-fjkaqckg).
 * A v1 cache whose recorded checksum pslr cannot verify, such as `SHA256:nothex`, gets one diagnosis everywhere, and `psl_status("cache")` reports it as `unknown` (PSLR-izeypfus).
