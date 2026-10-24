@@ -81,8 +81,7 @@
 #    OSSINDEX_USER and OSSINDEX_TOKEN are set (2026-09-24); PSL_BOT_TOKEN is
 #    not, so `psl-upstream-check` stays loud until it is. The `codemeta` job
 #    that also used it was removed on 2026-09-24 (SEOR-tzxuisnf): codemetar
-#    rewrites `issueTracker` to BugReports' `/-/issues` and drops hand-set
-#    fields, so codemeta.json is hand-maintained.
+#    drops hand-set fields, so codemeta.json is hand-maintained.
 #      PSL_BOT_TOKEN   project access token, scopes `api` + `write_repository`.
 #                      Used by psl-upstream-check (pushes a branch, opens an MR).
 #      OSSINDEX_USER   the literal string "x", NOT an email. This was hard-won

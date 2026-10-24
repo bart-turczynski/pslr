@@ -1,33 +1,42 @@
+## Resubmission
+
+This resubmits 1.2.2 with one change, as Uwe Ligges suggested on
+2026-10-23: `BugReports:` now names
+https://gitlab.com/bart-turczynski/pslr/-/work_items instead of
+`/-/issues`, which returned 404 to the URL check. The R code, C++
+sources, tests and documentation are unchanged.
+
 ## R CMD check results
 
 0 errors | 0 warnings | 1 note
 
-Measured on 2026-10-22 with `R CMD check --as-cran` on the 1.2.2 tarball on
-macOS aarch64 (R 4.6.1), with the remote incoming checks on, against a
-library holding only the versions CRAN serves today, 'punycoder' 1.3.0 among
-them. The test suite ran in 25s. A second `R CMD check`, against 'punycoder'
-1.3.0 built from source with libidn2 2.3.8 as on CRAN's Debian flavors,
-returned Status OK.
+Measured on 2026-10-24 with `R CMD check --as-cran` on the resubmitted
+tarball on macOS aarch64 (R 4.6.1), with the remote incoming checks on
+against https://cloud.r-project.org, and 'punycoder' 1.3.0 from CRAN. The
+test suite ran in 25s. No URL is reported as invalid.
 
-* `checking CRAN incoming feasibility` reports the `BugReports:` address as a
-  404:
+* `checking CRAN incoming feasibility`:
 
-      Found the following (possibly) invalid URLs:
-        URL: https://gitlab.com/bart-turczynski/pslr/-/issues
-          From: DESCRIPTION
-          Status: 404
+      The BugReports field in DESCRIPTION has
+        https://gitlab.com/bart-turczynski/pslr/-/work_items
+      which should likely be
+        https://gitlab.com/bart-turczynski/pslr/-/work_items/issues
+      instead.
 
-  This is the form the incoming check asks for on gitlab.com, and it is the
-  same address 1.2.1 was accepted with. GitLab now serves issues as work items
-  and answers `/-/issues` with 404 to any signed-out, non-browser client, on
-  every project on the site; a browser is redirected (302) to `/-/work_items`,
-  so the link works for a reader. The previous submission's comments explain
-  why no gitlab.com address clears both checks.
+  This is the NOTE Uwe Ligges described on 2026-10-23 as a bug in the
+  check for GitLab. On gitlab.com, `/-/work_items` answers 200 to any
+  client, while `/-/issues` answers 404 to a client that does not ask for
+  HTML, `tools::check_url_db()` included, and redirects a browser to
+  `/-/work_items`.
 
 ## Test environments
 
+These ran on the first 1.2.2 upload. This tarball changes only
+`DESCRIPTION` metadata (`BugReports:` and the roxygen2 version field) and
+two maintainer scripts under `tools/`.
+
 * win-builder: R-devel (2026-10-21 r90733), R 4.6.1 and R 4.5.3: 1 NOTE each,
-  the `BugReports:` 404 above.
+  the `BugReports:` `/-/issues` 404 this resubmission removes.
 * macOS builder: R 4.6.1, macOS 26.6 arm64: Status OK.
 * R-hub: Linux, macOS arm64, clang ASAN, clang UBSAN, valgrind and rchk
   (R-devel): OK.
