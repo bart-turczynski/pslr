@@ -211,9 +211,8 @@ run_spelling() {
 
 # Fetches every URL the package declares and fails on a dead one, which
 # `R CMD check --as-cran` reports only as a NOTE. A URL that could not be
-# reached at all only warns, so a network blip never rejects a push; the
-# BugReports `/-/issues` 404 is the one exemption (SEOR-ocbtrrnl). The fleet's
-# shape of this check, ported from sitemapr (SEOR-twxjxogh).
+# reached at all only warns, so a network blip never rejects a push. The
+# fleet's shape of this check, ported from sitemapr (SEOR-twxjxogh).
 run_urls() {
   step "declared URLs resolve (tools/check-urls.R)"
   Rscript tools/check-urls.R
