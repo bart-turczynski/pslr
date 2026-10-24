@@ -103,10 +103,11 @@ repos:
       # no human-facing surface may carry a /-/issues link, which 404s for
       # CRAN's URL check; CRAN accepts /-/work_items (PSLR-cvhksjst, replacing
       # the split of SEOR-ocbtrrnl). Ported from pagerankr's
-      # scripts/check-bugreports.py; stdlib-only and offline, wired exactly
+      # scripts/check-bugreports.py, whose v1 rule it now reverses (v2);
+      # stdlib-only and offline, wired exactly
       # like check-citation above. The script's docstring has the history.
       - id: check-bugreports
-        name: BugReports split (DESCRIPTION vs human-facing tracker links)
+        name: BugReports and tracker links name /-/work_items
         entry: python3 scripts/check-bugreports.py
         language: system
         pass_filenames: false

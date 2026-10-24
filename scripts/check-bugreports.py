@@ -1,5 +1,7 @@
-# check-bugreports v1 (pslr adaptation of pagerankr's scripts/check-bugreports.py,
-# by way of rurl's, which first handled the @seealso case below)
+# check-bugreports v2 (pslr adaptation of pagerankr's scripts/check-bugreports.py,
+# by way of rurl's, which first handled the @seealso case below). v2 requires
+# /-/work_items in DESCRIPTION too, the opposite of v1 and of the other
+# packages' copies until SEOR-sptibjph reaches them: never re-port from those.
 """BugReports / tracker-link gate.
 
 WHY THIS EXISTS. CRAN runs two checks over a GitLab `BugReports:` URL and,
@@ -9,8 +11,9 @@ classic `.../-/issues` path 404s for a client that does not send
 `Accept: text/html` (the exact client CRAN's check uses) while
 `.../-/work_items` serves 200. `tools:::.check_package_CRAN_incoming()`
 never fetches anything -- it string-tests the path and flags anything but
-`/issues`, `/-/work_items` included, with a "should likely be .../-/issues"
-NOTE. No URL satisfies both.
+`/issues`, `/-/work_items` included, with a "which should likely be"
+NOTE proposing an `/issues` path (R 4.6.1 proposes
+`.../-/work_items/issues`). No URL satisfies both.
 
 From 1.2.1 to the first 1.2.2 upload, pslr kept `/-/issues` in DESCRIPTION
 and `/-/work_items` everywhere else (SEOR-ocbtrrnl, PSLR-kjkmhrok). The 1.2.2
@@ -36,8 +39,10 @@ come back.
 
 WHAT IT CHECKS.
 
-1. `DESCRIPTION`'s `BugReports:` is the project's `/-/work_items` address,
-   optionally with a trailing slash.
+1. `DESCRIPTION`'s `BugReports:` is the `/-/work_items` address,
+   optionally with a trailing slash, of the gitlab.com repository that
+   `DESCRIPTION`'s `URL:` names, and `codemeta.json`'s `"issueTracker"`
+   is the same address.
 2. `man/pslr-package.Rd`'s "Report bugs at" link, when present, is
    IDENTICAL to `DESCRIPTION`'s `BugReports:` value; when absent,
    `R/pslr-package.R` still declares the `@seealso` that suppresses it.
@@ -63,10 +68,6 @@ WHAT IT DOES NOT CHECK, ON PURPOSE.
   record of a past submission). A historical bullet or paragraph that quotes
   an old `/-/issues` form, including one arguing FOR that form, is not
   drift, so both files are exempt.
-* `codemeta.json`'s `"issueTracker"` is not compared against
-  `DESCRIPTION`'s `BugReports:` for equality: rule 3 already pins it to
-  `/-/work_items`, and `scripts/check-citation.py` owns the cross-file
-  duplication question.
 * Nothing here touches the network. Whether a URL currently resolves is a
   fact about the rest of the world; `R CMD check --as-cran` already fetches
   declared URLs, and a network call in a pre-push gate fails on a train.
@@ -92,7 +93,10 @@ ISSUES_RE = re.compile(
 WORK_ITEMS_RE = re.compile(r"https://gitlab\.com/[\w.-]+/[\w.-]+/-/work_items\b")
 
 # DESCRIPTION's BugReports: value, in full, must match this.
-BUGREPORTS_RE = re.compile(r"^https://gitlab\.com/[\w.-]+/[\w.-]+/-/work_items/?$")
+BUGREPORTS_RE = re.compile(r"^(https://gitlab\.com/[\w.-]+/[\w.-]+)/-/work_items/?$")
+# A gitlab.com repository address in DESCRIPTION's URL: field.
+REPO_URL_RE = re.compile(r"https://gitlab\.com/[\w.-]+/[\w.-]+(?=[\s,]|$)")
+ISSUE_TRACKER_RE = re.compile(r'"issueTracker"\s*:\s*"([^"]*)"')
 
 # Files beside DESCRIPTION that carry the tracker link; each must name
 # /-/work_items.
@@ -155,13 +159,31 @@ def check_repo(root: Path) -> list[str]:
     if not bugreports:
         return []  # No BugReports: field is a separate question, not drift here.
 
-    if not BUGREPORTS_RE.match(bugreports):
+    match = BUGREPORTS_RE.match(bugreports)
+    if match is None:
         errors.append(
-            f"DESCRIPTION BugReports: is '{bugreports}', which is not the "
-            f"project's /-/work_items address. /-/issues 404s for CRAN's URL "
+            f"DESCRIPTION BugReports: is '{bugreports}', which is not a "
+            f"gitlab.com /-/work_items address. /-/issues 404s for CRAN's URL "
             f"check, and CRAN accepts /-/work_items (Uwe Ligges, 2026-10-23; "
             f"PSLR-cvhksjst)."
         )
+    elif match.group(1) not in REPO_URL_RE.findall(desc.get("URL", "")):
+        errors.append(
+            f"DESCRIPTION BugReports: is '{bugreports}', but URL: names no "
+            f"repository '{match.group(1)}'. The tracker must be this "
+            f"package's own."
+        )
+
+    codemeta = root / "codemeta.json"
+    if codemeta.exists():
+        tracker = ISSUE_TRACKER_RE.search(codemeta.read_text(encoding="utf-8"))
+        if tracker is None or tracker.group(1).rstrip("/") != bugreports.rstrip("/"):
+            found = tracker.group(1) if tracker else "nothing"
+            errors.append(
+                f"codemeta.json issueTracker is '{found}', but DESCRIPTION's "
+                f"BugReports: is '{bugreports}'. codemeta.json is hand-"
+                f"maintained; make it name the same address."
+            )
 
     man_path = root / PACKAGE_RD
     if man_path.exists():
@@ -230,10 +252,11 @@ def _fixture(
     man_url: str | None,
     human: dict[str, str],
     seealso: bool = True,
+    url: str = "https://gitlab.com/bart-turczynski/fixture",
 ) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "DESCRIPTION").write_text(
-        f"Package: fixture\nVersion: 0.1.0\nBugReports: {bugreports}\n",
+        f"Package: fixture\nVersion: 0.1.0\nURL: {url}\nBugReports: {bugreports}\n",
         encoding="utf-8",
     )
     man_dir = directory / "man"
@@ -302,11 +325,32 @@ def self_test() -> None:
         seealso=False,
     )
 
+    # NEGATIVE: a tracker copied from another package.
+    expect_flagged(
+        "foreign-tracker",
+        "URL: names no repository",
+        bugreports="https://gitlab.com/someone/else/-/work_items",
+        man_url=None,
+        human=human_target,
+    )
+
+    # NEGATIVE: codemeta.json names another /-/work_items address than
+    # DESCRIPTION's.
+    drifted = dict(human_target)
+    drifted["codemeta.json"] = '{"issueTracker": "https://gitlab.com/someone/else/-/work_items"}'
+    expect_flagged(
+        "codemeta-differs",
+        "codemeta.json issueTracker is",
+        bugreports=work_items,
+        man_url=None,
+        human=drifted,
+    )
+
     # NEGATIVE: DESCRIPTION back on /-/issues, the form that drew the 1.2.2
     # pretest's 404 NOTE.
     expect_flagged(
         "description-issues",
-        "not the project's /-/work_items address",
+        "not a gitlab.com /-/work_items address",
         bugreports=issues,
         man_url=issues,
         human=human_target,
@@ -316,7 +360,7 @@ def self_test() -> None:
     # check string-tests for.
     expect_flagged(
         "description-issues-new",
-        "not the project's /-/work_items address",
+        "not a gitlab.com /-/work_items address",
         bugreports=f"{issues}/new",
         man_url=None,
         human=human_target,
@@ -378,7 +422,7 @@ def self_test() -> None:
         human=vignette,
     )
 
-    print("check-bugreports self-test: PASS (3 positive + 8 negative cases)")
+    print("check-bugreports self-test: PASS (3 positive + 10 negative cases)")
 
 
 def main() -> int:
