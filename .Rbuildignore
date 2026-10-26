@@ -51,6 +51,7 @@
 ^bench$
 ^data-raw$
 ^docs$
+^design$
 ^site$
 ^_pkgdown\.yml$
 ^CLAUDE\.md$

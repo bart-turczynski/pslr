@@ -50,6 +50,7 @@ WHAT IT CHECKS.
    of them carries a `/-/issues` link:
      - codemeta.json (`"issueTracker"`)
      - .bestpractices.json
+     - CONTRIBUTING.md (where to report a bug)
      - .github/pull_request_template.md (the read-only GitHub mirror's
        "Bug reports go to" line)
 4. No other human-facing surface carries a `/-/issues` link. These files
@@ -57,8 +58,9 @@ WHAT IT CHECKS.
    purpose, and README.Rmd/README.md link none, unlike pagerankr's -- so the
    check forbids the old form without requiring the new one; requiring it
    would force a link nobody asked for into them:
-     - README.Rmd, README.md, SECURITY.md, CONTRIBUTING.md,
-       SECURITY-INSIGHTS.yml, _pkgdown.yml, vignettes/*.Rmd, .github/**
+     - README.Rmd, README.md, SECURITY.md, SECURITY-INSIGHTS.yml,
+       _pkgdown.yml, vignettes/*.Rmd, .github/**, .gitlab/** (issue and MR
+       templates), design/** (the release deltas SECURITY-INSIGHTS.yml names)
 
 WHAT IT DOES NOT CHECK, ON PURPOSE.
 
@@ -88,14 +90,14 @@ import tempfile
 from pathlib import Path
 
 ISSUES_RE = re.compile(
-    r"https://gitlab\.com/[\w.-]+/[\w.-]+/-/issues(?:/new)?/?(?=[\s)\]\"'>]|$)"
+    r"https://gitlab\.com/[\w.-]+/[\w.-]+/-/issues(?![\w-])"
 )
 WORK_ITEMS_RE = re.compile(r"https://gitlab\.com/[\w.-]+/[\w.-]+/-/work_items\b")
 
 # DESCRIPTION's BugReports: value, in full, must match this.
 BUGREPORTS_RE = re.compile(r"^(https://gitlab\.com/[\w.-]+/[\w.-]+)/-/work_items/?$")
 # A gitlab.com repository address in DESCRIPTION's URL: field.
-REPO_URL_RE = re.compile(r"https://gitlab\.com/[\w.-]+/[\w.-]+(?=[\s,]|$)")
+REPO_URL_RE = re.compile(r"(https://gitlab\.com/[\w.-]+/[\w.-]+?)/?(?=[\s,]|$)")
 ISSUE_TRACKER_RE = re.compile(r'"issueTracker"\s*:\s*"([^"]*)"')
 
 # Files beside DESCRIPTION that carry the tracker link; each must name
@@ -103,6 +105,7 @@ ISSUE_TRACKER_RE = re.compile(r'"issueTracker"\s*:\s*"([^"]*)"')
 HUMAN_FACING_FILES = (
     "codemeta.json",
     ".bestpractices.json",
+    "CONTRIBUTING.md",
     ".github/pull_request_template.md",
 )
 
@@ -112,11 +115,12 @@ NO_ISSUES_GLOBS = (
     "README.Rmd",
     "README.md",
     "SECURITY.md",
-    "CONTRIBUTING.md",
     "SECURITY-INSIGHTS.yml",
     "_pkgdown.yml",
     "vignettes/*.Rmd",
     ".github/**/*",
+    ".gitlab/**/*",
+    "design/**/*",
 )
 
 PACKAGE_RD = Path("man") / "pslr-package.Rd"
@@ -300,6 +304,7 @@ def self_test() -> None:
         "codemeta.json": f'{{"issueTracker": "{work_items}"}}',
         ".bestpractices.json": f'{{"report_url_justification": "Bug tracker: {work_items}"}}',
         ".github/pull_request_template.md": f"Bug reports go to {work_items}",
+        "CONTRIBUTING.md": f"Report bugs at <{work_items}>.",
         "SECURITY.md": "Report a vulnerability by e-mail.",
         "README.Rmd": "Install from CRAN.",
         "README.md": "Install from CRAN.",
@@ -314,6 +319,15 @@ def self_test() -> None:
 
     # POSITIVE: a trailing slash is the same address.
     expect_clean("trailing-slash", bugreports=f"{work_items}/", man_url=None, human=human_target)
+
+    # POSITIVE: so is a trailing slash on URL:'s repository address.
+    expect_clean(
+        "url-trailing-slash",
+        bugreports=work_items,
+        man_url=None,
+        human=human_target,
+        url="https://gitlab.com/bart-turczynski/fixture/",
+    )
 
     # NEGATIVE: the line is absent and nothing suppresses it any more.
     expect_flagged(
@@ -422,7 +436,58 @@ def self_test() -> None:
         human=vignette,
     )
 
-    print("check-bugreports self-test: PASS (3 positive + 10 negative cases)")
+    # NEGATIVE: the link in backticks, before a full stop, before a comma,
+    # and to one issue; the old lookahead missed all four.
+    for tag, text in (
+        ("backticks", f"See `{issues}`."),
+        ("full-stop", f"Report problems at {issues}."),
+        ("comma", f"Report problems at {issues}, please."),
+        ("one-issue", f"Fixed in {issues}/42 already."),
+    ):
+        inline = dict(human_target)
+        inline["README.md"] = text
+        expect_flagged(
+            f"issues-link-{tag}",
+            "README.md links a /-/issues form",
+            bugreports=work_items,
+            man_url=work_items,
+            human=inline,
+        )
+
+    # NEGATIVE: a GitLab template under .gitlab/ gains a /-/issues link.
+    template = dict(human_target)
+    template[".gitlab/issue_templates/Bug report.md"] = f"Search {issues} first."
+    expect_flagged(
+        "gitlab-template-issues-link",
+        ".gitlab/issue_templates/Bug report.md links a /-/issues form",
+        bugreports=work_items,
+        man_url=work_items,
+        human=template,
+    )
+
+    # NEGATIVE: CONTRIBUTING.md loses its tracker link.
+    no_link = dict(human_target)
+    no_link["CONTRIBUTING.md"] = "Send changes as merge requests."
+    expect_flagged(
+        "contributing-missing-work-items",
+        "CONTRIBUTING.md does not name",
+        bugreports=work_items,
+        man_url=work_items,
+        human=no_link,
+    )
+
+    # NEGATIVE: the release deltas under design/ gain a /-/issues link.
+    deltas = dict(human_target)
+    deltas["design/release-deltas.md"] = f"File a release issue at {issues}."
+    expect_flagged(
+        "design-issues-link",
+        "design/release-deltas.md links a /-/issues form",
+        bugreports=work_items,
+        man_url=work_items,
+        human=deltas,
+    )
+
+    print("check-bugreports self-test: PASS (4 positive + 17 negative cases)")
 
 
 def main() -> int:

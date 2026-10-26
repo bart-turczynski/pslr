@@ -37,3 +37,11 @@ into `site/`):
 - `bench/`: the performance benchmark, kept out of the package build.
 - `docs/`: durable project context, the documents listed above plus
   `benchmarks.md`.
+- `design/`: maintainer notes outside the package build: the CRAN release
+  deltas in
+  [`design/release-deltas.md`](https://gitlab.com/bart-turczynski/pslr/-/blob/main/design/release-deltas.md).
+
+The test suite is plain testthat, run by `R CMD check`. A performance benchmark
+and its release gate, kept out of CRAN, live in
+[`bench/benchmark.R`](https://gitlab.com/bart-turczynski/pslr/-/blob/main/bench/benchmark.R); the recorded reference results are in
+[`docs/benchmarks.md`](https://gitlab.com/bart-turczynski/pslr/-/blob/main/docs/benchmarks.md).
