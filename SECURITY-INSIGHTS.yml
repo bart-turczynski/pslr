@@ -20,7 +20,7 @@ project:
   documentation:
     quickstart-guide: https://bart-turczynski.gitlab.io/pslr/
     detailed-guide: https://bart-turczynski.gitlab.io/pslr/reference/index.html
-    release-process: https://gitlab.com/bart-turczynski/pslr/-/blob/main/CONTRIBUTING.md
+    release-process: https://gitlab.com/bart-turczynski/pslr/-/blob/main/design/release-deltas.md
   repositories:
     - name: pslr
       url: https://gitlab.com/bart-turczynski/pslr
