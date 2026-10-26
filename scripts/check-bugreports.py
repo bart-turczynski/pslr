@@ -58,7 +58,8 @@ WHAT IT CHECKS.
    check forbids the old form without requiring the new one; requiring it
    would force a link nobody asked for into them:
      - README.Rmd, README.md, SECURITY.md, CONTRIBUTING.md,
-       SECURITY-INSIGHTS.yml, _pkgdown.yml, vignettes/*.Rmd, .github/**
+       SECURITY-INSIGHTS.yml, _pkgdown.yml, vignettes/*.Rmd, .github/**,
+       .gitlab/** (issue and MR templates)
 
 WHAT IT DOES NOT CHECK, ON PURPOSE.
 
@@ -88,14 +89,14 @@ import tempfile
 from pathlib import Path
 
 ISSUES_RE = re.compile(
-    r"https://gitlab\.com/[\w.-]+/[\w.-]+/-/issues(?:/new)?/?(?=[\s)\]\"'>]|$)"
+    r"https://gitlab\.com/[\w.-]+/[\w.-]+/-/issues(?![\w-])"
 )
 WORK_ITEMS_RE = re.compile(r"https://gitlab\.com/[\w.-]+/[\w.-]+/-/work_items\b")
 
 # DESCRIPTION's BugReports: value, in full, must match this.
 BUGREPORTS_RE = re.compile(r"^(https://gitlab\.com/[\w.-]+/[\w.-]+)/-/work_items/?$")
 # A gitlab.com repository address in DESCRIPTION's URL: field.
-REPO_URL_RE = re.compile(r"https://gitlab\.com/[\w.-]+/[\w.-]+(?=[\s,]|$)")
+REPO_URL_RE = re.compile(r"(https://gitlab\.com/[\w.-]+/[\w.-]+?)/?(?=[\s,]|$)")
 ISSUE_TRACKER_RE = re.compile(r'"issueTracker"\s*:\s*"([^"]*)"')
 
 # Files beside DESCRIPTION that carry the tracker link; each must name
@@ -117,6 +118,7 @@ NO_ISSUES_GLOBS = (
     "_pkgdown.yml",
     "vignettes/*.Rmd",
     ".github/**/*",
+    ".gitlab/**/*",
 )
 
 PACKAGE_RD = Path("man") / "pslr-package.Rd"
@@ -315,6 +317,15 @@ def self_test() -> None:
     # POSITIVE: a trailing slash is the same address.
     expect_clean("trailing-slash", bugreports=f"{work_items}/", man_url=None, human=human_target)
 
+    # POSITIVE: so is a trailing slash on URL:'s repository address.
+    expect_clean(
+        "url-trailing-slash",
+        bugreports=work_items,
+        man_url=None,
+        human=human_target,
+        url="https://gitlab.com/bart-turczynski/fixture/",
+    )
+
     # NEGATIVE: the line is absent and nothing suppresses it any more.
     expect_flagged(
         "man-missing-without-seealso",
@@ -422,7 +433,36 @@ def self_test() -> None:
         human=vignette,
     )
 
-    print("check-bugreports self-test: PASS (3 positive + 10 negative cases)")
+    # NEGATIVE: the link in backticks, before a full stop, before a comma,
+    # and to one issue; the old lookahead missed all four.
+    for tag, text in (
+        ("backticks", f"See `{issues}`."),
+        ("full-stop", f"Report problems at {issues}."),
+        ("comma", f"Report problems at {issues}, please."),
+        ("one-issue", f"Fixed in {issues}/42 already."),
+    ):
+        inline = dict(human_target)
+        inline["README.md"] = text
+        expect_flagged(
+            f"issues-link-{tag}",
+            "README.md links a /-/issues form",
+            bugreports=work_items,
+            man_url=work_items,
+            human=inline,
+        )
+
+    # NEGATIVE: a GitLab template under .gitlab/ gains a /-/issues link.
+    template = dict(human_target)
+    template[".gitlab/issue_templates/Bug report.md"] = f"Search {issues} first."
+    expect_flagged(
+        "gitlab-template-issues-link",
+        ".gitlab/issue_templates/Bug report.md links a /-/issues form",
+        bugreports=work_items,
+        man_url=work_items,
+        human=template,
+    )
+
+    print("check-bugreports self-test: PASS (4 positive + 15 negative cases)")
 
 
 def main() -> int:
