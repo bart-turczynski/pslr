@@ -50,6 +50,7 @@ WHAT IT CHECKS.
    of them carries a `/-/issues` link:
      - codemeta.json (`"issueTracker"`)
      - .bestpractices.json
+     - CONTRIBUTING.md (where to report a bug)
      - .github/pull_request_template.md (the read-only GitHub mirror's
        "Bug reports go to" line)
 4. No other human-facing surface carries a `/-/issues` link. These files
@@ -57,9 +58,9 @@ WHAT IT CHECKS.
    purpose, and README.Rmd/README.md link none, unlike pagerankr's -- so the
    check forbids the old form without requiring the new one; requiring it
    would force a link nobody asked for into them:
-     - README.Rmd, README.md, SECURITY.md, CONTRIBUTING.md,
-       SECURITY-INSIGHTS.yml, _pkgdown.yml, vignettes/*.Rmd, .github/**,
-       .gitlab/** (issue and MR templates)
+     - README.Rmd, README.md, SECURITY.md, SECURITY-INSIGHTS.yml,
+       _pkgdown.yml, vignettes/*.Rmd, .github/**, .gitlab/** (issue and MR
+       templates), design/** (the release deltas SECURITY-INSIGHTS.yml names)
 
 WHAT IT DOES NOT CHECK, ON PURPOSE.
 
@@ -104,6 +105,7 @@ ISSUE_TRACKER_RE = re.compile(r'"issueTracker"\s*:\s*"([^"]*)"')
 HUMAN_FACING_FILES = (
     "codemeta.json",
     ".bestpractices.json",
+    "CONTRIBUTING.md",
     ".github/pull_request_template.md",
 )
 
@@ -113,12 +115,12 @@ NO_ISSUES_GLOBS = (
     "README.Rmd",
     "README.md",
     "SECURITY.md",
-    "CONTRIBUTING.md",
     "SECURITY-INSIGHTS.yml",
     "_pkgdown.yml",
     "vignettes/*.Rmd",
     ".github/**/*",
     ".gitlab/**/*",
+    "design/**/*",
 )
 
 PACKAGE_RD = Path("man") / "pslr-package.Rd"
@@ -302,6 +304,7 @@ def self_test() -> None:
         "codemeta.json": f'{{"issueTracker": "{work_items}"}}',
         ".bestpractices.json": f'{{"report_url_justification": "Bug tracker: {work_items}"}}',
         ".github/pull_request_template.md": f"Bug reports go to {work_items}",
+        "CONTRIBUTING.md": f"Report bugs at <{work_items}>.",
         "SECURITY.md": "Report a vulnerability by e-mail.",
         "README.Rmd": "Install from CRAN.",
         "README.md": "Install from CRAN.",
@@ -462,7 +465,29 @@ def self_test() -> None:
         human=template,
     )
 
-    print("check-bugreports self-test: PASS (4 positive + 15 negative cases)")
+    # NEGATIVE: CONTRIBUTING.md loses its tracker link.
+    no_link = dict(human_target)
+    no_link["CONTRIBUTING.md"] = "Send changes as merge requests."
+    expect_flagged(
+        "contributing-missing-work-items",
+        "CONTRIBUTING.md does not name",
+        bugreports=work_items,
+        man_url=work_items,
+        human=no_link,
+    )
+
+    # NEGATIVE: the release deltas under design/ gain a /-/issues link.
+    deltas = dict(human_target)
+    deltas["design/release-deltas.md"] = f"File a release issue at {issues}."
+    expect_flagged(
+        "design-issues-link",
+        "design/release-deltas.md links a /-/issues form",
+        bugreports=work_items,
+        man_url=work_items,
+        human=deltas,
+    )
+
+    print("check-bugreports self-test: PASS (4 positive + 17 negative cases)")
 
 
 def main() -> int:

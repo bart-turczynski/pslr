@@ -38,8 +38,9 @@ The bundled Public Suffix List snapshot (`inst/extdata/public_suffix_list.dat`,
 `R/sysdata.rda`, `inst/NOTICE`, and the conformance vectors in
 `tests/testthat/fixtures/psl-vectors.txt`) must be regenerated before any
 release that should ship a current list. This is a deliberate, maintainer-gated
-step — do NOT automate it as a silent commit or CI job (CRAN/package policy
-forbids network access at build/check time).
+step — never a silent commit to main; the `psl-upstream-check` job only opens
+an MR for review (below). CRAN/package policy forbids network access at
+build/check time.
 
 Run from the package root in a network-enabled maintainer environment:
 

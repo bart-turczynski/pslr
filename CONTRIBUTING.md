@@ -28,16 +28,10 @@ the release checklist call it too, so running the underlying `lintr` and
 `rcmdcheck` commands by hand checks less than a push does. See
 [docs/git-workflow.md](docs/git-workflow.md#the-verify-gate) for every tier.
 
-Format R sources with [Air](https://posit-dev.github.io/air/) (a fast,
-R-free formatter; config in `air.toml`):
-
-```sh
-air format .
-```
-
-Air runs automatically as a pre-commit hook, so you rarely need to invoke it by
-hand. Air owns layout; lintr (in the verify gate above) owns logic and
-best-practice lints. Don't reformat code unrelated to your change.
+Format R sources with [Air](https://posit-dev.github.io/air/) (`air format .`;
+it also runs as a pre-commit hook), and don't reformat code unrelated to your
+change. Details:
+[docs/git-workflow.md](https://gitlab.com/bart-turczynski/pslr/-/blob/main/docs/git-workflow.md#formatting).
 
 Edit roxygen comments in `R/`, never the generated `man/` or `NAMESPACE`; the
 full repository layout is in [ARCHITECTURE.md](ARCHITECTURE.md#repository-layout).
