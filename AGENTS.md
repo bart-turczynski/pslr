@@ -15,8 +15,13 @@ roxygen comments in `R/`, then `devtools::document()`; after a changed
 `docs/` is committed source, not a pkgdown build — `_pkgdown.yml` sets
 `destination: site`.
 
-Every user-facing change gets a one-line `NEWS.md` bullet with the issue id in
-parentheses.
+`NEWS.md` gets one terse line per change a package user acts on or notices:
+behavior, API, dependencies, R or system requirements, installation. Where a standard decides
+it, cite the clause in a few words; the reasoning goes in the issue. At most one
+issue or MR reference, at the end. No housekeeping bullets (CI, gates, lint,
+repository metadata such as `codemeta.json`, `CITATION.cff` and keywords,
+agent files) and no Internal section. The `news-terse` hook enforces
+this rule at push.
 
 Scratch and planning notes live in `_scratch/`. Never commit `_scratch/` or
 `.fp/`.
