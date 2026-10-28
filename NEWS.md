@@ -16,7 +16,6 @@
 # pslr 1.2.1
 
 * Parsing the Public Suffix List is roughly 7x faster: `read_psl_file()` on the bundled list drops from 11.97s to 1.69s, with byte-identical output (PSLR-ufhllfer).
-* `BugReports` points at the GitLab `/-/issues` form that CRAN's incoming check requires; GitLab redirects browsers from it to `/-/work_items` (PSLR-cmkufiww).
 
 # pslr 1.2.0
 
@@ -35,13 +34,13 @@
 * A source's `retrieved_at` and `checked_at` no longer move backwards when the system clock does (PSLR-usocggvm).
 * New `psl_reminder(enable, every)` sets an opt-in, offline freshness reminder that `library(pslr)` prints at most once per session (PSLR-zfdsaciu).
 * New `psl_snapshots()` lists every locally resolvable snapshot with its `integrity`; `verify = TRUE` rehashes the stored bytes (PSLR-umwatxje).
-* `psl_cache_prune()` keeps every snapshot that is selected, active or named by a source, plus the `keep` most recently retrieved, and prunes nothing when state is unreadable (PSLR-kdjvxtpk).
+* `psl_cache_prune()` keeps every snapshot that is selected, active or named by a source, plus the `keep` most recently first retrieved, and prunes nothing when state is unreadable (PSLR-kdjvxtpk).
 * A fresh install reports the bundled snapshot as `never_checked` instead of `untracked`, since it now records the canonical refresh endpoint (PSLR-jujniexk).
-* The bundled index is built under CRAN's `punycoder` 1.2.1, so loading pslr no longer rebuilds it in memory, which cost about 2.75 s per session (PSLR-fjkaqckg).
 * Queries and reading a PSL source file no longer depend on the session locale; under a non-UTF-8 locale, non-ASCII hosts returned `NA` and the reader truncated the list (PSLR-jzdhhugc).
 * Undecodable input is reported as invalid, so `invalid = "na"` returns `NA`, instead of aborting with an internal regex error (PSLR-jzdhhugc).
 * Loading pslr no longer warns `strings not representable in native encoding` under a non-UTF-8 locale; non-ASCII results carry UTF-8 marks (PSLR-jzdhhugc).
 * `URL` and `BugReports` now name GitLab and the site <https://bart-turczynski.gitlab.io/pslr/>; the GitHub URLs no longer resolve (PSLR-thcaqtnw).
+* Security reports now go to the maintainer by email; the GitHub private-reporting channel `SECURITY.md` named no longer resolves (PSLR-cftgnuxo).
 * The vignette, README and reference index document freshness, the refresh outcomes, reminders, scheduling `pslr::psl_refresh()` and snapshot pruning (PSLR-hvjaloik).
 * `?pslr` now carries a runnable quick tour of the core queries (PSLR-aquayvhw).
 

@@ -102,8 +102,7 @@ unexpected (e.g. misspelled) arguments.
 
 ## NEWS and generated files
 
-- Add a `NEWS.md` bullet for every user-facing change — one line, no wrapping,
-  with the issue/PR number in parentheses. Internal-only refactors go under an
-  `## Internal` heading (see the existing entries) or are omitted.
+- `NEWS.md` bullets follow the NEWS rule in `AGENTS.md` (one terse line per
+  user-facing change, no Internal section); the `news-terse` hook enforces it.
 - Never hand-edit generated files: `NAMESPACE`, anything under `man/`, or
   `R/cpp11.R` and the cpp11 glue in `src/`.
