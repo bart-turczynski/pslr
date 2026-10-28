@@ -538,6 +538,10 @@ citation-version:
     - python3 scripts/check-citation.py
     - python3 scripts/check-bugreports.py --self-test
     - python3 scripts/check-bugreports.py
+    # NEWS.md bullets are one terse line (SEOR-skfshchx): the same offline,
+    # stdlib-only shape, the `news-terse` pre-push hooks' twin.
+    - python3 scripts/check-news.py --self-test
+    - python3 scripts/check-news.py NEWS.md
 
 # THE gate. This is the AGENTS.md verify command, the same one the pre-push
 # hook runs, with `--no-manual` added because the image carries no LaTeX (the

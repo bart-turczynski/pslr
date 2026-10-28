@@ -113,6 +113,26 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-push]
+      # check-news.py refuses a NEWS.md bullet that wraps, runs past its word
+      # limit or names only housekeeping, and any Internal heading
+      # (https://gitlab.com/bart-turczynski/seor's design/fleet-standard.md,
+      # "NEWS.md bullets"; SEOR-skfshchx). Ported from seor unmodified;
+      # stdlib-only and offline, wired like check-citation above. Its
+      # self-test runs only when the script changes.
+      - id: news-terse
+        name: NEWS.md bullets are one terse line
+        entry: python3 scripts/check-news.py NEWS.md
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      - id: news-terse-self-test
+        name: check-news self-test
+        entry: python3 scripts/check-news.py --self-test
+        language: system
+        pass_filenames: false
+        files: ^scripts/check-news\.py$
+        stages: [pre-push]
       # bestpractices-url.py is a maintainer tool that reads the network, so the
       # hook runs only its offline self-test, and only when the script changes.
       - id: bestpractices-url-self-test
