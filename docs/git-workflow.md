@@ -147,6 +147,12 @@ These live in GitLab's project settings, so a clone does not carry them:
   job reports red (it is allowed to fail).
 - **The project runner** `pslr-local-docker` (`54981995`, Docker executor),
   which runs untagged jobs. While the Mac it runs on sleeps, jobs sit pending.
+  The template's jobs carry no `tags:`, so the former
+  `default: tags: [local-docker]` is gone. The tag existed to keep jobs off
+  GitLab's shared runners (SEOR-hhtzaknn). Shared runners are disabled for
+  pslr (project setting `shared_runners_enabled` false, read 2026-10-30), so
+  an untagged job has only the project runner to land on. Enabling shared
+  runners would send every job there.
 - **Pages**: the site lives at `https://bart-turczynski.gitlab.io/pslr/`,
   which `_pkgdown.yml` and `DESCRIPTION` name. `pages` publishes pkgdown's
   `destination`, `site/` here (`docs/` is committed source), and only the
@@ -206,6 +212,24 @@ inherit it.
   `test-security.R` (OSS Index) against the network; T1 excludes both
   (`.fleet-ci.yml`'s `exclude_tests`), and `osv-audit` and `security-audit`
   run them.
+- **The live OSS Index audit runs in every `NOT_CRAN=true` job, not only in
+  `security-audit`.** `OSSINDEX_USER` and `OSSINDEX_TOKEN` are project
+  variables, and every pipeline on `main` (the schedule, `RELEASE=1`) and on
+  a protected `v*` tag gets them in every job, protected or not. oysteR is in
+  `Suggests`, so with `NOT_CRAN=true` `test-security.R`'s audit test finds
+  the credentials and calls OSS Index in `t2-check-release`,
+  `t2-check-oldrel`, `t2-check-devel`, `t2-locale`, `t2-sanitizers`,
+  `t3-manual`, `x-check-idn2` and `x-sanitizers-gcc`. The former CI set
+  `NOT_CRAN` in the two audit jobs only. An OSS Index outage, an HTTP 429, or
+  the shutdown of the legacy endpoint oysteR calls (2026-12-31) turns all of
+  them red, and on a `v*` tag that blocks `pages`. Scoping the credentials to
+  the audit job is a fleet follow-up (seor SEOR-yrsmlrvp).
+- **`--as-cran` with incoming checks runs on release R only.** The former
+  `full-check` ran `R CMD check --as-cran` (incoming on, its remote half off)
+  under devel, 4.6, 4.5 and 4.1.3. Now only `t2-ascran` (release R) runs
+  `--as-cran` with incoming on; `t2-check-oldrel` and `t2-check-devel` run a
+  plain `R CMD check`, and `t2-floor` keeps `--as-cran` with incoming off. No
+  `x-*` job runs `--as-cran`.
 - **The floor leg is unproven.** `t2-floor` installs every dependency,
   `Suggests` included, from one dated snapshot (`FLEET_FLOOR_SNAPSHOT`,
   fleet-ci's p3m date, 2026-10-28), because `punycoder (>= 1.3.0)` is newer
