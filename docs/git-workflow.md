@@ -17,8 +17,8 @@ template's.
 | --- | --- | --- |
 | hygiene hooks | pre-commit, at commit and at push | `.pre-commit-config.yaml`. At commit and again at push: the hygiene fixers (end of file, trailing whitespace, line endings), the large-file, merge-conflict, YAML, TOML and case-conflict checks, Air and codespell. At push only: the citation, BugReports, NEWS and toolchain checks, the `check-citation.py`, `check-bugreports.py`, `check-news.py` and `bestpractices-url.py` self-tests when those scripts change, and the warn-only `fleet-ci-hook-installed` check |
 | T0 | every push whose diff against `main` is docs-only (`docs/**/*.md`, `design/**/*.md`, `_pkgdown.yml`), locally, the pre-push hook | the gate's docs tier, `.fleet-ci/gate` in the fleet image (`fleet-r-idn2`): spelling and `pkgdown::check_pkgdown()` |
-| T1 | every other push, locally, the pre-push hook | the gate's full tier: T0's checks, then on the host the NEWS heading and tag check (`scripts/check-news-version.sh`), and in the image punycoder rebuilt from source with libidn2 and asserted (`scripts/punycoder-backend.R`), docs drift (`scripts/check-docs-drift.R`), lintr, README drift (`scripts/check-readme-drift.sh`), the URL check (`tools/check-urls.R`), one `R CMD check --as-cran` (`NOT_CRAN=true`, incoming checks off) against the rebuilt punycoder, and one more check under `LC_ALL=C` followed by the case-folding locale assertion (`scripts/check-locale-legs.R`) |
-| T2 | the weekly `deep-check` schedule; every T3 run | `t2-check-release`, `t2-check-oldrel`, `t2-check-devel`, `t2-floor` (R 4.1.3), `t2-sanitizers` (R-hub clang-ASAN/UBSAN), `t2-locale` (the locale legs, `LC_ALL=C`, and the assertion), `t2-ascran` (incoming on, its remote half off), `coverage` (fails below 95%), `osv-audit`, `security-audit`, `citation-version`, and pslr's `x-check-idn2` (punycoder rebuilt with libidn2, asserted) and `x-sanitizers-gcc` (gcc ASAN/UBSAN, natively on arm64) |
+| T1 | every other push, locally, the pre-push hook | the gate's full tier: T0's checks, then on the host the NEWS heading and tag check (`scripts/check-news-version.sh`), and in the image punycoder rebuilt from source with libidn2 and asserted (`scripts/punycoder-backend.R`), docs drift (`scripts/check-docs-drift.R`), lintr, README drift (`scripts/check-readme-drift.sh`), the URL check (`tools/check-urls.R`), one `R CMD check --as-cran` (`NOT_CRAN=true`, incoming checks off) against the rebuilt punycoder, and one more check under `LC_ALL=C.UTF-8` followed by the case-folding locale assertion (`scripts/check-locale-legs.R`). Before docs drift, what `cpp11::cpp_register()` needs (decor) goes into the run library (`scripts/cpp-register-needs.R`) |
+| T2 | the weekly `deep-check` schedule; every T3 run | `t2-check-release`, `t2-check-oldrel`, `t2-check-devel`, `t2-floor` (R 4.1.3), `t2-sanitizers` (R-hub clang-ASAN/UBSAN), `t2-locale` (the case-folding locales, a `LC_ALL=C.UTF-8` check and the assertion), `t2-ascran` (incoming on, its remote half off), `coverage` (fails below 95%), `osv-audit`, `security-audit`, `citation-version`, and pslr's `x-check-idn2` (punycoder rebuilt with libidn2, asserted) and `x-sanitizers-gcc` (gcc ASAN/UBSAN, natively on arm64) |
 | T3 | a `RELEASE=1` web pipeline on `main`; a `v*` tag | all of T2 plus `t3-manual` (the PDF manual) and pslr's `x-psl-upstream-check` (allowed to fail); the tag, or `RELEASE=1` on a tag, adds `pages` |
 
 Pushes to `main` or a branch, merge requests and API pipelines (`glab ci run`)
@@ -175,6 +175,12 @@ inherit it.
   and the local gate build them and run the assertion; `t2-check-release`,
   `t2-check-oldrel`, `t2-check-devel`, `t2-floor`, both sanitizer legs and
   `coverage` skip those legs.
+- **The locale leg runs under `C.UTF-8`, not `C`** (`.fleet-ci.yml`'s
+  `locale_legs`). Under `LC_ALL=C` the session charset is ASCII, R cannot
+  translate `test-diff.R`'s UTF-8 literals, and two of its tests fail; R CMD
+  check also warns that it cannot switch to `en_US.UTF-8` to parse the
+  sources. The former CI never ran a `C` leg. The case-folding locales run
+  inside `test-parser.R` whatever the leg.
 - **No server-side cheap gates.** The former `lint`, `spelling`,
   `news-version`, `citation-version`, `readme` and `docs-drift` jobs ran on
   every push to `main`, which caught a web edit, a server-side merge and a

@@ -32,12 +32,14 @@ host_gates:
 # others report. First, punycoder rebuilt from source in the run library and
 # asserted to carry libidn2 (SEOR-hxxxkmws): the dependency install takes
 # Posit Package Manager's binary, built without it, and R CMD check below
-# runs against the rebuilt one. Then man/, NAMESPACE and DESCRIPTION against
-# a fresh roxygen2 run (SEOR-nwfmerhu), lintr, README.md against a fresh
-# knit, and every declared URL (the gate's R CMD check runs with remote
-# incoming, and so its URL check, off).
+# runs against the rebuilt one. Then what cpp11::cpp_register() needs and
+# pslr does not declare (decor), so man/, NAMESPACE and DESCRIPTION can be
+# checked against a fresh roxygen2 run (SEOR-nwfmerhu), which compiles src/;
+# lintr, README.md against a fresh knit, and every declared URL (the gate's
+# R CMD check runs with remote incoming, and so its URL check, off).
 cheap_gates:
   - Rscript scripts/punycoder-backend.R "$R_LIBS" libidn2
+  - Rscript scripts/cpp-register-needs.R "$R_LIBS"
   - Rscript scripts/check-docs-drift.R .
   - Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }'
   - sh scripts/check-readme-drift.sh
@@ -56,10 +58,21 @@ locales:
 
 # The positive locale assertion (PSLR-mgqnsbjz): every locale folds I to the
 # dotless i, and every leg named in case-folding-locales.txt ran and passed
-# against the pslr the leg's check installed. Run after each locale leg's
-# check (the default leg, LC_ALL=C), here and in t2-locale.
+# against the pslr the leg's check installed. Run after the locale leg's
+# check, here and in t2-locale.
 locale_assertions:
   - Rscript scripts/check-locale-legs.R "$FLEET_RCHECK_DIR"
+
+# The leg the assertion follows, here and in t2-locale: a second, lighter
+# check under the same locale as the gate's own check, C.UTF-8 (no
+# --as-cran, --ignore-vignettes, no NOTE policy), existing so the locale
+# assertion has a leg to follow. The former CI never ran a C leg, and under
+# LC_ALL=C the session charset is ASCII: R cannot translate test-diff.R's
+# UTF-8 literals (BÜCHER), so two of its tests fail, and R CMD check warns
+# that it cannot switch to en_US.UTF-8 to parse the package's UTF-8 sources.
+# The case-folding locales run inside test-parser.R whatever the leg.
+locale_legs:
+  - C.UTF-8
 
 # The gate runs R CMD check with NOT_CRAN=true, so skip_on_cran() no longer
 # keeps these out of it. T2 runs both, as osv-audit and security-audit.
