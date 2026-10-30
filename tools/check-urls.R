@@ -1,4 +1,5 @@
-# The URL check of the verify gate: fetch every URL the package declares and
+# The URL check of the fleet-ci local gate (a cheap gate in .fleet-ci.yml):
+# fetch every URL the package declares and
 # fail on a dead one. Ported from sitemapr's `urls` stage in tools/verify.R so
 # the fleet runs one shape of it (seor design/fleet-standard.md, "Local
 # pre-push gate"; SEOR-twxjxogh).

@@ -76,13 +76,14 @@ repository:
         integration:
           adhoc: true
           ci: true
-          release: false
+          release: true
         results: {}
         comment: |
-          The osv-audit job in .gitlab-ci.yml audits the runtime dependency
-          closure against the OSV database (osv.dev). No account or secrets
-          required. It runs on the weekly pipeline schedule that sets
-          SCHEDULE_KIND=dependency-audit, and in a CRAN_PREP pipeline.
+          The osv-audit job (fleet-ci's template, included by .gitlab-ci.yml)
+          audits the runtime dependency closure against the OSV database
+          (osv.dev). No account or secrets required. It runs on the weekly
+          pipeline schedule that sets SCHEDULE_KIND=deep-check and in every
+          release pipeline (RELEASE=1, and the v* tag).
       - name: oysteR (Sonatype OSS Index)
         type: SCA
         rulesets:
@@ -90,13 +91,14 @@ repository:
         integration:
           adhoc: true
           ci: true
-          release: false
+          release: true
         results: {}
         comment: |
-          The security-audit job in .gitlab-ci.yml audits declared dependencies
-          against the Sonatype OSS Index, on the same schedule as osv-audit. It
-          needs the OSSINDEX_USER (the literal `x`) and OSSINDEX_TOKEN CI/CD
-          variables, and fails rather than skips when they are missing.
+          The security-audit job (fleet-ci's template) audits declared
+          dependencies against the Sonatype OSS Index, in the same weekly and
+          release pipelines as osv-audit. It needs the OSSINDEX_USER (the
+          literal `x`) and OSSINDEX_TOKEN CI/CD variables, and fails rather
+          than skips when they are missing.
       - name: ASAN/UBSAN
         type: other
         rulesets:
@@ -104,10 +106,12 @@ repository:
         integration:
           adhoc: true
           ci: true
-          release: false
+          release: true
         results: {}
         comment: |
-          The sanitizers job in .gitlab-ci.yml runs the test suite over the
-          C++ matcher built with -fsanitize=address,undefined, on the weekly
-          pipeline schedule that sets SCHEDULE_KIND=deep-check.
-          `tools/verify.sh sanitize` runs the same leg locally, plus valgrind.
+          The x-sanitizers-gcc job in .gitlab-ci.yml runs the test suite over
+          the C++ matcher built with gcc's -fsanitize=address,undefined, and
+          fleet-ci's t2-sanitizers job runs R CMD check in R-hub's clang-asan
+          container, on the weekly pipeline schedule that sets
+          SCHEDULE_KIND=deep-check and in every release pipeline.
+          `tools/verify.sh sanitize` runs the gcc leg locally, plus valgrind.

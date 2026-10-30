@@ -3,11 +3,6 @@
 R package implementing the Public Suffix List: eTLD and eTLD+1 queries against a
 pinned, bundled snapshot.
 
-`tools/verify.sh` is the single definition of the verify gate; the pre-push hook,
-dev loop and release checklist all call it. Run `tools/verify.sh --staleness`
-when a session starts — on `STALE` or `NEVER`, offer `tools/verify.sh full`
-(~15 min) rather than starting it.
-
 `man/`, `NAMESPACE`, `R/cpp11.R` and the cpp11 glue in `src/` are generated. Edit
 roxygen comments in `R/`, then `devtools::document()`; after a changed
 `[[cpp11::register]]` signature, `cpp11::cpp_register()`.
@@ -29,20 +24,35 @@ Scratch and planning notes live in `_scratch/`. Never commit `_scratch/` or
 Git follows the house `agent-workflow` skill. fp status changes stay decoupled
 from git (the `fp` skill's `references/decoupling.md`).
 
+`backup` is a local mirror, which fleet-ci's gate skips (a path URL), so neither
+the owner nor an agent passes `--no-verify` to push it. Every other remote is
+gated, and the gate refuses a push carrying more than one ref to `main` or
+adding more than one first-parent merge to it: push one merge at a time.
+
+## Verification
+
+Gate: local
+Verify: .fleet-ci/gate auto
+
+The merge gate is fleet-ci's local gate, run in the fleet image (`fleet-r-idn2`) by the pre-push hook; install it once per clone with `.fleet-ci/pre-push --install`, and its settings are `.fleet-ci.yml`. A diff against `main` the classifier calls docs-only (`docs/**/*.md`, `design/**/*.md`, `_pkgdown.yml`) gets T0, spelling and `pkgdown::check_pkgdown()`; any other gets T1: punycoder rebuilt with libidn2, docs drift, lintr, README drift, the URL check, the NEWS/tag check, one `R CMD check` and the case-folding locale assertion.
+Branch pushes, merge requests and pushes to `main` create no pipeline, so an empty pipeline list is not a pass. CI runs fleet-ci's template: T2 on the weekly `deep-check` schedule, T3 on a `RELEASE=1` web pipeline and on the `v*` tag (seor ADR 0012; docs/git-workflow.md).
+
 For R style, tests, roxygen and new-function requirements, see
 docs/r-conventions.md.
-For pre-commit, verify tiers and the tracker snapshot, see docs/git-workflow.md.
+For the hooks, the tiers, the CI jobs, the gaps the fleet-ci migration accepted
+and the tracker snapshot, see docs/git-workflow.md.
 For the normative contract, see docs/PRD.md; the code map is
 docs/architecture.md and the rationale log is docs/decisions.md.
 
 ## A red gate on an untouched tree
 
-Toolchain drift makes the verify gate go red on a tree nobody changed, and it
-looks exactly like a defect in the change being made. `scripts/check-toolchain.R`
-runs ahead of the expensive step and names it in one line: roxygen2's installed
-version against this package's `Config/roxygen2/version`, and any installed
-package built under a newer R than the one running. Both have happened, and both
-cost an afternoon (SEOR-tcytizic).
+The gate runs in the fleet image, so this machine's R library cannot turn it
+red. What can is this machine's toolchain writing files the gate then refuses:
+a local `devtools::document()` under another roxygen2, or a README knit under
+another pandoc. The `check-toolchain` pre-push hook (`scripts/check-toolchain.R`)
+names that in one line: roxygen2's installed version against
+`Config/roxygen2/version`, any installed package built under a newer R than the
+one running, and the local pandoc against `.fleet-ci/toolchain` (SEOR-tcytizic).
 
 If that check passes and the gate is still red on a tree you have not touched,
 say so and keep the evidence rather than assuming your change caused it.

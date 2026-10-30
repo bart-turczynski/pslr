@@ -8,7 +8,7 @@ FROM rocker/r-ver:4.6.1
 # Then the locales the case-folding tests in tests/testthat/test-parser.R need
 # (the list is tests/testthat/fixtures/case-folding-locales.txt; keep the two in
 # step). rocker generates neither, so build them with localedef from the locale
-# sources the image ships, as the `.r-deps` job in .gitlab-ci.yml does: `-c`
+# sources the image ships, as fleet-ci's t2-locale job does: `-c`
 # writes the locale even when the source draws a warning, and localedef then
 # exits 1; only a status above 1 means nothing was written.
 RUN apt-get update \
@@ -23,7 +23,8 @@ RUN apt-get update \
 
 # rocker freezes an image's p3m repository to a dated snapshot once its R
 # version is superseded, and a raised DESCRIPTION floor then stops resolving.
-# Use p3m `latest`, with CRAN itself as a fallback (as .gitlab-ci.yml does).
+# Use p3m `latest`, with CRAN itself as a fallback (as the former
+# .gitlab-ci.yml did).
 RUN Rscript -e 'p3m <- sub("/[0-9]{4}-[0-9]{2}-[0-9]{2}$", "/latest", getOption("repos")[[1]]); \
       cat(sprintf("options(repos = c(P3M = \"%s\", CRAN = \"https://cloud.r-project.org\"))\n", p3m), \
           file = file.path(R.home("etc"), "Rprofile.site"), append = TRUE)'
