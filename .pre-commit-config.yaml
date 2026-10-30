@@ -80,12 +80,11 @@ repos:
         exclude: '^(\.fleet-ci/|man/|inst/extdata/|tests/testthat/fixtures/|docs/tracker-snapshot\.md$|\.bestpractices\.json$)'
   - repo: local
     hooks:
-      # Warns, loudly, when this clone's pre-push hook is not fleet-ci's, so
-      # the push ran without the gate. Warn-only by decision, time-boxed until
-      # the hook is installed fleet-wide, then it fails (SEOR-cjxarlcq). It
-      # only reads the hook file; it never runs .fleet-ci/gate.
+      # Refuses the push when this clone's pre-push hook is not fleet-ci's,
+      # so the push would run without the gate (SEOR-gksaxuoz). It only
+      # reads the hook file; it never runs .fleet-ci/gate.
       - id: fleet-ci-hook-installed
-        name: fleet-ci pre-push hook is installed (warn-only)
+        name: fleet-ci pre-push hook is installed
         entry: sh scripts/check-fleet-hook.sh
         language: system
         pass_filenames: false
