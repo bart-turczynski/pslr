@@ -74,3 +74,11 @@
 # of the installable package; without this, --as-cran reports it as a
 # non-standard top-level directory.
 ^scripts$
+# fleet-ci's t2-sanitizers job installs the dependencies into
+# $CI_PROJECT_DIR/.fleet-lib and then runs `R CMD build .` there.
+^\.fleet-lib$
+# The fleet-ci local gate: the vendored runner and its settings, per
+# fleet-ci's README, "Adopting the template". Every line here is a regular
+# expression, comments included: no unbalanced brackets.
+^\.fleet-ci$
+^\.fleet-ci\.yml$

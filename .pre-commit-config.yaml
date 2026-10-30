@@ -11,10 +11,12 @@ repos:
       # Bundled upstream PSL files under inst/extdata/ (the .dat whose sha256 is
       # recorded, and the verbatim MPL-2.0 LICENSE) must stay byte-for-byte
       # identical to upstream, so the whitespace/EOF fixers must not touch them.
+      # .fleet-ci/ is fleet-ci's bin/vendor output, which seor's fleet checker
+      # requires byte for byte; re-run bin/vendor rather than editing it.
       - id: end-of-file-fixer
-        exclude: '^inst/extdata/'
+        exclude: &fixer-excludes '^(inst/extdata/|\.fleet-ci/)'
       - id: trailing-whitespace
-        exclude: '^inst/extdata/'
+        exclude: *fixer-excludes
       - id: check-merge-conflict
       - id: check-yaml
       # `air.toml` configures the formatter that rewrites every R source in the
@@ -22,15 +24,17 @@ repos:
       # the next `air format` run.
       - id: check-toml
       - id: mixed-line-ending
-        exclude: '^inst/extdata/'
+        exclude: *fixer-excludes
       - id: check-case-conflict
   # Air: fast, R-free (Rust binary) formatter for R sources. Runs per commit and
   # auto-fixes; layout is Air's job, while lintr (in the verify gate) owns
   # logic/best-practice lints. https://posit-dev.github.io/air/
+  # .fleet-ci/gate-run.R is vendored byte for byte, so Air leaves it alone.
   - repo: https://github.com/posit-dev/air-pre-commit
     rev: 0.12.0
     hooks:
       - id: air-format
+        exclude: '^\.fleet-ci/'
   # British spellings in code, comments, string literals and tooling, which
   # spelling::spell_check_package() (verify gate) never reads: it covers
   # DESCRIPTION, roxygen, vignettes, README and NEWS only, and that gap let
@@ -40,8 +44,9 @@ repos:
   # skipped either way; it is listed so the intent survives a flag change.
   # Excluded: man/ (roxygen output; fix the roxygen source), upstream PSL data
   # in inst/extdata/, test fixtures, the tracker snapshot (recorded text,
-  # regenerated wholesale) and .bestpractices.json (mirrors the live
-  # bestpractices.dev entry). docs/ is hand-written source here and is checked.
+  # regenerated wholesale), .bestpractices.json (mirrors the live
+  # bestpractices.dev entry) and .fleet-ci/ (fleet-ci's bin/vendor output).
+  # docs/ is hand-written source here and is checked.
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.3
     hooks:
@@ -49,7 +54,7 @@ repos:
         name: codespell (British spellings, en-GB_to_en-US; SEOR-xtmnpmae)
         args: [--builtin, en-GB_to_en-US]
         stages: [pre-commit, pre-push]
-        exclude: '^(man/|inst/extdata/|tests/testthat/fixtures/|docs/tracker-snapshot\.md$|\.bestpractices\.json$)'
+        exclude: '^(\.fleet-ci/|man/|inst/extdata/|tests/testthat/fixtures/|docs/tracker-snapshot\.md$|\.bestpractices\.json$)'
   - repo: local
     hooks:
       # The hosted pipeline no longer runs per push (see the `workflow:` rules
