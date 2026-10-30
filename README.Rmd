@@ -32,6 +32,7 @@ knitr::opts_chunk$set(
 [![Pipeline](https://gitlab.com/bart-turczynski/pslr/badges/main/pipeline.svg)](https://gitlab.com/bart-turczynski/pslr/-/pipelines)
 [![Coverage](https://gitlab.com/bart-turczynski/pslr/badges/main/coverage.svg)](https://gitlab.com/bart-turczynski/pslr/-/pipelines)
 [![Docs](https://img.shields.io/website?url=https%3A%2F%2Fbart-turczynski.gitlab.io%2Fpslr%2F&label=docs&logo=gitlab&logoColor=white&up_message=pkgdown&up_color=1f75cb)](https://bart-turczynski.gitlab.io/pslr/)
+[![Latest release](https://img.shields.io/gitlab/v/release/bart-turczynski%2Fpslr)](https://gitlab.com/bart-turczynski/pslr/-/releases)
 [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 [![Project Status: Active](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20973660.svg)](https://doi.org/10.5281/zenodo.20973660)
