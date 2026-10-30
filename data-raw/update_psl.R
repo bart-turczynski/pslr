@@ -209,13 +209,14 @@ readme_is_stale <- function(reason) {
   )
 }
 
-# The pandoc version CI pins, read from .gitlab-ci.yml exactly the way
-# tools/verify.sh's run_readme reads it, so the two cannot drift apart.
-pinned_pandoc_version <- function(path = ".gitlab-ci.yml") {
+# The pandoc version the fleet image carries, read from .fleet-ci/toolchain
+# (one line, PANDOC_VERSION=<v>, written by fleet-ci's bin/vendor), the pin
+# scripts/check-toolchain.R and the gate's README check also go by.
+pinned_pandoc_version <- function(path = ".fleet-ci/toolchain") {
   if (!file.exists(path)) {
     return(NA_character_)
   }
-  pattern <- '^  PANDOC_VERSION: "(.+)"'
+  pattern <- "^PANDOC_VERSION=(.+)$"
   hit <- grep(pattern, readLines(path, warn = FALSE), value = TRUE)
   if (length(hit) == 0L) {
     return(NA_character_)
@@ -223,8 +224,8 @@ pinned_pandoc_version <- function(path = ".gitlab-ci.yml") {
   sub(pattern, "\\1", hit[1])
 }
 
-# `pandoc --version` opens with `pandoc <version>`; run_readme takes the same
-# second field of the same first line.
+# `pandoc --version` opens with `pandoc <version>`; take the second field of
+# that first line.
 local_pandoc_version <- function() {
   out <- tryCatch(
     suppressWarnings(system2("pandoc", "--version", stdout = TRUE)),
@@ -238,7 +239,7 @@ local_pandoc_version <- function() {
 
 # Returns the reason README.md cannot be regenerated here, or NULL to go ahead.
 readme_render_blocker <- function() {
-  # PATH pandoc, not RSTUDIO_PANDOC: this is the version run_readme compares and
+  # PATH pandoc, not RSTUDIO_PANDOC: this is the version compared below and
   # the one a plain `Rscript` render picks up, so both halves see one binary.
   if (!nzchar(Sys.which("pandoc"))) {
     return("pandoc is not on PATH, so README.Rmd cannot be rendered here.")
@@ -258,8 +259,7 @@ readme_render_blocker <- function() {
     ))
   }
 
-  # run_readme only warns on a version skew, because it renders and then diffs.
-  # Here the render lands in the working tree, so a skew blocks it outright:
+  # The render lands in the working tree, so a version skew blocks it outright:
   # pandoc versions disagree about pipe-table cell padding, and a
   # whitespace-only diff that has to be told apart from a real content change by
   # hand is worse than a message naming the version to install.
@@ -268,7 +268,7 @@ readme_render_blocker <- function() {
   if (!is.na(want) && !is.na(have) && !identical(want, have)) {
     return(sprintf(
       paste0(
-        "local pandoc is %s but .gitlab-ci.yml pins %s; not rendering, ",
+        "local pandoc is %s but .fleet-ci/toolchain pins %s; not rendering, ",
         "because a mismatched pandoc reflows the tables."
       ),
       have,

@@ -42,8 +42,9 @@ Meta/
 # Fiberplane local issue tracking
 .fp/
 
-# Timestamp of the last successful `tools/verify.sh full`. Local state about
-# one machine's checkout, not a property of the source.
+# Timestamp the former `tools/verify.sh full` wrote. Nothing writes it since
+# the fleet-ci gate (its pass stamps live under the git directory); kept
+# ignored so an old clone's copy stays out of a commit.
 .verify-stamp
 
 # Logs and build output (fleet convention); .Rbuildignore keeps it out of the tarball.

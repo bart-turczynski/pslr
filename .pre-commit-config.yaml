@@ -1,7 +1,21 @@
-# Overrides the shared config: the shared `verify` hook wraps the command in a
-# bash invocation that breaks on R's verify command (it contains the double
-# quotes from the rcmdcheck --as-cran argument). The gate now lives in
-# tools/verify.sh, so there is no R source in this file to quote at all.
+# The hygiene hooks, at commit and at push. Install with `pre-commit install`
+# (both hook types, from default_install_hook_types below), then
+# `.fleet-ci/pre-push --install`, which replaces pre-commit's pre-push hook
+# with fleet-ci's: that hook runs the fleet-ci local gate (.fleet-ci/gate,
+# settings in .fleet-ci.yml) on each pushed ref, then this file's pre-push
+# stage. The gate itself (docs drift, lintr, spelling, README drift, the URL
+# check, the NEWS/tag check, R CMD check and the locale assertion) is in
+# .fleet-ci.yml, never here: this file must not run .fleet-ci/gate (fleet-ci
+# README, "The local gate").
+#
+# Over fleet-ci's hook, `pre-commit install` and
+# `pre-commit install --hook-type pre-push` without -f move it to
+# hooks/pre-push.legacy (pre-commit's migration mode), which still runs the
+# gate first. `pre-commit install -f` (both types, from
+# default_install_hook_types) and `pre-commit install -f --hook-type pre-push`
+# delete it and drop the gate; `-f --hook-type pre-commit` leaves it alone.
+# Re-run `.fleet-ci/pre-push --install` after either of the two.
+default_install_hook_types: [pre-commit, pre-push]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -11,28 +25,41 @@ repos:
       # Bundled upstream PSL files under inst/extdata/ (the .dat whose sha256 is
       # recorded, and the verbatim MPL-2.0 LICENSE) must stay byte-for-byte
       # identical to upstream, so the whitespace/EOF fixers must not touch them.
+      # .fleet-ci/ is fleet-ci's bin/vendor output, which seor's fleet checker
+      # requires byte for byte; re-run bin/vendor rather than editing it.
       - id: end-of-file-fixer
-        exclude: '^inst/extdata/'
+        exclude: &fixer-excludes '^(inst/extdata/|\.fleet-ci/)'
       - id: trailing-whitespace
-        exclude: '^inst/extdata/'
+        exclude: *fixer-excludes
       - id: check-merge-conflict
+      # Every YAML file but .gitlab-ci.yml through PyYAML's safe loader.
       - id: check-yaml
+        exclude: ^\.gitlab-ci\.yml$
+      # .gitlab-ci.yml with --unsafe: syntax only. Its x-* jobs use GitLab's
+      # `!reference` tag, which the safe loader cannot construct. GitLab's CI
+      # lint API and fleet-ci's bin/rules-sim read that file in full.
+      - id: check-yaml
+        name: check yaml (.gitlab-ci.yml, syntax only)
+        args: [--unsafe]
+        files: ^\.gitlab-ci\.yml$
       # `air.toml` configures the formatter that rewrites every R source in the
       # repo, so a malformed one is worth catching at the commit rather than at
       # the next `air format` run.
       - id: check-toml
       - id: mixed-line-ending
-        exclude: '^inst/extdata/'
+        exclude: *fixer-excludes
       - id: check-case-conflict
   # Air: fast, R-free (Rust binary) formatter for R sources. Runs per commit and
-  # auto-fixes; layout is Air's job, while lintr (in the verify gate) owns
+  # auto-fixes; layout is Air's job, while lintr (in the fleet-ci gate) owns
   # logic/best-practice lints. https://posit-dev.github.io/air/
+  # .fleet-ci/gate-run.R is vendored byte for byte, so Air leaves it alone.
   - repo: https://github.com/posit-dev/air-pre-commit
     rev: 0.12.0
     hooks:
       - id: air-format
+        exclude: '^\.fleet-ci/'
   # British spellings in code, comments, string literals and tooling, which
-  # spelling::spell_check_package() (verify gate) never reads: it covers
+  # spelling::spell_check_package() (the fleet-ci gate) never reads: it covers
   # DESCRIPTION, roxygen, vignettes, README and NEWS only, and that gap let
   # British runtime messages ship (SEOR-xtmnpmae). Only the en-GB_to_en-US
   # dictionary is enabled, so this is not a general typo checker. codespell
@@ -40,8 +67,9 @@ repos:
   # skipped either way; it is listed so the intent survives a flag change.
   # Excluded: man/ (roxygen output; fix the roxygen source), upstream PSL data
   # in inst/extdata/, test fixtures, the tracker snapshot (recorded text,
-  # regenerated wholesale) and .bestpractices.json (mirrors the live
-  # bestpractices.dev entry). docs/ is hand-written source here and is checked.
+  # regenerated wholesale), .bestpractices.json (mirrors the live
+  # bestpractices.dev entry) and .fleet-ci/ (fleet-ci's bin/vendor output).
+  # docs/ is hand-written source here and is checked.
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.3
     hooks:
@@ -49,27 +77,28 @@ repos:
         name: codespell (British spellings, en-GB_to_en-US; SEOR-xtmnpmae)
         args: [--builtin, en-GB_to_en-US]
         stages: [pre-commit, pre-push]
-        exclude: '^(man/|inst/extdata/|tests/testthat/fixtures/|docs/tracker-snapshot\.md$|\.bestpractices\.json$)'
+        exclude: '^(\.fleet-ci/|man/|inst/extdata/|tests/testthat/fixtures/|docs/tracker-snapshot\.md$|\.bestpractices\.json$)'
   - repo: local
     hooks:
-      # The hosted pipeline no longer runs per push (see the `workflow:` rules
-      # in .gitlab-ci.yml), so this hook is not a mirror of CI any more — it is
-      # the gate. It runs the `standard` tier and then prints how long it has
-      # been since a `full` run. That staleness line is a nudge, never a block:
-      # a hook that refused a push until a 15-minute check had run would be
-      # bypassed with --no-verify within a fortnight, and then nothing would run
-      # at all. That applies to the tier itself too: `standard` is lint plus the
-      # test suite, not `R CMD check --as-cran`, because the check version took
-      # ~5 minutes and got skipped on its very first real push.
-      # Toolchain drift makes the gate red on a tree nobody changed, and it
-      # arrives disguised as a code defect: a roxygen2 skew aborts the docs
-      # guard, and a package built under a newer R than this one surfaces as an
-      # R CMD check WARNING minutes into the expensive step below. This is
-      # quick (one request, for CRAN's package index, which the check for a
-      # dependency older than CRAN's reads: SEOR-hxxxkmws), and it runs ahead
-      # of that step so the machine is
-      # named as the cause in one line rather than found by elimination
-      # (SEOR-tcytizic).
+      # Warns, loudly, when this clone's pre-push hook is not fleet-ci's, so
+      # the push ran without the gate. Warn-only by decision, time-boxed until
+      # the hook is installed fleet-wide, then it fails (SEOR-cjxarlcq). It
+      # only reads the hook file; it never runs .fleet-ci/gate.
+      - id: fleet-ci-hook-installed
+        name: fleet-ci pre-push hook is installed (warn-only)
+        entry: sh scripts/check-fleet-hook.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+        stages: [pre-push]
+      # This machine's R toolchain against what the package pins: roxygen2
+      # against Config/roxygen2/version, installed packages built under a newer
+      # R, and the local pandoc against the fleet image's (.fleet-ci/toolchain),
+      # so a local devtools::document() or build_readme() writes what the gate
+      # accepts. The gate itself runs in the fleet image and does not depend
+      # on this machine's library. Quick: one request, for CRAN's package
+      # index (SEOR-hxxxkmws, SEOR-tcytizic).
       - id: check-toolchain
         name: toolchain matches what this package pins
         entry: Rscript scripts/check-toolchain.R
@@ -77,15 +106,6 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-push]
-      - id: verify
-        name: verify (standard tier + staleness nudge)
-        entry: tools/verify.sh
-        args: [standard]
-        language: system
-        pass_filenames: false
-        always_run: true
-        stages: [pre-push]
-        verbose: true
       # CITATION.cff and .zenodo.json duplicate the version and the project
       # URLs out of DESCRIPTION, and nothing asserted either copy. Offline,
       # stdlib-only and instant. The rule it enforces is
@@ -97,6 +117,15 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+        stages: [pre-push]
+      # The self-tests the former citation-version CI job ran on every push
+      # to main, now when the script changes, like news-terse-self-test.
+      - id: check-citation-self-test
+        name: check-citation self-test
+        entry: python3 scripts/check-citation.py --self-test
+        language: system
+        pass_filenames: false
+        files: ^scripts/check-citation\.py$
         stages: [pre-push]
       # Every tracker link -- DESCRIPTION's BugReports:, codemeta.json,
       # .bestpractices.json, the GitHub PR template -- names /-/work_items, and
@@ -112,6 +141,13 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+        stages: [pre-push]
+      - id: check-bugreports-self-test
+        name: check-bugreports self-test
+        entry: python3 scripts/check-bugreports.py --self-test
+        language: system
+        pass_filenames: false
+        files: ^scripts/check-bugreports\.py$
         stages: [pre-push]
       # check-news.py refuses a NEWS.md bullet that wraps, runs past its word
       # limit or names only housekeeping, and any Internal heading
@@ -141,19 +177,4 @@ repos:
         language: system
         pass_filenames: false
         files: ^scripts/bestpractices-url\.py$
-        stages: [pre-push]
-      # The verify hook's test stage must fail when a test fails or errors, or
-      # when no test ran, and it checks testthat's results itself rather than
-      # trusting stop_on_failure alone. A full-disk run was reported to pass
-      # with `[ FAIL 7 ]` on screen; that did not reproduce (PSLR-vacblucj),
-      # and the result check makes it impossible whatever the cause. Every
-      # push, not only one that touches the gate: a testthat upgrade can change
-      # what stop_on_failure does without changing a file here. Offline, about
-      # seven seconds on throwaway packages.
-      - id: verify-self-test
-        name: verify gate self-test (the test stage fails closed)
-        entry: scripts/verify-self-test.sh
-        language: system
-        pass_filenames: false
-        always_run: true
         stages: [pre-push]

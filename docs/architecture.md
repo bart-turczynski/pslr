@@ -346,12 +346,12 @@ edit them by hand; regenerate with `cpp11::cpp_register()` after changing a
 
 ## Verify gate
 
-CI and the pre-push hook run the same chain (see `AGENTS.md`):
-
-```sh
-Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }' \
-  && Rscript -e 'rcmdcheck::rcmdcheck(args = "--as-cran", error_on = "warning")'
-```
+The pre-push hook runs fleet-ci's local gate, `.fleet-ci/gate`, in the fleet
+image (settings in `.fleet-ci.yml`): lintr, docs drift, spelling, README drift,
+the URL check and one `R CMD check --as-cran` (`error_on = "warning"`) on every
+code push. CI runs the R version matrix, the floor, the sanitizers, the locale
+legs and coverage weekly and before a release. The tiers are in
+[git-workflow.md](./git-workflow.md#the-tiers).
 
 Air owns formatting (`air.toml`, a pre-commit hook); lintr owns logic lints.
 Non-CRAN performance benchmarks and their release gate live in `bench/`, with

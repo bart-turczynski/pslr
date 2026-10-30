@@ -1,535 +1,53 @@
 #!/usr/bin/env bash
 #
-# The local verify gate.
+# A thin wrapper over the fleet-ci local gate, plus the one local-only leg.
 #
-# The hosted pipeline runs on a push to `main` and on two weekly schedules (see
-# the `workflow:` rules in .gitlab-ci.yml); nothing hosted runs for a branch
-# push, a merge request or a tag. So for a branch this script is the single
-# definition of "is the tree healthy" — the pre-push hook, the AGENTS.md dev
-# loop and the release checklist all call it rather than restating the command.
+# The merge gate is fleet-ci's: .fleet-ci/gate, run in the fleet Docker image
+# by the .fleet-ci/pre-push hook on every push (settings in .fleet-ci.yml;
+# seor ADR 0012). T0 (docs) and T1 (full) replace this script's former
+# `standard`, `full`, `tests` and `docs` tiers; T2 (the weekly deep-check
+# schedule) and T3 (a RELEASE=1 web pipeline, a v* tag) replace `matrix` and
+# `cran`. docs/git-workflow.md has the tiers.
 #
 # Usage:
-#   tools/verify.sh [tests|docs|standard|full|matrix|sanitize|cran]
-#   tools/verify.sh --staleness
+#   tools/verify.sh [auto|docs|full]   the fleet-ci gate on HEAD (default auto)
+#   tools/verify.sh sanitize           ASAN + UBSAN, then valgrind, via Docker
+#   tools/verify.sh psl-upstream       is the bundled PSL snapshot behind?
 #
-#   tests     the test suite alone, exactly as `standard` runs it.  What
-#             scripts/verify-self-test.sh runs against a throwaway package.
-#   docs      the generated-docs drift check alone, exactly as `standard`
-#             runs it: man/ and NAMESPACE in the pushed commit
-#             ($PRE_COMMIT_TO_REF, else HEAD) against a fresh roxygen run.
-#   standard  lint + generated-docs drift + spelling + declared URLs + the
-#             test suite.  The per-push gate; what the pre-push hook runs.
-#             About two minutes, most of it the 2000-odd tests.
-#   full      standard + R CMD check --as-cran, NEWS/version consistency,
-#             README drift, coverage and both dependency audits.  Replaces the
-#             weekly CI schedules.  Records a timestamp in .verify-stamp.
-#   matrix    R 4.5 / 4.6 / devel via Docker.  Replaces the `full-check` job.
-#   sanitize  the test suite over the C++ matcher under ASAN + UBSAN, then
-#             under valgrind, via Docker.  Replaces the deleted rhub workflow.
-#   cran      full + matrix + sanitize + the remote incoming checks.
-#             Pre-submission.
-#
-# --staleness reports how long it has been since a successful `full` run and
-# always exits 0, so it is safe to call from a hook or an agent without
-# tripping `set -e`.  The first word of its output is FRESH, STALE or NEVER.
-#
-# Why `R CMD check` is NOT in the standard tier:  it was, for one afternoon.
-# The very first push under the new hook was abandoned because the check took
-# about five minutes, and the push only completed once the hook was skipped --
-# the precise failure this design is supposed to avoid, reached in twenty
-# minutes rather than the fortnight the comment predicted.  A gate that is
-# habitually skipped protects nothing, so the expensive half moved behind the
-# staleness nudge.  The accepted cost is that a defect only `R CMD check`
-# catches now surfaces within a week instead of at push time.  This buys less
-# than it first appears: the tier still takes about two minutes, because the
-# suite is 2000-odd tests.  It is the difference between a hook you wait for
-# and one you skip, not between slow and instant.
+#   auto|docs|full  `.fleet-ci/gate <tier>`: auto lets the classifier pick
+#                   the tier from the diff against main; a pass is stamped,
+#                   and a stamped tree is skipped.
+#   sanitize        the test suite over the C++ matcher under ASAN + UBSAN,
+#                   then under valgrind, via Docker. CI runs an ASAN + UBSAN
+#                   leg in T2 (x-sanitizers-gcc and the template's
+#                   t2-sanitizers); valgrind runs only here.
+#   psl-upstream    the pinned upstream commit in data-raw/update_psl.R
+#                   against the latest one touching public_suffix_list.dat;
+#                   exit 1 when upstream has moved or cannot be read. T3's
+#                   x-psl-upstream-check does this and opens the MR.
 
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-stamp_file="$repo_root/.verify-stamp"
-# Days after which `full` is considered overdue. A week: long enough that the
-# nudge stays rare, short enough that an upstream advisory is not months old.
-stale_after_days=7
-
-# R versions for the `matrix` tier. Keep `devel` last: it is by far the slowest
-# and the most likely to fail for reasons that are not the package's fault.
-matrix_versions=(4.5 4.6 devel)
-
 # R version for the `sanitize` tier. One release version is enough: the tier
 # exercises the C++ matcher, not R's version surface, and each leg is slow.
 sanitize_version=4.5
 
-# ---------------------------------------------------------------------------
-# Output helpers
-# ---------------------------------------------------------------------------
-
 if [ -t 1 ]; then
   c_reset=$'\033[0m'; c_bold=$'\033[1m'
-  c_red=$'\033[31m'; c_green=$'\033[32m'; c_yellow=$'\033[33m'
+  c_red=$'\033[31m'; c_green=$'\033[32m'
 else
-  c_reset=''; c_bold=''; c_red=''; c_green=''; c_yellow=''
+  c_reset=''; c_bold=''; c_red=''; c_green=''
 fi
 
 step() { printf '\n%s==> %s%s\n' "$c_bold" "$1" "$c_reset"; }
 ok()   { printf '%s  ok%s  %s\n' "$c_green" "$c_reset" "$1"; }
-warn() { printf '%s  !!%s  %s\n' "$c_yellow" "$c_reset" "$1"; }
 fail() { printf '%s  xx%s  %s\n' "$c_red" "$c_reset" "$1"; }
-
-# Steps that were `allow_failure: true` in CI record a warning instead of
-# aborting, so one soft finding does not hide the rest of the run.
-soft_warnings=()
-
-# ---------------------------------------------------------------------------
-# Staleness
-# ---------------------------------------------------------------------------
-
-# Epoch seconds only: parsing a formatted date back differs between BSD and GNU
-# `date`, and nothing here needs to render the stored value.
-stamp_age_days() {
-  [ -f "$stamp_file" ] || return 1
-  local then now
-  then="$(tr -dc '0-9' < "$stamp_file")"
-  [ -n "$then" ] || return 1
-  now="$(date +%s)"
-  echo $(((now - then) / 86400))
-}
-
-report_staleness() {
-  local age
-  if ! age="$(stamp_age_days)"; then
-    echo "NEVER  no successful \`tools/verify.sh full\` recorded yet — run it to establish a baseline"
-    return 0
-  fi
-  if [ "$age" -ge "$stale_after_days" ]; then
-    echo "STALE  full check last passed ${age} days ago — run \`tools/verify.sh full\` (~15 min)"
-  else
-    echo "FRESH  full check last passed ${age} days ago"
-  fi
-  return 0
-}
-
-write_stamp() {
-  date +%s > "$stamp_file"
-}
-
-# ---------------------------------------------------------------------------
-# Individual checks
-# ---------------------------------------------------------------------------
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || { fail "required command not found: $1"; return 1; }
-}
-
-# Only the tiers that run `R CMD check` and the README guard need these; the
-# standard tier needs Rscript alone, and warning about qpdf on every push would
-# be noise about a tool that tier never invokes.
-check_toolchain() {
-  need_cmd Rscript
-  # `R CMD check` emits the PDF size-reduction check as a WARNING when qpdf is
-  # absent, and the gate runs with error_on = "warning". Without qpdf the local
-  # check is weaker than CI was: this is exactly what failed full-check on 4.5.
-  if ! command -v qpdf >/dev/null 2>&1; then
-    warn "qpdf not installed — the PDF size-reduction check will not run (brew install qpdf)"
-    soft_warnings+=("qpdf missing")
-  fi
-  if ! command -v pandoc >/dev/null 2>&1; then
-    warn "pandoc not installed — the README check cannot run"
-    soft_warnings+=("pandoc missing")
-  fi
-}
-
-run_lint() {
-  step "lint (lintr)"
-  Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }'
-  ok "no lints"
-}
-
-# A stale .Rd is still valid .Rd, so neither lint, spelling nor R CMD check can
-# see it: the logo sweep left man/pslr-package.Rd stale and nothing here
-# noticed (SEOR-nwfmerhu). This regenerates man/ and NAMESPACE with roxygen and
-# fails, printing the diff, when they differ from what is committed. It runs
-# ahead of spelling, which reads man/ as it is.
-#
-# It checks the commit being pushed, in its OWN `git archive` export, never the
-# working tree: roxygen loads the package through pkgload, which compiles src/
-# in place and leaves .o files and a .so behind that a later rcmdcheck build of
-# the working tree would pick up. pre-commit exports the pushed commit to a
-# pre-push hook as PRE_COMMIT_TO_REF, so `git push origin other-branch` checks
-# other-branch rather than whatever is checked out; outside a push (or for a
-# push pre-commit hands no ref, such as a whole history down to its root
-# commit) it is HEAD. An uncommitted roxygen edit is therefore not seen until
-# it is committed.
-#
-# The export lives in a subshell with its own EXIT trap, so it is removed on
-# every way out: a pass, drift, a failed export, a roxygen error, Ctrl-C. The
-# INT/TERM/HUP traps turn a signal into an ordinary exit, which is what runs
-# the EXIT trap. Being a subshell, it leaves this script's own traps alone.
-# `set -e` does not apply inside a subshell whose status is tested, so each
-# step checks its own status.
-run_docs_drift() {
-  local ref="${PRE_COMMIT_TO_REF:-HEAD}" status=0
-  step "generated docs in sync at ${ref} (scripts/check-docs-drift.R)"
-  need_cmd git
-  (
-    if ! docsdir="$(mktemp -d "${TMPDIR:-/tmp}/pslr-docs-drift.XXXXXX")"; then
-      fail "could not create a temporary directory for the docs export"
-      exit 3
-    fi
-    trap 'rm -rf "$docsdir"' EXIT
-    trap 'exit 130' INT
-    trap 'exit 143' TERM
-    trap 'exit 129' HUP
-    if ! git archive "$ref" | tar -x -C "$docsdir"; then
-      fail "could not export ${ref} with git archive"
-      exit 3
-    fi
-    Rscript scripts/check-docs-drift.R "$docsdir"
-  ) || status=$?
-  if [ "$status" -eq 3 ] || [ "$status" -ge 128 ]; then
-    return "$status"
-  elif [ "$status" -ne 0 ]; then
-    fail "the generated docs at ${ref} are out of date (or the check could not run; see the output above) — if they are stale, run devtools::document() and commit the result"
-    return 1
-  fi
-  ok "man/, NAMESPACE and DESCRIPTION match the roxygen comments in R/"
-}
-
-# `R CMD check` skips its DESCRIPTION spelling check on a machine without an
-# English aspell or hunspell dictionary, which is this one, so a typo there
-# first surfaced as a win-builder NOTE (SEOR-mtbzfroz). spelling bundles its own
-# dictionaries and also covers man/, vignettes, README and NEWS.md. A genuine
-# term goes into inst/WORDLIST; a typo gets fixed at its source.
-run_spelling() {
-  step "spelling (spelling::spell_check_package)"
-  Rscript -e 'bad <- spelling::spell_check_package(); if (nrow(bad)) { print(bad); quit(status = 1) }'
-  ok "no misspelled words"
-}
-
-# Fetches every URL the package declares and fails on a dead one, which
-# `R CMD check --as-cran` reports only as a NOTE. A URL that could not be
-# reached at all only warns, so a network blip never rejects a push. The
-# fleet's shape of this check, ported from sitemapr (SEOR-twxjxogh).
-run_urls() {
-  step "declared URLs resolve (tools/check-urls.R)"
-  Rscript tools/check-urls.R
-  ok "no broken URLs"
-}
-
-run_tests() {
-  step "tests (testthat)"
-  # test_local() sets NOT_CRAN=true itself (testthat 3.3.2, measured
-  # 2026-09-24), so skip_on_cran() does not fire here and leaving NOT_CRAN
-  # unset in the shell changes nothing. The two network dependency audits,
-  # test-security.R (OSS Index) and test-osv.R (OSV), are therefore excluded by
-  # name: with credentials in ~/.Renviron they otherwise ran live on every push
-  # and blocked a merge on 2026-09-09. run_osv and run_security run them
-  # deliberately in the `full` and `cran` tiers (SEOR-fftbjnpl).
-  #
-  # The stage fails closed on its own. stop_on_failure makes testthat abort on
-  # a failure, but the stage does not rest on that alone: it keeps the results
-  # test_local() returns and exits 1 itself unless at least one test ran and
-  # none failed or errored (skips are fine). A full-disk run was reported to
-  # print `[ FAIL 7 ... ]` and still pass; that did not reproduce
-  # (PSLR-vacblucj), and with this check it cannot happen whatever the cause.
-  # testthat-problems.rds plays no part: the gate never reads it, and testthat
-  # writes it only when a test has already failed.
-  # scripts/verify-self-test.sh pins this check with stop_on_failure switched
-  # off, and runs on every push.
-  Rscript -e '
-    res <- testthat::test_local(
-      reporter = "check", stop_on_failure = TRUE,
-      filter = "^(security|osv)$", invert = TRUE
-    )
-    if (!inherits(res, "testthat_results")) {
-      message("verify: the test stage failed closed: no testthat results")
-      quit(status = 1)
-    }
-    df <- as.data.frame(res)
-    n_failed <- sum(df$failed)
-    n_errored <- sum(df$error)
-    if (nrow(df) == 0L || n_failed > 0L || n_errored > 0L) {
-      message(sprintf(
-        "verify: the test stage failed closed: %d test(s) ran, %d failed expectation(s), %d errored",
-        nrow(df), n_failed, n_errored
-      ))
-      quit(status = 1)
-    }
-  '
-  ok "tests passed"
-}
-
-# rcmdcheck summarizes whatever 00check.log holds, and a check that aborted
-# early leaves a log with no findings, which reads as a clean pass. Insist the
-# log shows a run that reached the end.
-#
-# This lives in a variable, and both call sites go through run_check, because
-# the `cran` tier once inlined its own rcmdcheck call to enable the remote
-# incoming checks and did not carry the guard with it. On 2026-09-05 a
-# 60-second timeout fetching CRAN's archive.rds halted the check at its first
-# step and the tier reported "0 errors | 0 warnings | 0 notes", then
-# "safe to submit" (PSLR-zibafvbq). The guard was missing from precisely the
-# tier that gates a submission, and from the one form of the check whose
-# network dependency makes an early abort likely.
-check_ran_to_completion='
-  if (!identical(as.integer(chk[["status"]]), 0L)) stop("R CMD check exited with status ", chk[["status"]], "; the run did not complete.", call. = FALSE)
-  log <- readLines(file.path(chk[["checkdir"]], "00check.log"), warn = FALSE)
-  if (any(grepl("Execution halted", log, fixed = TRUE))) {
-    stop("R CMD check aborted: Execution halted in 00check.log")
-  }
-  if (!any(grepl("^Status:", log))) {
-    stop("R CMD check did not run to completion: no Status line in 00check.log")
-  }
-'
-
-# run_check [remote]
-#
-#   (no argument)  mirrors the `check` job: --no-manual, incoming checks local.
-#   remote         the pre-submission form: builds the manual and enables the
-#                  CRAN incoming checks that talk to CRAN.
-run_check() {
-  if [ "${1:-}" = "remote" ]; then
-    step "R CMD check --as-cran (remote incoming checks enabled)"
-    # R runs the check in a separate process, so the parent's options() do not
-    # reach it; R_DEFAULT_INTERNET_TIMEOUT seeds the child's `timeout` option.
-    # The default 60s is not enough for CRAN's archive.rds on a slow day, which
-    # is what aborted the check in PSLR-zibafvbq.
-    _R_CHECK_CRAN_INCOMING_REMOTE_=true \
-    R_DEFAULT_INTERNET_TIMEOUT=300 \
-    Rscript -e '
-      chk <- rcmdcheck::rcmdcheck(
-        args = "--as-cran", error_on = "warning", check_dir = "check"
-      )
-      '"$check_ran_to_completion"'
-    '
-  else
-    step "R CMD check --as-cran"
-    Rscript -e '
-      chk <- rcmdcheck::rcmdcheck(
-        args = c("--no-manual", "--as-cran"), error_on = "warning",
-        check_dir = "check"
-      )
-      '"$check_ran_to_completion"'
-    '
-  fi
-  ok "check complete"
-}
-
-run_news_version() {
-  step "NEWS.md / DESCRIPTION version consistency"
-  local version heading tags missing released
-  version="$(grep -E '^Version:' DESCRIPTION | head -n1 | sed -E 's/^Version:[[:space:]]*//')"
-  heading="$(grep -m1 -E '^# ' NEWS.md | sed -E 's/^#[[:space:]]+pslr[[:space:]]*//')"
-  if [ "$heading" != "(development version)" ] && [ "$heading" != "$version" ]; then
-    fail "top NEWS.md heading ('$heading') is neither '(development version)' nor the DESCRIPTION Version ('$version')"
-    return 1
-  fi
-  tags="$(git tag -l 'v*')"
-  missing=0
-  for tag in $tags; do
-    released="${tag#v}"
-    if ! grep -qxF "# pslr ${released}" NEWS.md; then
-      fail "tag ${tag} has no matching '# pslr ${released}' heading in NEWS.md"
-      missing=1
-    fi
-  done
-  [ "$missing" -eq 0 ] || return 1
-  ok "version and NEWS headings agree"
-}
-
-run_readme() {
-  step "README.md freshness"
-  # Byte-for-byte, so the generator has to be reproducible. CI pinned pandoc to
-  # PANDOC_VERSION for this reason; locally we use whatever is installed, so a
-  # mismatch shows up as spurious drift. Report the version to make that
-  # diagnosable rather than baffling.
-  local want have
-  want="$(sed -nE 's/^  PANDOC_VERSION: "(.+)"/\1/p' .gitlab-ci.yml | head -n1)"
-  have="$(pandoc --version | head -n1 | awk '{print $2}')"
-  if [ -n "$want" ] && [ "$want" != "$have" ]; then
-    warn "local pandoc is ${have}, .gitlab-ci.yml pins ${want}; table formatting may differ"
-  fi
-  Rscript -e 'devtools::build_readme()'
-  if ! git diff --exit-code -- README.md; then
-    fail "README.md is out of sync with README.Rmd — commit the regenerated file"
-    return 1
-  fi
-  ok "README.md matches README.Rmd"
-}
-
-run_coverage() {
-  step "test coverage"
-  Rscript -e 'cov <- covr::package_coverage(quiet = FALSE); cat(sprintf("Coverage: %.2f%%\n", covr::percent_coverage(cov)))'
-  ok "coverage reported"
-}
-
-run_osv() {
-  step "OSV dependency audit"
-  # NOT_CRAN is set for the audits and only for the audits: skip_on_cran() in
-  # these tests would otherwise skip the audit silently. It must not be set for
-  # `check`, whose tests are required to stay offline.
-  NOT_CRAN=true Rscript -e 'testthat::test_local(filter = "osv", stop_on_failure = TRUE)'
-  ok "no OSV advisories"
-}
-
-# The path R itself would read the user's environment file from. Hardcoding
-# ~/.Renviron would disagree with R on any machine that redirects it, and the
-# whole point of this helper is that both halves of the audit look in one place.
-# `${HOME:-}` because `set -u` would otherwise abort the whole gate in the one
-# environment that has no HOME at all, which is not this check's business.
-renviron_file() {
-  printf '%s' "${R_ENVIRON_USER:-${HOME:-}/.Renviron}"
-}
-
-# Sets $1 from the R user environment file, but only when the environment does
-# not already define it: an exported variable wins, so CI — which passes real
-# environment variables — is unaffected and the file stays a fallback.
-#
-# `source` is deliberately not used. .Renviron is data, not a shell script, and
-# sourcing it would execute whatever it happens to contain.
-#
-# The value never reaches stdout, stderr or the trace: xtrace is suspended
-# around the assignment, so a future `bash -x tools/verify.sh` cannot print a
-# credential, and no caller ever renders the value — only whether it is there.
-load_from_renviron() {
-  local name="$1" file line value xtrace=0
-  case "$-" in *x*) xtrace=1; set +x ;; esac
-
-  file="$(renviron_file)"
-  if [ -r "$file" ]; then
-    # The anchor rules out comments for free — a `#` before the name never
-    # matches — and the last assignment wins, as a later line would in R.
-    line="$(grep -E "^[[:space:]]*${name}[[:space:]]*=" "$file" 2>/dev/null | tail -n1)" || line=''
-    if [ -n "$line" ]; then
-      # Everything after the FIRST `=`, because a token may contain one, then
-      # at most one layer of matching surrounding quotes.
-      value="${line#*=}"
-      case "$value" in
-        \"*\") value="${value#\"}"; value="${value%\"}" ;;
-        \'*\') value="${value#\'}"; value="${value%\'}" ;;
-      esac
-      printf -v "$name" '%s' "$value"
-      export "${name?}"
-    fi
-  fi
-
-  [ "$xtrace" -eq 0 ] || set -x
-  return 0
-}
-
-# The audit runs inside R, which reads the R environment file; the shell guard
-# in front of it did not, so on a machine with the credentials installed exactly
-# where the old message said to put them the audit was skipped anyway
-# (PSLR-lidgnomk) — PSLR-njeqwltb's vacuous green returning as a vacuous skip.
-# Both gates call this, so both consult the environment and the file alike, and
-# what they resolve is exported for the child R process.
-#
-# `:+set` rather than `:-`: both answer "is it there", but the plain expansion
-# would substitute the credential itself into a traced command line, which is
-# how the first draft of this leaked the value under `bash -x`.
-ossindex_credentials_available() {
-  [ -n "${OSSINDEX_TOKEN:+set}" ] || load_from_renviron OSSINDEX_TOKEN
-  [ -n "${OSSINDEX_USER:+set}" ] || load_from_renviron OSSINDEX_USER
-  [ -n "${OSSINDEX_TOKEN:+set}" ]
-}
-
-# The cran tier's preflight: the same resolution, but fatal. A pre-submission
-# tier that skipped the audit would be asserting something it never checked.
-require_ossindex_credentials() {
-  ossindex_credentials_available && return 0
-  fail "OSSINDEX_TOKEN is set in neither the environment nor $(renviron_file) — the cran tier requires it, a vacuous audit is not a pre-submission check"
-  exit 1
-}
-
-run_security() {
-  step "OSS Index dependency audit"
-  if ! ossindex_credentials_available; then
-    # OSS Index rejects anonymous requests with HTTP 401, so without a token
-    # this audit is vacuous rather than green. Soft in `full` (the tree is
-    # still checked by everything else), hard in `cran`.
-    warn "OSSINDEX_TOKEN is set in neither the environment nor $(renviron_file) — skipping. Put OSSINDEX_USER='x' (the literal placeholder) and OSSINDEX_TOKEN in either (see PSLR-njeqwltb)."
-    soft_warnings+=("OSS Index audit skipped: no token")
-    return 0
-  fi
-  # OSSINDEX_AUDIT_REQUIRED turns the test's in-R preconditions (oysteR
-  # missing, no network, nothing resolved) from skips into failures. This tier
-  # replaced the weekly CI schedules, so it is the audit that actually recurs,
-  # and a skip here would be the same vacuous green the CI job guards against.
-  # The missing-token case is handled above, softly in `full`, before R starts.
-  NOT_CRAN=true OSSINDEX_AUDIT_REQUIRED=true Rscript -e 'testthat::test_local(filter = "security", stop_on_failure = TRUE)'
-  ok "no OSS Index advisories"
-}
-
-run_psl_upstream() {
-  step "upstream PSL snapshot"
-  # Detection only. Regeneration is data-raw/update_psl.R, run deliberately —
-  # this must never rewrite the bundled snapshot as a side effect of a check.
-  local pinned upstream
-  pinned="$(sed -nE 's/^default_commit <- "([0-9a-f]{40})".*/\1/p' data-raw/update_psl.R)"
-  if [ -z "$pinned" ]; then
-    warn "could not read 'default_commit' from data-raw/update_psl.R"
-    soft_warnings+=("PSL pin unreadable")
-    return 0
-  fi
-  upstream="$(curl -sSf --max-time 20 \
-    'https://api.github.com/repos/publicsuffix/list/commits?path=public_suffix_list.dat&per_page=1' \
-    2>/dev/null | jq -r '.[0].sha' 2>/dev/null || true)"
-  if ! printf '%s' "${upstream:-}" | grep -qxE '[0-9a-f]{40}'; then
-    warn "upstream lookup failed (offline, or the GitHub API is unhappy) — snapshot not compared"
-    soft_warnings+=("PSL upstream unchecked")
-    return 0
-  fi
-  if [ "$pinned" = "$upstream" ]; then
-    ok "bundled snapshot is current"
-  else
-    warn "upstream has moved: pinned ${pinned:0:12}, latest ${upstream:0:12} — run 'Rscript data-raw/update_psl.R ${upstream}'"
-    soft_warnings+=("PSL snapshot is behind upstream")
-  fi
-}
-
-run_matrix() {
-  need_cmd docker
-  local ver status=0
-  for ver in "${matrix_versions[@]}"; do
-    step "R CMD check on R ${ver} (docker)"
-    # A named volume per R version keeps the dependency closure between runs;
-    # rebuilding it every time would make this tier unusable.
-    if docker run --rm \
-      -v "$repo_root:/pkg" -w /pkg \
-      -v "pslr-rlib-${ver}:/rlib" \
-      -e R_LIBS_USER=/rlib \
-      -e NOT_CRAN=false \
-      -e _R_CHECK_CRAN_INCOMING_REMOTE_=false \
-      -e PKG_SYSREQS=true \
-      "rocker/r-ver:${ver}" \
-      bash -c '
-        set -eu
-        apt-get update -qq
-        # libcurl/libssl headers are here to bootstrap pak itself, not for the
-        # package: pak installs system requirements, but only once it is
-        # installed. R releases get a prebuilt pak binary and never compile, so
-        # this is invisible on 4.5/4.6; on devel there is no binary, pak builds
-        # its embedded curl from source, and without the headers the whole tier
-        # fails before reaching any check.
-        apt-get install -y --no-install-recommends \
-          qpdf ghostscript pandoc git curl jq \
-          libcurl4-openssl-dev libssl-dev >/dev/null
-        mkdir -p "$R_LIBS_USER"
-        Rscript -e "if (!requireNamespace(\"pak\", quietly = TRUE)) install.packages(\"pak\")"
-        Rscript -e "pak::local_install_deps(dependencies = TRUE)"
-        Rscript -e "pak::pak(\"rcmdcheck\")"
-        Rscript -e "chk <- rcmdcheck::rcmdcheck(args = c(\"--no-manual\", \"--as-cran\"), error_on = \"warning\"); if (!identical(as.integer(chk[[\"status\"]]), 0L)) stop(\"R CMD check exited with status \", chk[[\"status\"]], \"; the run did not complete.\", call. = FALSE)"
-      '; then
-      ok "R ${ver} passed"
-    else
-      fail "R ${ver} failed"
-      status=1
-    fi
-  done
-  return "$status"
 }
 
 # Copy the tree out of the read-only bind mount, then drop the host's compiled
@@ -559,7 +77,7 @@ sanitize_deps='
 '
 
 # Dynamic analysis of the C++ matcher: the coverage that .github/workflows/
-# rhub.yaml used to provide and that no longer exists anywhere (PSLR-avwlybsw).
+# rhub.yaml used to provide (PSLR-avwlybsw).
 #
 # Not R-hub: rhub v2 dispatches to the maintainer's own GitHub Actions runners
 # and needs a GitHub repository, which the suspension removed (PSLR-thcaqtnw).
@@ -644,73 +162,36 @@ run_sanitize() {
   return "$status"
 }
 
-# ---------------------------------------------------------------------------
-# Tiers
-# ---------------------------------------------------------------------------
-
-summarize() {
-  if [ "${#soft_warnings[@]}" -gt 0 ]; then
-    printf '\n%s%d warning(s):%s\n' "$c_yellow" "${#soft_warnings[@]}" "$c_reset"
-    printf '  - %s\n' "${soft_warnings[@]}"
+run_psl_upstream() {
+  step "upstream PSL snapshot"
+  # Detection only. Regeneration is data-raw/update_psl.R, run deliberately —
+  # this must never rewrite the bundled snapshot as a side effect of a check.
+  local pinned upstream
+  pinned="$(sed -nE 's/^default_commit <- "([0-9a-f]{40})".*/\1/p' data-raw/update_psl.R)"
+  if [ -z "$pinned" ]; then
+    fail "could not read 'default_commit' from data-raw/update_psl.R"
+    return 1
+  fi
+  upstream="$(curl -sSf --max-time 20 \
+    'https://api.github.com/repos/publicsuffix/list/commits?path=public_suffix_list.dat&per_page=1' \
+    2>/dev/null | jq -r '.[0].sha' 2>/dev/null || true)"
+  if ! printf '%s' "${upstream:-}" | grep -qxE '[0-9a-f]{40}'; then
+    fail "upstream lookup failed (offline, or the GitHub API is unhappy) — snapshot not compared"
+    return 1
+  fi
+  if [ "$pinned" = "$upstream" ]; then
+    ok "bundled snapshot is current"
+  else
+    fail "upstream has moved: pinned ${pinned:0:12}, latest ${upstream:0:12} — run 'Rscript data-raw/update_psl.R ${upstream}'"
+    return 1
   fi
 }
 
-tier="${1:-standard}"
+tier="${1:-auto}"
 
 case "$tier" in
-  --staleness)
-    report_staleness
-    exit 0
-    ;;
-
-  tests)
-    need_cmd Rscript
-    run_tests
-    printf '\n%stests verify passed%s\n' "$c_green" "$c_reset"
-    ;;
-
-  docs)
-    need_cmd Rscript
-    run_docs_drift
-    printf '\n%sdocs verify passed%s\n' "$c_green" "$c_reset"
-    ;;
-
-  standard)
-    need_cmd Rscript
-    run_lint
-    run_docs_drift
-    run_spelling
-    run_urls
-    run_tests
-    summarize
-    printf '\n%sstandard verify passed%s\n' "$c_green" "$c_reset"
-    # Deliberately does not touch .verify-stamp: only the full tier clears the
-    # staleness nudge, or pushing often would silence a check that never ran.
-    report_staleness
-    ;;
-
-  full)
-    check_toolchain
-    run_lint
-    run_docs_drift
-    run_spelling
-    run_urls
-    run_tests
-    run_check
-    run_news_version
-    run_readme
-    run_coverage
-    run_osv
-    run_security
-    run_psl_upstream
-    summarize
-    write_stamp
-    printf '\n%sfull verify passed%s\n' "$c_green" "$c_reset"
-    ;;
-
-  matrix)
-    run_matrix
-    printf '\n%smatrix verify passed%s\n' "$c_green" "$c_reset"
+  auto | docs | full)
+    exec .fleet-ci/gate "$tier"
     ;;
 
   sanitize)
@@ -718,38 +199,15 @@ case "$tier" in
     printf '\n%ssanitize verify passed%s\n' "$c_green" "$c_reset"
     ;;
 
-  cran)
-    check_toolchain
-    require_ossindex_credentials
-    run_lint
-    run_docs_drift
-    run_spelling
-    run_urls
-    run_tests
-    # CI disables the remote incoming checks because the rocker image points
-    # `repos` at a binary mirror with no src/contrib, so the fetch 404s and
-    # aborts the check. Locally `repos` points at CRAN proper, so the remote
-    # half both works and is worth running before a submission.
-    run_check remote
-    run_news_version
-    run_readme
-    run_coverage
-    run_osv
-    run_security
+  psl-upstream)
+    need_cmd curl
+    need_cmd jq
     run_psl_upstream
-    run_matrix
-    # CRAN runs its own clang-ASAN/UBSAN and valgrind checks on submission.
-    # Finding a hit from their report rather than from this run is the
-    # expensive ordering, so the tier pays for it here.
-    run_sanitize
-    summarize
-    write_stamp
-    printf '\n%scran tier passed — safe to submit%s\n' "$c_green" "$c_reset"
     ;;
 
   *)
     echo "unknown tier: $tier" >&2
-    sed -n '/^# Usage:/,/^# --staleness/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
+    sed -n '/^# Usage:/,/^#   psl-upstream  /p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
     exit 2
     ;;
 esac

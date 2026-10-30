@@ -1,753 +1,92 @@
-# GitLab CI for pslr — the replacement for the nine .github/workflows/ files
-# that stopped running when the GitHub account was suspended (PSLR-thcaqtnw).
-# Filed and specified as PSLR-totktvlq.
+# GitLab CI for pslr: fleet-ci's template, pinned by commit SHA (seor
+# ADR 0012, fleet-ci README "The CI template"). The template owns the event
+# table, the jobs and the images; this file sets only the package's switches
+# and settings, and adds pslr's x-* jobs. A push to main or a branch, and a
+# merge request, create no pipeline: the merge gate is the local one
+# (.fleet-ci/gate, run by the .fleet-ci/pre-push hook; settings in
+# .fleet-ci.yml). T2 runs on the deep-check schedule (SCHEDULE_KIND=deep-check,
+# schedule 4472812), T3 on a RELEASE=1 web pipeline and a v* tag. The
+# dependency-audit schedule (4467477) gets no pipeline: osv-audit and
+# security-audit run in T2. docs/git-workflow.md says what moved where.
 #
-# Why this file matters more than a badge: AGENTS.md states that the local
-# pre-push hook exists as the stand-in for server-side branch protection,
-# "mirroring what CI runs". With no CI at all, that hook was the entire gate —
-# and it is bypassed by `--no-verify` and absent in any clone that never ran
-# `pre-commit install --hook-type pre-push`.
-#
-# ---------------------------------------------------------------------------
-# Deliberate deviations from the GitHub workflows, and why
-# ---------------------------------------------------------------------------
-#
-# 1. NO macOS AND NO WINDOWS LEG. full-check.yml ran a five-leg matrix across
-#    macOS, Windows and Linux. GitLab.com shared runners are Linux-only on the
-#    plans available here, so the matrix collapses to the R-version axis
-#    (devel / release / oldrel-1) on Linux. This is a genuine loss of coverage,
-#    not a simplification. Cross-platform assurance before a CRAN submission now
-#    has to come from win-builder and mac-builder (see item 3) and must be
-#    described honestly in cran-comments.md.
-#
-# 2. A PUSH TO `main` RUNS THE FLEET GATE; BRANCHES AND MERGE REQUESTS RUN
-#    NOTHING. The fleet standard (seor design/fleet-standard.md, SEOR-twxjxogh)
-#    has every push to the default branch run `R CMD check --as-cran`
-#    (`error_on = "warning"`), coverage with a 95% floor, the cheap gates (lint,
-#    spelling, NEWS/version, citation, README drift, docs drift) and the pages
-#    deploy. The jobs run on the maintainer's self-hosted runner (`default:
-#    tags`), so the shared-runner quota this file used to ration is no longer
-#    what pays for them. Both schedules (item 4) run these jobs too. Branch
-#    pushes and merge requests still start no pipeline: the per-branch gate is
-#    local (`tools/verify.sh standard` in the pre-push hook).
-#
-# 3. NO R-HUB JOB. rhub v2 (`rhub::rhub_check()`) dispatches to the maintainer's
-#    own GitHub Actions runners and requires a GitHub repository. There is no
-#    GitLab equivalent to port. R-hub is unavailable while the account is
-#    suspended; pre-release platform checks move to manual invocation of
-#    `devtools::check_win_devel()` and `devtools::check_mac_release()`, neither
-#    of which involves GitHub. The dynamic analysis R-hub carried — clang-ASAN,
-#    UBSAN and valgrind over the C++ matcher — is `tools/verify.sh sanitize`,
-#    which runs locally under Docker and is part of the `cran` tier
-#    (PSLR-avwlybsw). Its ASAN/UBSAN leg also runs here, as the `sanitizers`
-#    job on the deep-check schedule.
-#
-# 4. TWO SCHEDULES, SELECTED BY `SCHEDULE_KIND`. The fleet's two weekly
-#    schedules on the default branch (seor design/fleet.md) each carry the
-#    schedule variable `SCHEDULE_KIND`, and every scheduled job requires both
-#    `$CI_PIPELINE_SOURCE == "schedule"` and its own kind. Each kind adds its
-#    own jobs to the push-to-main jobs (item 2):
-#
-#      dependency-audit  `osv-audit` and `security-audit` (SEOR-fftbjnpl).
-#      deep-check        `full-check` (R release, oldrel, devel and the
-#                        DESCRIPTION floor) and `sanitizers` (ASAN/UBSAN).
-#
-#    A schedule pipeline runs every push-to-main job (`.rules-main` and
-#    `pages`), as the schedules in every other fleet repository do (seor
-#    design/fleet.md, "Scheduled pipelines"). That re-checks `main` against
-#    dependencies that moved since the last push, and it keeps the coverage
-#    badge honest: GitLab reads the badge from the latest successful pipeline
-#    on `main`, so a schedule that ran only its own jobs left the badge at
-#    "unknown" after every green run (SEOR-twxjxogh).
-#
-#    A schedule without either value creates no pipeline at all. The schedules
-#    live in Build > Pipeline schedules, not in this file.
-#
-#    The accepted gap is the upstream-PSL watcher (PSLR-wzhnvyiv): it goes stale
-#    because the world moved, not because this tree changed, so a month away
-#    from the repo triggers no nudge at all. `psl-upstream-check` therefore runs
-#    inside the CRAN-prep gate, where a bundled snapshot behind upstream is
-#    exactly what you want to hear about before submitting. This is not
-#    theoretical — the first `full` run found the snapshot already behind
-#    (PSLR-ucvugmsw).
-#
-# 5. TOKENS. Two jobs need credentials that only a project maintainer can
-#    create. Each exits non-zero with an explanation when its secret is absent.
-#    The two that cannot block a submission on a missing credential
-#    (`security-audit`, `psl-upstream-check`) are advisory in the CRAN_PREP
-#    gate, so they report red without vetoing it. On the dependency-audit
-#    schedule (item 4) `security-audit` is blocking: there a missing credential
-#    is exactly the red it should report.
-#    OSSINDEX_USER and OSSINDEX_TOKEN are set (2026-09-24); PSL_BOT_TOKEN is
-#    not, so `psl-upstream-check` stays loud until it is. The `codemeta` job
-#    that also used it was removed on 2026-09-24 (SEOR-tzxuisnf): codemetar
-#    drops hand-set fields, so codemeta.json is hand-maintained.
-#      PSL_BOT_TOKEN   project access token, scopes `api` + `write_repository`.
-#                      Used by psl-upstream-check (pushes a branch, opens an MR).
-#      OSSINDEX_USER   the literal string "x", NOT an email. This was hard-won
-#      OSSINDEX_TOKEN  and is recorded here because the GitHub workflow that
-#                      first documented it is no longer reachable: OSS Index
-#                      authenticates with the API token as the password and
-#                      ignores the username, but rejects the request outright
-#                      if the username looks like an account identifier.
-#    GITLAB_PAT is deliberately NOT in that list: every dependency, punycoder
-#    included, comes from CRAN, so jobs resolve the closure anonymously.
-
-stages:
-  - lint
-  - check
-  - audit
-  - deploy
-
-default:
-  # The fleet's jobs run only on the self-hosted Docker runners on the
-  # maintainer's Mac, which carry this tag. Naming it makes that dependency
-  # explicit: while the Mac sleeps, jobs sit pending and then fail as
-  # `stuck_pending_no_matching_runners`, which is infrastructure, not code
-  # (seor design/stuck-pending-runbook.md; SEOR-hhtzaknn).
-  tags: [local-docker]
-
-workflow:
-  # A PUSH TO `main`, TWO SCHEDULES AND TWO ON-DEMAND PIPELINES. Nothing fires
-  # on a branch push, a merge request or a tag. A pipeline exists for a push to
-  # the default branch (header item 2), when one of the two schedules (header
-  # item 4) fires on it, or when a human asks for one by name:
-  #
-  #   CRAN_PREP=1     The pre-submission gate. A clean-room second opinion on
-  #                   the things one machine cannot give you: three R versions,
-  #                   a from-scratch dependency resolution, and a check run
-  #                   somewhere the maintainer's ~/.Renviron does not exist.
-  #   DEPLOY_PAGES=1  Republish the documentation site. Nothing else runs.
-  #   SCHEDULE_KIND=dependency-audit | deep-check
-  #                   Set on a pipeline schedule, never passed by hand.
-  #
-  # Start either one with:
-  #
-  #   glab ci run --branch main --variables CRAN_PREP:1
-  #   glab ci run --branch main --variables DEPLOY_PAGES:1
-  #
-  # or Pipelines -> Run pipeline with that variable set.
-  #
-  # A manual run with NEITHER variable creates no pipeline at all. That is the
-  # intended behavior, not a misconfiguration — GitLab will say the pipeline was
-  # filtered out by workflow rules, and the answer is to pass the variable.
-  #
-  # THE PER-BRANCH GATE IS LOCAL. `tools/verify.sh standard` runs in the
-  # pre-push hook on every push; `tools/verify.sh full` and `sanitize` remain
-  # the local tiers. This file is the remote half of that pair, not a
-  # replacement for it — see AGENTS.md and PSLR-ugxanxne.
-  #
-  # The source guard matters: it stops a CRAN_PREP defined as a *project* CI/CD
-  # variable from silently re-enabling per-push pipelines, which is exactly the
-  # spend this design exists to prevent.
-  rules:
-    - if: $CRAN_PREP == "1" && $CI_PIPELINE_SOURCE =~ /^(web|api|trigger)$/
-    - if: $DEPLOY_PAGES == "1" && $CI_PIPELINE_SOURCE =~ /^(web|api|trigger)$/
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "dependency-audit" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "deep-check" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - when: never
-  auto_cancel:
-    on_new_commit: interruptible
-
-# ---------------------------------------------------------------------------
-# Rule sets. `extends` REPLACES a job's own `rules:`, so every job below picks
-# exactly one of these rather than repeating the condition.
-# ---------------------------------------------------------------------------
-
-# Blocking: a failure here means do not submit.
-.rules-cran-prep:
-  rules:
-    - if: $CRAN_PREP == "1"
-
-# The fleet gate: every push to the default branch, both schedules on it
-# (header item 4), and the CRAN_PREP gate. The pipeline source is named rather
-# than left out, as punycoder's branch-only rule does, so a DEPLOY_PAGES run on
-# `main` still runs `pages` and nothing else.
-.rules-main:
-  rules:
-    - if: $CI_PIPELINE_SOURCE =~ /^(push|schedule)$/ && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CRAN_PREP == "1"
-
-# The deep-check schedule (header item 4), and the CRAN_PREP gate.
-.rules-deep-check:
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "deep-check"
-    - if: $CRAN_PREP == "1"
-
-# Advisory: runs in the gate and is loud, but does not by itself veto a
-# submission — either because it depends on a credential that may be absent, or
-# because the finding needs a maintainer decision rather than a red pipeline.
-.rules-cran-prep-advisory:
-  rules:
-    - if: $CRAN_PREP == "1"
-      allow_failure: true
+# Bump the pin by changing `ref:` and re-running fleet-ci's bin/vendor at the
+# same SHA, in one merge request: .fleet-ci/VERSION must equal `ref:`.
+include:
+  - project: bart-turczynski/fleet-ci
+    ref: 5665e94723729437a1bf272e5d1587481c075187
+    file: templates/r-package.yml
 
 variables:
-  # R release. Bumping this is a deliberate act: the cache key includes it.
-  R_VERSION: "4.6"
-  # Project-local library, cached between jobs and pipelines.
-  R_LIBS_USER: "$CI_PROJECT_DIR/.rlib"
-  R_KEEP_PKG_SOURCE: "yes"
-  # Let pak install the Debian/Ubuntu system requirements of R dependencies.
-  PKG_SYSREQS: "true"
-  # Non-interactive apt.
-  DEBIAN_FRONTEND: "noninteractive"
-  # `--as-cran` runs an incoming-feasibility step that fetches
-  # $CRAN/src/contrib/Meta/current.rds. The rocker image points `repos` at the
-  # P3M *binary* mirror, which has no src/contrib at all, so that fetch 404s and
-  # halts R CMD check about 8 seconds in — and rcmdcheck reads the truncated log
-  # as a clean "0 errors | 0 warnings | 0 notes" pass. A green check that
-  # checked nothing is worse than a red one, so the remote half is turned off
-  # here; every local --as-cran check still runs. CRAN performs the remote half
-  # itself at submission time.
-  _R_CHECK_CRAN_INCOMING_REMOTE_: "false"
-  # pandoc is PINNED, not taken from apt. The `readme` job compares generated
-  # README.md byte-for-byte, so the generator has to be reproducible: Ubuntu
-  # noble ships pandoc 3.1.3, which pads pipe-table cells to align them, while
-  # the `devtools::build_readme()` dev loop in AGENTS.md runs whatever pandoc is
-  # local. Tracking the distro's version made the guard fail on formatting that
-  # no one wrote. Bump this deliberately, and in the same commit move the two
-  # sha256 digests in the .r-image, .r-pak and .r-deps before_script and
-  # regenerate README.md. scripts/check-toolchain.R reads this line and fails
-  # the pre-push gate when the local pandoc differs.
-  PANDOC_VERSION: "3.10"
+  # punycoder's configure builds its libidn2 backend when pkg-config finds
+  # libidn2, as on CRAN's Debian flavors, and pslr hands every host to
+  # punycoder, whose two builds can decode differently (rurl's
+  # RURL-woljcpfu). The local gate runs on the image with libidn2 and
+  # rebuilds punycoder there (.fleet-ci.yml), and its `variant` must equal
+  # this, so the release legs (t2-check-release, t2-ascran, coverage) run on
+  # fleet-r-idn2 too. They install punycoder's Posit Package Manager binary,
+  # which is built without libidn2 (SEOR-vpihrxww), so they check the
+  # fallback build, as the oldrel, devel, floor, sanitizer and locale legs
+  # do; x-check-idn2 below rebuilds punycoder with libidn2 and asserts it.
+  FLEET_RELEASE_VARIANT: "fleet-r-idn2"
+  # t2-ascran runs CRAN incoming feasibility with its remote half off: ADR
+  # 0004 grandfathered pslr's remote suppression pending its own ticket, and
+  # ADR 0012 carries it forward as this setting.
+  FLEET_INCOMING_REMOTE: "false"
+  # The declared floor, `Depends: R (>= 4.1.0)`: 4.1 is the oldest minor with
+  # an arm64 rocker/r-ver image, which the runner needs. The former floor
+  # leg ran rocker/r-ver:4.1.3 against current packages, because punycoder
+  # (>= 1.3.0) is newer than any snapshot inside R 4.1's support window, so
+  # the snapshot is fleet-ci's own p3m date, as in rurl. Its Ubuntu 20.04
+  # binary path spares source builds on rocker/r-ver:4.1.3. Unproven until
+  # the first T2 run: docs/git-workflow.md, "Gaps accepted".
+  FLEET_FLOOR_R: "4.1.3"
+  FLEET_FLOOR_SNAPSHOT: "https://packagemanager.posit.co/cran/__linux__/focal/2026-10-28"
 
-# ---------------------------------------------------------------------------
-# Shared setup
-# ---------------------------------------------------------------------------
-
-# Base R container. pandoc is needed to build the vignettes and to render
-# README.Rmd; git, curl and jq are used by the scripted jobs. qpdf and
-# ghostscript are needed by `R CMD check` itself: without qpdf the PDF
-# size-reduction check emits "'qpdf' is needed for checks on size reduction of
-# PDFs" as a WARNING, and `error_on = "warning"` turns that into a red build
-# describing the runner rather than the package. R 4.5 raised it while 4.6 and
-# devel did not, so it failed exactly one leg of the matrix.
-.r-image:
-  image: rocker/r-ver:${R_VERSION}
-  interruptible: true
-  before_script:
-    - apt-get update -qq
-    - >-
-      apt-get install -y --no-install-recommends
-      ca-certificates curl git jq qpdf ghostscript
-    # The ARCHITECTURE is derived, never asserted. pandoc ships one .deb per
-    # architecture (3.10 publishes both amd64 and arm64) and `dpkg -i` refuses
-    # a package built for another one, so a hardcoded `-amd64` takes out every
-    # job that inherits this template the moment the runner is not x86_64.
-    # That is not hypothetical: when the shared-runner quota is exhausted the
-    # documented fallback is a local gitlab-runner on Apple Silicon, where
-    # Docker resolves rocker/r-ver to arm64 and the Docker executor has no way
-    # to request a platform. `dpkg --print-architecture` spells the value
-    # exactly as pandoc names its assets. It is command substitution rather
-    # than a variable on purpose: GitLab expands $VAR itself before the shell
-    # ever runs, but leaves $( ) alone, so this is evaluated in the container
-    # it has to describe.
-    #
-    # The install is the fleet's canonical checked shape (seor's
-    # design/fleet-standard.md, "CI on every push to `main`"; SEOR-dpjdwhbi):
-    # download, `sha256sum -c`, `dpkg -i`, each only when the one before it
-    # succeeded, so nothing unverified is ever installed. The two sha256 values
-    # are the release's own published digests; a PANDOC_VERSION bump moves them
-    # in the same change. The download retries and has a ceiling: --max-time
-    # bounds each attempt and --retry-max-time the retries, so a stalled CDN
-    # reaches the warning in minutes instead of hanging every R job. A failed
-    # or mismatched download only warns: no apt pandoc is installed here, so
-    # the job then runs with no pandoc, and a README or vignette failure after
-    # that warning is the download's, not the package's. Repeated verbatim in
-    # the two templates below for the same `!reference` reason as the apt
-    # lines.
-    #
-    # `apt-mark hold pandoc`, only after a successful `dpkg -i`: no later apt
-    # step replaces the pin. An upgrade leaves it, and an install that needs
-    # another pandoc fails loudly. Where apt's pandoc is older than the pin, as
-    # on rocker images, apt would not replace it anyway; the hold is the fleet's
-    # canonical shape. A failed hold only warns, so it never stops a gate (seor
-    # design/fleet-standard.md; SEOR-vzupmeqj).
-    - |
-      ARCH=$(dpkg --print-architecture)
-      case "$ARCH" in
-        amd64) PANDOC_SHA256=d502599878eb29af3ae5f0cb5d559134df96534125d452c7a0674a5bad2c5ecf ;;
-        arm64) PANDOC_SHA256=b651c8bfd5a0a2f6650d6c0830131747ef67a1d9c0475b1399626611419e2205 ;;
-        *) PANDOC_SHA256=unknown ;;
-      esac
-      if curl -fsSL --retry 3 --retry-delay 5 --retry-max-time 300 --connect-timeout 20 --max-time 120 \
-        -o /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${ARCH}.deb" \
-        && echo "${PANDOC_SHA256}  /tmp/pandoc.deb" | sha256sum -c - \
-        && dpkg -i /tmp/pandoc.deb; then
-        apt-mark hold pandoc || echo "WARNING: pandoc ${PANDOC_VERSION} installed but not held; a later apt step may replace it"
-        echo "pandoc ${PANDOC_VERSION} installed"
-      else
-        echo "WARNING: pandoc ${PANDOC_VERSION} not installed; this job has no pandoc"
-      fi
-      pandoc --version 2>/dev/null | sed -n 1p || true
-
-# Adds pak and the cached project library, but NOT the package's dependency
-# closure. Kept separate from .r-deps on purpose: `lintr::lint_package()` parses
-# sources and needs nothing installed, so the lint gate stays green even while
-# the private-punycoder resolve below is unresolved.
-#
-# The apt lines are repeated across these templates rather than pulled in with
-# GitLab's `!reference` tag: the pre-commit `check-yaml` hook parses this file
-# with a standard YAML loader, which rejects that custom tag.
-.r-pak:
-  extends: .r-image
-  cache:
-    key:
-      prefix: "rlib-${R_VERSION}"
-      files:
-        - DESCRIPTION
-    paths:
-      - .rlib
-  before_script:
-    - apt-get update -qq
-    - >-
-      apt-get install -y --no-install-recommends
-      ca-certificates curl git jq qpdf ghostscript
-    - |
-      ARCH=$(dpkg --print-architecture)
-      case "$ARCH" in
-        amd64) PANDOC_SHA256=d502599878eb29af3ae5f0cb5d559134df96534125d452c7a0674a5bad2c5ecf ;;
-        arm64) PANDOC_SHA256=b651c8bfd5a0a2f6650d6c0830131747ef67a1d9c0475b1399626611419e2205 ;;
-        *) PANDOC_SHA256=unknown ;;
-      esac
-      if curl -fsSL --retry 3 --retry-delay 5 --retry-max-time 300 --connect-timeout 20 --max-time 120 \
-        -o /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${ARCH}.deb" \
-        && echo "${PANDOC_SHA256}  /tmp/pandoc.deb" | sha256sum -c - \
-        && dpkg -i /tmp/pandoc.deb; then
-        apt-mark hold pandoc || echo "WARNING: pandoc ${PANDOC_VERSION} installed but not held; a later apt step may replace it"
-        echo "pandoc ${PANDOC_VERSION} installed"
-      else
-        echo "WARNING: pandoc ${PANDOC_VERSION} not installed; this job has no pandoc"
-      fi
-      pandoc --version 2>/dev/null | sed -n 1p || true
-    - mkdir -p "$R_LIBS_USER"
-    # R_LIBS_USER alone is NOT sufficient: rocker/r-ver's Renviron.site puts
-    # /usr/local/lib/R/site-library FIRST in .libPaths() and R_LIBS_USER third,
-    # so R installs into the first writable entry -- the image's own
-    # site-library -- and the cached .rlib is carried empty, downloads only,
-    # every pipeline. R_LIBS_SITE does not help either: Renviron.site is read
-    # later and wins over it. Rprofile.site is read later still, so prepending
-    # the cached dir there is what actually moves the install target. Verified
-    # in rocker/r-ver:4.5.1: .libPaths() goes from
-    # site-library, library, $R_LIBS_USER to $R_LIBS_USER, site-library,
-    # library, and install.packages() lands in $R_LIBS_USER with site-library
-    # (docopt, littler) still visible behind it.
-    - >-
-      echo '.libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))'
-      >> "${R_HOME}/etc/Rprofile.site"
-    - >-
-      Rscript -e 'if (!requireNamespace("pak", quietly = TRUE))
-      install.packages("pak", repos = sprintf(
-      "https://r-lib.github.io/p/pak/stable/%s/%s/%s",
-      .Platform$pkgType, R.version$os, R.version$arch))'
-
-# Adds the package's own dependency closure, through pak.
-#
-# Every job here resolves against current CRAN packages, whatever R it runs.
-# rocker/r-ver freezes an R series at a dated P3M snapshot once the next minor
-# ships (from the rocker-versioned2 Dockerfiles: 4.6.1 and later point at
-# `__linux__/noble/latest`, 4.5.3 at `__linux__/noble/2026-04-23`, devel at
-# https://cloud.r-project.org). A date older than punycoder's arrival on CRAN
-# (2026-06) leaves `punycoder (>= 1.1.0)` unresolvable, which took out the
-# 4.5 full-check leg and the sanitizers job on the first deep-check run, and
-# the 4.1.3 floor leg before that. So a date-pinned repo moves to `latest`
-# with CRAN behind it, as pagerankr does: old R against current packages is
-# what CRAN itself tests. A repo already at `latest` or at CRAN is current
-# and stays as it is. Any other shape stops the job rather than leaving an
-# unrecognized pin in place.
-.r-deps:
-  extends: .r-pak
-  before_script:
-    - apt-get update -qq
-    - >-
-      apt-get install -y --no-install-recommends
-      ca-certificates curl git jq qpdf ghostscript
-    - |
-      ARCH=$(dpkg --print-architecture)
-      case "$ARCH" in
-        amd64) PANDOC_SHA256=d502599878eb29af3ae5f0cb5d559134df96534125d452c7a0674a5bad2c5ecf ;;
-        arm64) PANDOC_SHA256=b651c8bfd5a0a2f6650d6c0830131747ef67a1d9c0475b1399626611419e2205 ;;
-        *) PANDOC_SHA256=unknown ;;
-      esac
-      if curl -fsSL --retry 3 --retry-delay 5 --retry-max-time 300 --connect-timeout 20 --max-time 120 \
-        -o /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${ARCH}.deb" \
-        && echo "${PANDOC_SHA256}  /tmp/pandoc.deb" | sha256sum -c - \
-        && dpkg -i /tmp/pandoc.deb; then
-        apt-mark hold pandoc || echo "WARNING: pandoc ${PANDOC_VERSION} installed but not held; a later apt step may replace it"
-        echo "pandoc ${PANDOC_VERSION} installed"
-      else
-        echo "WARNING: pandoc ${PANDOC_VERSION} not installed; this job has no pandoc"
-      fi
-      pandoc --version 2>/dev/null | sed -n 1p || true
-    - mkdir -p "$R_LIBS_USER"
-    # See the matching comment in .r-pak: R_LIBS_USER alone does not move the
-    # install target, because rocker/r-ver's Renviron.site puts site-library
-    # first in .libPaths(). Duplicated here (not inherited) for the same
-    # !reference-tag reason as the apt lines above.
-    - >-
-      echo '.libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))'
-      >> "${R_HOME}/etc/Rprofile.site"
-    - |
-      current="$(Rscript -e 'cat(getOption("repos")[["CRAN"]])')"
-      case "$current" in
-        */[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9])
-          latest="${current%/*}/latest"
-          echo "options(repos = c(P3M = '${latest}', CRAN = 'https://cloud.r-project.org'))" >> "${R_HOME}/etc/Rprofile.site"
-          ;;
-        */latest | https://cloud.r-project.org | https://cloud.r-project.org/) ;;
-        *) echo "Expected a dated or latest P3M repo, or CRAN, in Rprofile.site; found '$current'. The image changed shape."; exit 1 ;;
-      esac
-      Rscript -e 'print(getOption("repos"))'
-    # The case-folding legs of tests/testthat/test-parser.R (PSLR-yomylzid)
-    # run only where R can switch LC_CTYPE to each locale listed in
-    # tests/testthat/fixtures/case-folding-locales.txt, the one list of them,
-    # and rocker/r-ver generates none of them (PSLR-mgqnsbjz). So every job
-    # that installs the package builds them here, check, coverage and every
-    # full-check leg alike, with the ssrfr recipe (SSRF-erprjgmv): localedef
-    # against the locale sources the image already ships. Naming the `locales`
-    # package in apt-get upgraded glibc under R in ssrfr's probes, so it is not
-    # installed. `-c` writes the locale even when the source draws a warning,
-    # and localedef then exits 1; only a status above 1 means nothing was
-    # written. Each locale is also registered in /etc/locale.gen, so a later
-    # locale-gen (a `locales` package trigger) regenerates it instead of
-    # dropping it. The session locale is unchanged.
-    - |
-      while IFS= read -r l; do
-        [ -n "$l" ] || continue
-        status=0
-        localedef -c -i "${l%%.*}" -f "${l#*.}" "$l" || status=$?
-        if [ "$status" -gt 1 ]; then
-          echo "localedef could not build $l (exit $status)"
-          exit 1
-        fi
-        printf '%s %s\n' "$l" "${l#*.}" >> /etc/locale.gen
-      done < tests/testthat/fixtures/case-folding-locales.txt
-    # An early probe, before any dependency install: it exists to fail in
-    # seconds, not after the long R CMD check. R must switch to each locale the
-    # way the tests detect it, Sys.setlocale() returning the exact name, and
-    # each must fold "I" to the dotless U+0131, the mapping the legs exist to
-    # survive. The legs themselves are proven after the check, by
-    # scripts/check-locale-legs.R.
-    - |
-      Rscript -e '
-        for (l in readLines("tests/testthat/fixtures/case-folding-locales.txt")) {
-          old <- Sys.getlocale("LC_CTYPE")
-          active <- suppressWarnings(Sys.setlocale("LC_CTYPE", l))
-          folds <- identical(tolower("I"), intToUtf8(0x131L))
-          invisible(Sys.setlocale("LC_CTYPE", old))
-          if (!identical(active, l)) stop("R cannot switch LC_CTYPE to ", l, call. = FALSE)
-          if (!folds) stop(l, " does not fold I to dotless i; the test leg would prove nothing", call. = FALSE)
-          cat(l, "usable in R\n")
-        }
-      '
-    - >-
-      Rscript -e 'if (!requireNamespace("pak", quietly = TRUE))
-      install.packages("pak", repos = sprintf(
-      "https://r-lib.github.io/p/pak/stable/%s/%s/%s",
-      .Platform$pkgType, R.version$os, R.version$arch))'
-    - Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
-
-# ---------------------------------------------------------------------------
-# The fleet gate: every push to main, both schedules (and CRAN_PREP)
-# ---------------------------------------------------------------------------
-
-lint:
-  extends: [.r-pak, .rules-main]
-  stage: lint
-  script:
-    - Rscript -e 'pak::pak("lintr")'
-    - >-
-      Rscript -e 'lints <- lintr::lint_package();
-      if (length(lints)) { print(lints); quit(status = 1) }'
-
-# The same spelling gate as `tools/verify.sh standard`: DESCRIPTION, man/,
-# vignettes, README and NEWS.md against inst/WORDLIST. Reads sources only, so it
-# needs no dependency closure.
-spelling:
-  extends: [.r-pak, .rules-main]
-  stage: lint
-  script:
-    - Rscript -e 'pak::pak("spelling")'
-    - >-
-      Rscript -e 'bad <- spelling::spell_check_package();
-      if (nrow(bad)) { print(bad); quit(status = 1) }'
-
-# The NEWS/DESCRIPTION drift guard. No R involved, so it runs in a small image
-# and reports in seconds. GIT_DEPTH: 0 because the released-heading check reads
-# `v*` tags, which a shallow CI clone does not fetch.
-news-version:
-  extends: .rules-main
-  stage: lint
-  image:
-    # alpine/git declares ENTRYPOINT ["git"], so without this override every
-    # script line is run as a git subcommand ("git: 'sh' is not a git command").
-    name: alpine/git:latest
-    entrypoint: [""]
-  interruptible: true
+# punycoder built with libidn2, at the release R version: the cell CRAN's
+# Debian flavors build (SEOR-hxxxkmws). It runs on the global
+# FLEET_RELEASE_VARIANT, fleet-r-idn2, and scripts/punycoder-backend.R
+# rebuilds punycoder from source there and fails the job unless the build
+# reports the libidn2 backend, so this job is never silently the fallback
+# cell. The local gate does the same before every push; this is the cell's
+# run in CI. Copied from rurl's x-check-idn2.
+x-check-idn2:
+  extends: .t2-job
+  image: $FLEET_RELEASE_IMAGE
   variables:
-    GIT_DEPTH: "0"
+    NOT_CRAN: "true"
+    _R_CHECK_CRAN_INCOMING_: "false"
+    _R_CHECK_CRAN_INCOMING_REMOTE_: "false"
+    FLEET_CHECK_ARGS: "--no-manual"
+    FLEET_BUILD_ARGS: "--no-manual --compact-vignettes=gs+qpdf"
+  before_script:
+    - !reference [.fleet-r, before_script]
   script:
-    - set -eu
-    - |
-      version="$(grep -E '^Version:' DESCRIPTION | head -n1 | sed -E 's/^Version:[[:space:]]*//')"
-      heading="$(grep -m1 -E '^# ' NEWS.md | sed -E 's/^#[[:space:]]+pslr[[:space:]]*//')"
-      echo "DESCRIPTION Version : '$version'"
-      echo "Top NEWS heading    : '$heading'"
-      if [ "$heading" = "(development version)" ] || [ "$heading" = "$version" ]; then
-        echo "OK: NEWS heading and version are consistent."
-      else
-        echo "ERROR: top NEWS.md heading ('$heading') is neither '(development version)' nor the DESCRIPTION Version ('$version'). Update NEWS.md before release."
-        exit 1
-      fi
-    - |
-      tags="$(git tag -l 'v*')"
-      if [ -z "$tags" ]; then
-        echo "ERROR: no 'v*' tags found. GIT_DEPTH must be 0 for this check to mean anything."
-        exit 1
-      fi
-      missing=0
-      for tag in $tags; do
-        released="${tag#v}"
-        # -x -F: whole line, literal, so the dots in a version are not regex.
-        if grep -qxF "# pslr ${released}" NEWS.md; then
-          echo "OK: '# pslr ${released}' present for tag ${tag}."
-        else
-          echo "ERROR: tag ${tag} has no matching '# pslr ${released}' heading in NEWS.md. A released section was deleted or renamed; its bullets now read as unreleased work."
-          missing=1
-        fi
-      done
-      exit "$missing"
-
-# CITATION.cff and .zenodo.json each duplicate the version and the project
-# URLs out of DESCRIPTION, and nothing asserts either copy is right. Offline,
-# stdlib-only Python, so it runs in seconds without the R image — same shape
-# as news-version above. The rule is `design/adr/0001-citation-metadata-names-the-release.md`
-# in seor (ported here unmodified in scripts/check-citation.py).
-#
-# `check-bugreports.py` rides along here rather than getting a job of its own
-# (SEOR-ocbtrrnl): it is stdlib-only, offline and instant, the same shape as
-# check-citation.py, so it belongs in the job that already has a python3.
-citation-version:
-  extends: .rules-main
-  stage: lint
-  image: python:3.14-alpine
-  script:
-    - python3 scripts/check-citation.py --self-test
-    - python3 scripts/check-citation.py
-    - python3 scripts/check-bugreports.py --self-test
-    - python3 scripts/check-bugreports.py
-    # NEWS.md bullets are one terse line (SEOR-skfshchx): the same offline,
-    # stdlib-only shape, the `news-terse` pre-push hooks' twin.
-    - python3 scripts/check-news.py --self-test
-    - python3 scripts/check-news.py NEWS.md
-
-# THE gate. This is the AGENTS.md verify command, the same one the pre-push
-# hook runs, with `--no-manual` added because the image carries no LaTeX (the
-# PDF manual is built by CRAN's own incoming checks, not here).
-check:
-  extends: [.r-deps, .rules-main]
-  stage: check
-  needs: [lint]
-  script:
-    - Rscript -e 'pak::pak("rcmdcheck")'
-    # rcmdcheck summarizes whatever 00check.log contains. When the check aborts
-    # partway, that log holds no findings, and the summary reads as a pass — the
-    # exact false green that shipped in the first pipeline. Insist the log shows
-    # a check that ran to the end, and one whose exit status is 0: a halted
-    # check exits non-zero (SEOR-maavnxdm). `[["checkdir"]]` rather than
-    # `$checkdir` so nothing downstream tries to expand a `$name`.
-    - |
-      Rscript -e '
-        chk <- rcmdcheck::rcmdcheck(
-          args = c("--no-manual", "--as-cran"), error_on = "warning",
-          check_dir = "check"
-        )
-        if (!identical(as.integer(chk[["status"]]), 0L)) stop("R CMD check exited with status ", chk[["status"]], "; the run did not complete.", call. = FALSE)
-        log <- readLines(file.path(chk[["checkdir"]], "00check.log"), warn = FALSE)
-        if (any(grepl("Execution halted", log, fixed = TRUE))) {
-          stop("R CMD check aborted: Execution halted in 00check.log")
-        }
-        if (!any(grepl("^Status:", log))) {
-          stop("R CMD check did not run to completion: no Status line in 00check.log")
-        }
-        rout <- readLines(file.path(chk[["checkdir"]], "tests", "testthat.Rout"), warn = FALSE)
-        writeLines(tail(grep("^[[] FAIL", rout, value = TRUE), 1L))
-      '
-    # R CMD check counts a skipped test as a pass, so prove the case-folding
-    # locale legs ran: every locale in the shared list must have run its leg
-    # and passed, against the package the check installed in
-    # check/pslr.Rcheck. Any skipped leg fails the job (PSLR-mgqnsbjz).
-    - Rscript scripts/check-locale-legs.R check/pslr.Rcheck
+    - fleet-tools Rscript scripts/punycoder-backend.R "$FLEET_RUN_LIB" libidn2
+    - !reference [.fleet-scripts, check]
   artifacts:
-    when: on_failure
+    when: always
     expire_in: 1 week
     paths:
-      # `check_dir = "check"` above, because rcmdcheck defaults to a tempdir
-      # outside the build directory. The previous "*.Rcheck/" pattern matched
-      # nothing there, so every failed check uploaded no artifacts at all and
-      # logged only "no matching files".
-      - "check/"
+      - check/
 
-# README.md is generated from README.Rmd and drifts silently otherwise. The
-# README carries a live `library(pslr)` chunk, so build_readme() installs the
-# package first.
-readme:
-  extends: [.r-deps, .rules-main]
-  stage: check
-  needs: []
-  script:
-    - Rscript -e 'pak::pak("devtools")'
-    - Rscript -e 'devtools::build_readme()'
-    # Blank-line-only differences don't count: pandoc versions disagree about
-    # the blank line after `<!-- badges: start -->`, so a README rendered with
-    # a newer local pandoc would pass pre-push and fail here. The test is on
-    # the diff's output, not `--exit-code`: rocker's git 2.43 still exits 1 on
-    # a blank-only diff under --ignore-blank-lines (SEOR-kaqtnovh).
-    - |
-      readme_diff=$(git diff --ignore-blank-lines -- README.md)
-      if [ -n "$readme_diff" ]; then
-        printf '%s\n' "$readme_diff"
-        echo "ERROR: README.md is out of sync with README.Rmd. Run devtools::build_readme() and commit the result."
-        exit 1
-      fi
-
-# Generated-docs drift, on every push to main (SEOR-yufxgcre): man/,
-# NAMESPACE and DESCRIPTION must match what the roxygen2 DESCRIPTION pins in
-# Config/roxygen2/version regenerates from R/. tools/verify.sh runs the same
-# check before a push, but a server-side merge, a web edit or a `--no-verify`
-# push never passes through it. scripts/check-docs-drift.R refuses any other
-# roxygen2, because its output changes between releases.
-#
-# The pin is usually not the current CRAN release, so pak installs it by
-# version, from P3M or by building it (seor's job built 8.0.0 from source in
-# 7s). roxygen2 loads pslr with pkgload, which compiles src/ and runs
-# cpp11::cpp_register(); what that needs, and pslr does not declare, is read
-# from the installed cpp11's own Config/Needs/cpp11/cpp_register field, so a
-# cpp11 release that adds one needs no edit here. Its own cache: the roxygen2 here
-# is the pin, not whatever `readme`'s devtools pulls. The script regenerates
-# in place, which is safe in this job's throwaway clone.
-docs-drift:
-  extends: [.r-deps, .rules-main]
-  stage: check
-  needs: []
-  cache:
-    key:
-      prefix: "docs-drift-${R_VERSION}"
-  script:
-    - >-
-      Rscript -e 'v <- read.dcf("DESCRIPTION", "Config/roxygen2/version")[[1]];
-      if (is.na(v)) stop("DESCRIPTION has no Config/roxygen2/version, the roxygen2 pin this job installs", call. = FALSE);
-      needs <- read.dcf(system.file("DESCRIPTION", package = "cpp11"), "Config/Needs/cpp11/cpp_register")[[1]];
-      if (is.na(needs)) stop("cpp11 declares no Config/Needs/cpp11/cpp_register; check what cpp_register() needs", call. = FALSE);
-      pak::pkg_install(c(paste0("roxygen2@", v), trimws(strsplit(needs, ",")[[1]])))'
-    - Rscript scripts/check-docs-drift.R
-
-# The fleet's 95% floor (ADR 0007 in seor): never lowered; a drop below it
-# is fixed with tests.
-#
-# `.covrignore` keeps the cached library out of the figure. The cache sits
-# inside the package root ($CI_PROJECT_DIR/.rlib, see .r-pak), so the cpp11
-# headers src/ compiles against are package files as far as covr can tell,
-# and their ~270 mostly unexecuted lines count. That alone made the first run
-# read 93.71% against a local 95.30%; the same report without .rlib/ is 95.27%.
-coverage:
-  extends: [.r-deps, .rules-main]
-  stage: check
-  needs: [check]
-  script:
-    - Rscript -e 'pak::pak(c("covr", "xml2"))'
-    - >-
-      Rscript -e 'cov <- covr::package_coverage(quiet = FALSE);
-      covr::to_cobertura(cov);
-      pct <- covr::percent_coverage(cov);
-      cat(sprintf("Coverage: %.2f%%\n", pct));
-      if (pct < 95) stop(sprintf("coverage %.2f%% is below the 95%% floor", pct), call. = FALSE)'
-  coverage: '/Coverage: \d+\.\d+%/'
-  artifacts:
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: cobertura.xml
-    expire_in: 1 week
-
-# ---------------------------------------------------------------------------
-# Deep check — the deep-check schedule (header item 4) and CRAN_PREP
-# ---------------------------------------------------------------------------
-
-# R devel, release (4.6) and oldrel (4.5), plus the floor DESCRIPTION declares,
-# `R (>= 4.1.0)`. The floor leg runs on 4.1.3, the last 4.1 patch release:
-# rocker publishes it for arm64, which the self-hosted runner is, while 4.0.5
-# has no arm64 image. Bump the release/oldrel tags when a new minor R ships,
-# and the floor leg with DESCRIPTION's Depends. The 4.5 and 4.1.3 images pin
-# dated P3M snapshots; .r-deps moves every leg onto current packages.
-full-check:
-  extends: [.r-deps, .rules-deep-check]
-  stage: check
-  needs: []
-  timeout: 1h
-  parallel:
-    matrix:
-      - R_VERSION: ["devel", "4.6", "4.5", "4.1.3"]
-  script:
-    - Rscript -e 'pak::pak("rcmdcheck")'
-    # rcmdcheck summarizes whatever 00check.log contains. When the check aborts
-    # partway, that log holds no findings, and the summary reads as a pass — the
-    # exact false green that shipped in the first pipeline. Insist the log shows
-    # a check that ran to the end, and one whose exit status is 0: a halted
-    # check exits non-zero (SEOR-maavnxdm). `[["checkdir"]]` rather than
-    # `$checkdir` so nothing downstream tries to expand a `$name`.
-    - |
-      Rscript -e '
-        chk <- rcmdcheck::rcmdcheck(
-          args = c("--no-manual", "--as-cran"), error_on = "warning",
-          check_dir = "check"
-        )
-        if (!identical(as.integer(chk[["status"]]), 0L)) stop("R CMD check exited with status ", chk[["status"]], "; the run did not complete.", call. = FALSE)
-        log <- readLines(file.path(chk[["checkdir"]], "00check.log"), warn = FALSE)
-        if (any(grepl("Execution halted", log, fixed = TRUE))) {
-          stop("R CMD check aborted: Execution halted in 00check.log")
-        }
-        if (!any(grepl("^Status:", log))) {
-          stop("R CMD check did not run to completion: no Status line in 00check.log")
-        }
-        rout <- readLines(file.path(chk[["checkdir"]], "tests", "testthat.Rout"), warn = FALSE)
-        writeLines(tail(grep("^[[] FAIL", rout, value = TRUE), 1L))
-      '
-    # The same proof as in `check`: every case-folding locale leg ran and
-    # passed on this R version (PSLR-mgqnsbjz).
-    - Rscript scripts/check-locale-legs.R check/pslr.Rcheck
-  artifacts:
-    when: on_failure
-    expire_in: 1 week
-    paths:
-      # `check_dir = "check"` above, because rcmdcheck defaults to a tempdir
-      # outside the build directory. The previous "*.Rcheck/" pattern matched
-      # nothing there, so every failed check uploaded no artifacts at all and
-      # logged only "no matching files".
-      - "check/"
-
-# ASAN + UBSAN over the C++ matcher, the hosted copy of the first leg of
-# `tools/verify.sh sanitize` (docs/git-workflow.md, "The sanitize tier"). It
-# builds with the image's own gcc, natively on the arm64 runner, rather than
-# R-hub's clang-asan container, which is published amd64-only. The
-# -fno-sanitize-recover=all flag makes UBSAN abort rather than print and
-# continue. `--no-test-load` because the post-install load test dlopens the
-# instrumented .so from an R with no sanitizer runtime, which ASAN refuses;
-# the real load happens under LD_PRELOAD. detect_leaks=0 because R itself is
-# not instrumented, so leak reports would be R's allocations. The instrumented
-# install goes to its own library so it never reaches the cached one. The
-# valgrind leg stays local.
-sanitizers:
-  extends: [.r-deps, .rules-deep-check]
-  stage: check
-  needs: []
-  timeout: 1h
+# ASAN + UBSAN over the C++ matcher with the image's own gcc, natively on the
+# arm64 runner: the former `sanitizers` job, kept beside the template's
+# t2-sanitizers, which runs R-hub's clang-asan container (amd64 only, so
+# emulated here). -fno-sanitize-recover=all makes UBSAN abort rather than
+# print and continue. `--no-test-load` because the post-install load test
+# dlopens the instrumented .so from an R with no sanitizer runtime, which
+# ASAN refuses; the real load happens under LD_PRELOAD. detect_leaks=0
+# because R itself is not instrumented, so leak reports would be R's
+# allocations. The instrumented install goes to its own library, never the
+# run library. The valgrind leg stays local (`tools/verify.sh sanitize`).
+x-sanitizers-gcc:
+  extends: .t2-job
+  image: $FLEET_RELEASE_IMAGE
   variables:
-    R_VERSION: "4.5"
+    NOT_CRAN: "true"
+  before_script:
+    - !reference [.fleet-r, before_script]
   script:
-    - Rscript -e 'pak::pak("testthat")'
     - |
       set -eu
       flags="-g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
@@ -758,109 +97,52 @@ sanitizers:
         echo "LDFLAGS = -fsanitize=address,undefined"
       } > ~/.R/Makevars
       rm -f src/*.o src/*.so
-      R CMD INSTALL --preclean --no-staged-install --no-test-load -l /tmp/asan-lib .
+      R_LIBS="$FLEET_RUN_LIB" R CMD INSTALL --preclean --no-staged-install --no-test-load -l /tmp/asan-lib .
       LD_PRELOAD="$(gcc -print-file-name=libasan.so)" \
       ASAN_OPTIONS=detect_leaks=0 \
       UBSAN_OPTIONS=print_stacktrace=1 \
-      R_LIBS=/tmp/asan-lib \
+      R_LIBS="/tmp/asan-lib:$FLEET_RUN_LIB" \
         Rscript -e 'testthat::test_local(reporter = "summary", stop_on_failure = TRUE)'
 
-# ---------------------------------------------------------------------------
-# Dependency audits -- the dependency-audit schedule only
-# ---------------------------------------------------------------------------
-
-# Both jobs run in exactly two places, and never otherwise (SEOR-fftbjnpl):
-#
-#   1. A scheduled pipeline carrying SCHEDULE_KIND=dependency-audit (header
-#      item 4): the unattended half, which fires even in a month nobody opens
-#      the repository. BLOCKING for both (no allow_failure): these are
-#      vulnerability detectors, and a schedule that reports success when the
-#      detector fired is the one outcome that makes them worthless.
-#   2. The CRAN_PREP gate, unchanged from before the schedule existed:
-#      osv-audit blocking (as `.rules-cran-prep`), security-audit advisory (as
-#      `.rules-cran-prep-advisory`), because a missing OSS Index credential
-#      should report red without vetoing a submission.
-#
-# The rules are spelled out per job rather than extended from those templates,
-# because `extends` replaces `rules:` wholesale and each job needs both paths.
-# The two are independent jobs, so a red leg neither stops the other nor hides
-# its result.
-#
-# Both set NOT_CRAN, and only these jobs do. It is belt and braces so
-# skip_on_cran() in the audit tests cannot skip the audit silently, and it is
-# deliberately NOT set globally -- that would also un-skip network-dependent
-# tests inside `check`, which must stay offline.
-
-osv-audit:
-  extends: .r-deps
-  stage: audit
-  needs: []
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "dependency-audit"
-    - if: $CRAN_PREP == "1"
-    - when: never
-  variables:
-    NOT_CRAN: "true"
-  script:
-    - Rscript -e 'pak::pak(c("rosv", "testthat", "decor"))'
-    - >-
-      Rscript -e 'testthat::test_local(filter = "osv", stop_on_failure = TRUE)'
-
-security-audit:
-  extends: .r-deps
-  stage: audit
-  needs: []
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "dependency-audit"
-    - if: $CRAN_PREP == "1"
-      allow_failure: true
-    - when: never
-  variables:
-    NOT_CRAN: "true"
-    # The shell guard below fails loudly on a missing token. This flag makes
-    # the test's in-R preconditions (oysteR missing, no network, nothing
-    # resolved) hard failures too, so the job can never report success having
-    # audited nothing (SEOR-fftbjnpl).
-    OSSINDEX_AUDIT_REQUIRED: "true"
-  script:
-    - |
-      if [ -z "${OSSINDEX_TOKEN:-}" ]; then
-        echo "OSSINDEX_TOKEN is not set. OSS Index rejects anonymous requests with HTTP 401, so this audit would be vacuous rather than green. Set OSSINDEX_USER (the literal 'x') and OSSINDEX_TOKEN as masked CI/CD variables — see PSLR-njeqwltb."
-        exit 1
-      fi
-    - Rscript -e 'pak::pak(c("oysteR", "testthat", "decor"))'
-    - >-
-      Rscript -e 'testthat::test_local(filter = "security",
-      stop_on_failure = TRUE)'
-
-# ---------------------------------------------------------------------------
-# Upstream PSL watcher — the scheduled job with a data consequence
-# ---------------------------------------------------------------------------
-
-# Discovery only, exactly as .github/workflows/psl-upstream-check.yaml was:
-# it opens a merge request for review, never commits to main, never merges, and
+# Upstream PSL watcher, the job with a data consequence: discovery only. It
+# opens a merge request for review, never commits to main, never merges, and
 # never touches NEWS.md or the package version. Regeneration is not
-# reimplemented — it shells out to data-raw/update_psl.R, the same script a
-# maintainer runs by hand, so the normalization profile cannot drift between the
-# two paths.
+# reimplemented: it shells out to data-raw/update_psl.R, the same script a
+# maintainer runs by hand, so the normalization profile cannot drift between
+# the two paths. It ran in the former CRAN_PREP pipeline, advisory; it now
+# runs in every T3 pipeline (a RELEASE=1 web run and a v* tag), still
+# allowed to fail: PSL_BOT_TOKEN, a project access token with `api` and
+# `write_repository` scopes, is not set, and the job says so in red.
 #
-# Reading upstream still uses the *public* GitHub API. The suspended account is
-# irrelevant to an unauthenticated read of publicsuffix/list; only pslr's own
-# hosting moved.
-psl-upstream-check:
-  extends: [.r-deps, .rules-cran-prep-advisory]
-  stage: audit
-  needs: []
+# Reading upstream uses the public GitHub API: an unauthenticated read of
+# publicsuffix/list.
+#
+# The token check runs first, so a missing token fails the job before the
+# dependency install. The job then works on the default branch's tip, not the
+# pipeline's commit: on a v* tag that commit is the tag, and the merge request
+# targets the default branch, so a branch cut from the tag would carry the
+# wrong base. The dependencies are installed for that tip, plus what
+# cpp11::cpp_register() needs and pslr does not declare (decor), because
+# update_psl.R's pkgload::load_all() compiles src/ and runs it.
+x-psl-upstream-check:
+  extends: .t3-job
+  image: $FLEET_RELEASE_IMAGE
+  allow_failure: true
   timeout: 1h
   variables:
     GIT_STRATEGY: clone
-  script:
+  before_script:
     - |
       set -eu
       if [ -z "${PSL_BOT_TOKEN:-}" ]; then
         echo "PSL_BOT_TOKEN is not set. This job can detect upstream movement but cannot push a branch or open a merge request, which is the only useful thing it does. Create a project access token with 'api' and 'write_repository' scopes."
         exit 1
       fi
+    - git fetch --quiet origin "+refs/heads/${CI_DEFAULT_BRANCH}:refs/remotes/origin/${CI_DEFAULT_BRANCH}"
+    - git checkout --quiet --detach "origin/${CI_DEFAULT_BRANCH}"
+    - !reference [.fleet-r, before_script]
+    - fleet-tools Rscript scripts/cpp-register-needs.R "$FLEET_RUN_LIB"
+  script:
     - |
       set -eu
       pinned="$(sed -nE 's/^default_commit <- "([0-9a-f]{40})".*/\1/p' data-raw/update_psl.R)"
@@ -889,7 +171,9 @@ psl-upstream-check:
       echo "Upstream has moved. Regenerating."
 
       Rscript data-raw/psl_snapshot_meta.R > before.env
-      Rscript data-raw/update_psl.R "$upstream"
+      # pkgload and jsonlite come from the image's tooling library, pslr's
+      # own dependencies from the run library.
+      R_LIBS="$FLEET_RUN_LIB" fleet-tools Rscript data-raw/update_psl.R "$upstream"
       sed -i -E "s/^default_commit <- \"[0-9a-f]{40}\"/default_commit <- \"${upstream}\"/" data-raw/update_psl.R
       # Leaving the pin behind would ship artifacts that disagree with the
       # script that claims to generate them, so treat a failed edit as fatal.
@@ -926,7 +210,7 @@ psl-upstream-check:
       fi
       git commit -m "chore: refresh bundled PSL snapshot to ${upstream}
 
-      Regenerated by the psl-upstream-check job in .gitlab-ci.yml via
+      Regenerated by the x-psl-upstream-check job in .gitlab-ci.yml via
       data-raw/update_psl.R. Review the upstream diff before merging;
       NEWS.md and the package version are deliberately untouched."
       git push "https://oauth2:${PSL_BOT_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:refs/heads/${branch}"
@@ -934,7 +218,7 @@ psl-upstream-check:
       cat > mr-body.md <<EOF
       Automated **discovery** merge request: upstream \`publicsuffix/list\` has a newer
       commit to \`public_suffix_list.dat\` than the snapshot pinned in this repo.
-      Regenerated by the \`psl-upstream-check\` job in \`.gitlab-ci.yml\`, which shells
+      Regenerated by the \`x-psl-upstream-check\` job in \`.gitlab-ci.yml\`, which shells
       out to \`data-raw/update_psl.R\` -- the same script a maintainer runs by hand.
 
       This MR is for review. Nothing was auto-merged, and \`NEWS.md\` and the package
@@ -966,8 +250,9 @@ psl-upstream-check:
          before it ships to CRAN (PSLR-fjkaqckg).
       3. **Add the \`NEWS.md\` entry** recording the new \`list_date\`, \`commit\`, and
          \`checksum\`, and decide the version bump.
-      4. Run the \`full-check\` matrix on this MR manually; the CC0 conformance vectors
-         in \`tests/testthat/fixtures/psl-vectors.txt\` are re-pinned in lockstep and
+      4. Check the branch out and run the local gate on it (\`.fleet-ci/gate full\`):
+         no pipeline runs for a merge request, and the CC0 conformance vectors in
+         \`tests/testthat/fixtures/psl-vectors.txt\` are re-pinned in lockstep and
          must stay green.
 
       See \`design/release-deltas.md\` > Bundled PSL snapshot.
@@ -987,80 +272,3 @@ psl-upstream-check:
         --data @mr.json \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests" \
         | jq -r '"Opened " + .web_url'
-
-# ---------------------------------------------------------------------------
-# Documentation site
-# ---------------------------------------------------------------------------
-
-# Live at https://bart-turczynski.gitlab.io/pslr/, which _pkgdown.yml names and
-# DESCRIPTION declares. PSLR-thcaqtnw resolved the visibility question that used
-# to gate this job behind a PKGDOWN_PAGES variable: the project and its Pages
-# are public as of 2026-08-09, so the gate is gone and the job is ordinary.
-#
-# Publishes on every push to `main` (the fleet standard), so the site documents
-# the default branch, and on both schedules, as `.rules-main` does and as every
-# fleet repository's `pages` does (header item 4). `DEPLOY_PAGES=1` republishes
-# it on demand, and a `CRAN_PREP=1` run refreshes it too.
-pages:
-  extends: .r-deps
-  stage: deploy
-  needs: []
-  script:
-    - Rscript -e 'pak::pak("pkgdown")'
-    - Rscript -e 'pak::local_install(upgrade = FALSE)'
-    # pkgdown renders every root-level .md that is not README/NEWS/LICENSE:
-    # pkgdown:::package_mds() hardcodes that skip list (cran-comments.md too,
-    # as no_render), so _pkgdown.yml has no setting that can exclude a file.
-    # Left alone it publishes agent tooling contracts -- AGENTS.md and CLAUDE.md
-    # today -- as HTML and folds their text into search.json, where it
-    # outranks real documentation on ordinary queries.
-    #
-    # KEEP-LIST, not a deny-list: naming today's agent files means a new
-    # family (GEMINI.md, CODEX.md, ...) would publish with nothing noticing --
-    # a stray unlisted file is structurally invisible to a name-the-bad-ones
-    # filter. Every root .md NOT on the keep-list is moved, named or not, so a
-    # new family needs no repo change to be caught. The keep-list itself is
-    # human-facing documentation this project actually ships:
-    # README/NEWS/LICENSE (pkgdown's own skip list), CONTRIBUTING, SECURITY,
-    # CODE_OF_CONDUCT, THIRD_PARTY_NOTICES, ACKNOWLEDGMENTS, ARCHITECTURE (the
-    # fleet standard's root map, SEOR-twxjxogh) and cran-comments
-    # (already no_render, listed for clarity). Confirmed 2026-09-23: every
-    # page pslr currently publishes (ACKNOWLEDGMENTS, CODE_OF_CONDUCT,
-    # CONTRIBUTING, LICENSE, SECURITY) is on this list, so nothing that is
-    # live today stops publishing.
-    #
-    # Move them out of the source tree rather than deleting the rendered output:
-    # deleting leaves the search index pointing at pages that 404. This runs
-    # after local_install so the installed package is byte-identical to a normal
-    # build, and the CI checkout is disposable, so nothing is restored after.
-    #
-    # Failure is loud by construction rather than by naming names: the runner's
-    # default `set -e` aborts the job on the first `mv` that fails, and every
-    # run re-derives the move set from the actual directory listing, so drift
-    # (a rename, a new file) is caught by the filter itself, not by an
-    # out-of-date assertion.
-    - mkdir -p /tmp/agent-md
-    - >-
-      for f in *.md; do
-      case "$f" in
-      README.md|NEWS.md|LICENSE.md|CONTRIBUTING.md|SECURITY.md|CODE_OF_CONDUCT.md|THIRD_PARTY_NOTICES.md|ACKNOWLEDGMENTS.md|ARCHITECTURE.md|cran-comments.md)
-      ;;
-      *)
-      mv "$f" /tmp/agent-md/
-      ;;
-      esac
-      done
-    - >-
-      Rscript -e 'pkgdown::build_site(new_process = FALSE, install = FALSE)'
-    # GitLab Pages publishes `public/`; _pkgdown.yml builds into `site/`
-    # because docs/ holds committed design documents here.
-    - rm -rf public && mv site public
-  artifacts:
-    paths:
-      - public
-  rules:
-    - if: $CI_PIPELINE_SOURCE =~ /^(push|schedule)$/ && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    # The docs pipeline, and also refreshed as part of release prep so the
-    # site a CRAN reviewer follows matches the tarball being submitted.
-    - if: $DEPLOY_PAGES == "1"
-    - if: $CRAN_PREP == "1"

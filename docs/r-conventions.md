@@ -17,9 +17,9 @@ Follow the tidyverse [style guide](https://style.tidyverse.org) and
   the roxygen comments in `R/`.
 - After changing any `[[cpp11::register]]` signature in `src/`, run
   `cpp11::cpp_register()` to regenerate `R/cpp11.R` and the C bindings.
-- Verify gate — `tools/verify.sh`. See
-  [git-workflow.md](./git-workflow.md#the-verify-gate) for the tiers and when
-  each one runs.
+- Verify gate — `.fleet-ci/gate auto`, fleet-ci's local gate, which the
+  pre-push hook runs. See [git-workflow.md](./git-workflow.md#the-tiers) for
+  the tiers and when each one runs.
 - When no R REPL is available, run snippets with `Rscript -e "..."`.
 
 ## Code style

@@ -1,0 +1,115 @@
+# The fleet-ci local gate's settings: T0 (docs) and T1 (full) before every
+# push, run by .fleet-ci/gate in the fleet image (fleet-ci README, "The
+# .fleet-ci.yml file"; seor ADR 0012). Read from the pushed commit. The
+# t2-locale and pages CI jobs read it too.
+version: 1
+
+# The image the gate runs in. fleet-r-idn2 carries libidn2, so punycoder can
+# build its libidn2 backend, as on CRAN's Debian flavors. It must be
+# .gitlab-ci.yml's FLEET_RELEASE_VARIANT. Posit Package Manager's punycoder
+# binary is built without libidn2 (SEOR-vpihrxww), so the first cheap gate
+# rebuilds it; T2 runs the libidn2 cell again (x-check-idn2), and the build
+# without libidn2 is T2's other legs, which install that binary.
+variant: fleet-r-idn2
+
+# No docs_exclude: no full-tier gate reads a docs-allowlisted path. The docs
+# tier's own check_pkgdown() reads _pkgdown.yml, and the pre-push hook that
+# reads _pkgdown.yml and design/** (scripts/check-bugreports.py) runs on
+# every push whatever the tier. docs/ here is hand-written source (the PRD,
+# the decision log), which no gate reads either.
+
+# T0, and the start of T1. Genuine terms go in inst/WORDLIST (SEOR-mtbzfroz).
+docs_gates:
+  - Rscript -e 'bad <- spelling::spell_check_package(); if (nrow(bad)) { print(bad); quit(status = 1) }'
+
+# T1, on the host, in a worktree of the pushed commit: the NEWS heading
+# against the version, and every v* tag's heading still there, which needs
+# the tags the export lacks.
+host_gates:
+  - sh scripts/check-news-version.sh
+
+# T1, in the container after the dependency install, each run whatever the
+# others report. First, punycoder rebuilt from source in the run library and
+# asserted to carry libidn2 (SEOR-hxxxkmws): the dependency install takes
+# Posit Package Manager's binary, built without it, and R CMD check below
+# runs against the rebuilt one. Then what cpp11::cpp_register() needs and
+# pslr does not declare (decor), so man/, NAMESPACE and DESCRIPTION can be
+# checked against a fresh roxygen2 run (SEOR-nwfmerhu), which compiles src/
+# and runs cpp11::cpp_register() in the export; the wrapper fails when that
+# rewrote the committed R/cpp11.R or src/cpp11.cpp, so stale glue is caught
+# rather than regenerated ahead of R CMD check. Then lintr, README.md against
+# a fresh knit, and every declared URL (the gate's R CMD check runs with
+# remote incoming, and so its URL check, off).
+cheap_gates:
+  - Rscript scripts/punycoder-backend.R "$R_LIBS" libidn2
+  - Rscript scripts/cpp-register-needs.R "$R_LIBS"
+  - sh scripts/check-docs-drift-glue.sh
+  - Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }'
+  - sh scripts/check-readme-drift.sh
+  - Rscript tools/check-urls.R
+
+# The case-folding legs of test-parser.R (PSLR-yomylzid) run where R can
+# switch LC_CTYPE to each locale in
+# tests/testthat/fixtures/case-folding-locales.txt, the one list of them,
+# and skip elsewhere. The gate runs as the invoking user and reads compiled
+# locales from its own LOCPATH only (fleet-ci README, "A known local/CI
+# difference: locales"), so every one is listed here; t2-locale builds the
+# same list. This list mirrors case-folding-locales.txt: edit the two
+# together.
+locales:
+  - tr_TR.UTF-8
+  - az_AZ.UTF-8
+
+# The positive locale assertion (PSLR-mgqnsbjz): every locale folds I to the
+# dotless i, and every leg named in case-folding-locales.txt ran and passed
+# against the pslr the leg's check installed. Run after the locale leg's
+# check, here and in t2-locale.
+locale_assertions:
+  - Rscript scripts/check-locale-legs.R "$FLEET_RCHECK_DIR"
+
+# The leg the assertion follows, here and in t2-locale: a second, lighter
+# check under the same locale as the gate's own check, C.UTF-8 (no
+# --as-cran, --ignore-vignettes, no NOTE policy), existing so the locale
+# assertion has a leg to follow. The former CI never ran a C leg, and under
+# LC_ALL=C the session charset is ASCII: R cannot translate test-diff.R's
+# UTF-8 literals (BÜCHER), so two of its tests fail, and R CMD check warns
+# that it cannot switch to en_US.UTF-8 to parse the package's UTF-8 sources.
+# The case-folding locales run inside test-parser.R whatever the leg.
+locale_legs:
+  - C.UTF-8
+
+# The gate runs R CMD check with NOT_CRAN=true, so skip_on_cran() no longer
+# keeps these out of it. T2 runs both, as osv-audit and security-audit.
+# test-profile-rebuild.R's no-rebuild test skips unless the installed
+# punycoder is the version the bundled index records, and its skip reason
+# names both versions, so allowed_skips (exact reasons) cannot list it
+# stably: once CRAN ships a newer punycoder, it would be an unexpected skip
+# and fail the gate. The T2 check legs run the file, where a skip is fine
+# (docs/git-workflow.md, "Gaps accepted").
+exclude_tests:
+  - path: tests/testthat/test-osv.R
+    why: queries osv.dev over the network; the osv-audit job runs it in T2
+  - path: tests/testthat/test-security.R
+    why: queries Sonatype OSS Index with credentials the gate does not have; the security-audit job runs it in T2
+  - path: tests/testthat/test-profile-rebuild.R
+    why: its version-bound skip reason embeds the installed punycoder version, so allowed_skips cannot list it; the T2 check legs run it
+
+# Every skip R CMD check's test run may report; any other fails the gate.
+allowed_skips: []
+
+# The top-level .md files the pkgdown site publishes; every other one (the
+# agent files among them) is moved out before build_site() (SEOR-wqxhftpv).
+# The same keep-list the former `pages` job applied: every page live when it
+# landed (ACKNOWLEDGMENTS, CODE_OF_CONDUCT, CONTRIBUTING, LICENSE, SECURITY)
+# and ARCHITECTURE.md, the fleet standard's root map. cran-comments.md is on
+# pkgdown's own skip list.
+pages_keep:
+  - README.md
+  - NEWS.md
+  - LICENSE.md
+  - CONTRIBUTING.md
+  - SECURITY.md
+  - CODE_OF_CONDUCT.md
+  - ACKNOWLEDGMENTS.md
+  - ARCHITECTURE.md
+  - cran-comments.md
