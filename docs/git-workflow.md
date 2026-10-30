@@ -80,7 +80,11 @@ lint, spelling and `R CMD check` all pass it. The logo sweep added
 fails, printing the diff, when they or `DESCRIPTION` (whose `Collate` roxygen2
 writes from `@include` tags) differ from what is committed. It is a T1 cheap
 gate, so it runs on the gate's export of the pushed commit, never the working
-tree, under the roxygen2 the fleet image pins. Run against a working tree
+tree, under the roxygen2 the fleet image pins. Its roxygen2 run compiles
+`src/` and runs `cpp11::cpp_register()`, which rewrites `R/cpp11.R` and
+`src/cpp11.cpp` in the export, so the gate runs it through
+`scripts/check-docs-drift-glue.sh`, which also fails when either differs
+from the committed copy. Run against a working tree
 (`Rscript scripts/check-docs-drift.R`), it leaves the regenerated files in
 place, so the fix only needs committing; it refuses to run when the installed
 roxygen2 differs from `Config/roxygen2/version`, which the `check-toolchain`
@@ -208,7 +212,8 @@ inherit it.
   `R CMD check` with `NOT_CRAN` unset and the former `tools/verify.sh
   standard` ran `test_local()` with it set; now one check, with
   `NOT_CRAN=true`, does both, so `test-profile-rebuild.R`'s `skip_on_cran()`
-  test runs in it. The T2 check legs also run `test-osv.R` (OSV) and
+  test runs in the T2 check legs (T1 excludes the file, below). The T2
+  check legs also run `test-osv.R` (OSV) and
   `test-security.R` (OSS Index) against the network; T1 excludes both
   (`.fleet-ci.yml`'s `exclude_tests`), and `osv-audit` and `security-audit`
   run them.
@@ -224,6 +229,23 @@ inherit it.
   the shutdown of the legacy endpoint oysteR calls (2026-12-31) turns all of
   them red, and on a `v*` tag that blocks `pages`. Scoping the credentials to
   the audit job is a fleet follow-up (seor SEOR-yrsmlrvp).
+- **`test-profile-rebuild.R` runs in T2 only.** Its no-rebuild test skips
+  unless the installed punycoder is the version the bundled index records,
+  and the skip reason names both versions. The gate fails on any skip not in
+  `allowed_skips`, which matches reasons exactly, so once CRAN ships a newer
+  punycoder that skip would fail T1 on every unrelated branch, and no stable
+  entry can list it. `.fleet-ci.yml`'s `exclude_tests` drops the whole file
+  from T1, its four other tests with it; the T2 check legs run it, where
+  the skip is acceptable. Narrowing this needs a `tests/` change, a
+  follow-up.
+- **Until fleet-ci v1.2.3, `osv-audit` and `security-audit` fail** with
+  "The decor package(s) are required". Both install rosv, oysteR and
+  pslr, then run `testthat::test_local()`, whose
+  `pkgload::load_all()` compiles `src/` and runs `cpp11::cpp_register()`,
+  which needs decor; the audit jobs at the current pin do not install
+  cpp11's `Config/Needs/cpp11/cpp_register`, and a consumer cannot change
+  a template job. fleet-ci v1.2.3 installs it, so the re-pin to v1.2.3
+  removes this gap.
 - **`--as-cran` with incoming checks runs on release R only.** The former
   `full-check` ran `R CMD check --as-cran` (incoming on, its remote half off)
   under devel, 4.6, 4.5 and 4.1.3. Now only `t2-ascran` (release R) runs
@@ -243,7 +265,9 @@ inherit it.
   CRAN serves.
 - **`x-psl-upstream-check` runs in every T3 pipeline**, a `v*` tag included,
   not only before a submission. It is idempotent (an existing branch for the
-  upstream commit stops it) and allowed to fail.
+  upstream commit stops it) and allowed to fail. It works on the default
+  branch's tip, which it fetches, not the pipeline's commit, so on a tag its
+  branch still starts from the branch its merge request targets.
 - **The upstream-PSL watcher runs only when asked.** The former
   `tools/verify.sh full` warned when upstream had moved; now
   `tools/verify.sh psl-upstream` does, by hand, and T3's

@@ -34,13 +34,16 @@ host_gates:
 # Posit Package Manager's binary, built without it, and R CMD check below
 # runs against the rebuilt one. Then what cpp11::cpp_register() needs and
 # pslr does not declare (decor), so man/, NAMESPACE and DESCRIPTION can be
-# checked against a fresh roxygen2 run (SEOR-nwfmerhu), which compiles src/;
-# lintr, README.md against a fresh knit, and every declared URL (the gate's
-# R CMD check runs with remote incoming, and so its URL check, off).
+# checked against a fresh roxygen2 run (SEOR-nwfmerhu), which compiles src/
+# and runs cpp11::cpp_register() in the export; the wrapper fails when that
+# rewrote the committed R/cpp11.R or src/cpp11.cpp, so stale glue is caught
+# rather than regenerated ahead of R CMD check. Then lintr, README.md against
+# a fresh knit, and every declared URL (the gate's R CMD check runs with
+# remote incoming, and so its URL check, off).
 cheap_gates:
   - Rscript scripts/punycoder-backend.R "$R_LIBS" libidn2
   - Rscript scripts/cpp-register-needs.R "$R_LIBS"
-  - Rscript scripts/check-docs-drift.R .
+  - sh scripts/check-docs-drift-glue.sh
   - Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }'
   - sh scripts/check-readme-drift.sh
   - Rscript tools/check-urls.R
@@ -51,7 +54,8 @@ cheap_gates:
 # and skip elsewhere. The gate runs as the invoking user and reads compiled
 # locales from its own LOCPATH only (fleet-ci README, "A known local/CI
 # difference: locales"), so every one is listed here; t2-locale builds the
-# same list.
+# same list. This list mirrors case-folding-locales.txt: edit the two
+# together.
 locales:
   - tr_TR.UTF-8
   - az_AZ.UTF-8
@@ -76,11 +80,19 @@ locale_legs:
 
 # The gate runs R CMD check with NOT_CRAN=true, so skip_on_cran() no longer
 # keeps these out of it. T2 runs both, as osv-audit and security-audit.
+# test-profile-rebuild.R's no-rebuild test skips unless the installed
+# punycoder is the version the bundled index records, and its skip reason
+# names both versions, so allowed_skips (exact reasons) cannot list it
+# stably: once CRAN ships a newer punycoder, it would be an unexpected skip
+# and fail the gate. The T2 check legs run the file, where a skip is fine
+# (docs/git-workflow.md, "Gaps accepted").
 exclude_tests:
   - path: tests/testthat/test-osv.R
     why: queries osv.dev over the network; the osv-audit job runs it in T2
   - path: tests/testthat/test-security.R
     why: queries Sonatype OSS Index with credentials the gate does not have; the security-audit job runs it in T2
+  - path: tests/testthat/test-profile-rebuild.R
+    why: its version-bound skip reason embeds the installed punycoder version, so allowed_skips cannot list it; the T2 check legs run it
 
 # Every skip R CMD check's test run may report; any other fails the gate.
 allowed_skips: []

@@ -87,8 +87,12 @@ regenerated artifacts and a summary of what changed (commit range, `list_date`,
 
 It never commits to `main`, never merges, and never touches `NEWS.md` or the
 package version — steps 1 to 3 above are still yours to do on that MR. It is
-deliberately separate from the check legs, which must stay network-free per
-CRAN policy, and it shells out to `data-raw/update_psl.R` rather than
+deliberately separate from the check legs: network access stays out of what
+CRAN runs, and the check legs never fetch the PSL. They are not network-free,
+though: with `NOT_CRAN=true` they run `test-osv.R` against OSV and
+`test-security.R` against OSS Index (`docs/git-workflow.md`, "Gaps accepted
+in the fleet-ci migration"; scoping that to the audit jobs is seor
+SEOR-yrsmlrvp). It shells out to `data-raw/update_psl.R` rather than
 reimplementing regeneration, so the two paths cannot drift.
 
 There is no schedule firing it: it runs in every T3 pipeline (`RELEASE=1` on

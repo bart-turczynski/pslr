@@ -116,6 +116,14 @@ x-sanitizers-gcc:
 #
 # Reading upstream uses the public GitHub API: an unauthenticated read of
 # publicsuffix/list.
+#
+# The token check runs first, so a missing token fails the job before the
+# dependency install. The job then works on the default branch's tip, not the
+# pipeline's commit: on a v* tag that commit is the tag, and the merge request
+# targets the default branch, so a branch cut from the tag would carry the
+# wrong base. The dependencies are installed for that tip, plus what
+# cpp11::cpp_register() needs and pslr does not declare (decor), because
+# update_psl.R's pkgload::load_all() compiles src/ and runs it.
 x-psl-upstream-check:
   extends: .t3-job
   image: $FLEET_RELEASE_IMAGE
@@ -124,14 +132,17 @@ x-psl-upstream-check:
   variables:
     GIT_STRATEGY: clone
   before_script:
-    - !reference [.fleet-r, before_script]
-  script:
     - |
       set -eu
       if [ -z "${PSL_BOT_TOKEN:-}" ]; then
         echo "PSL_BOT_TOKEN is not set. This job can detect upstream movement but cannot push a branch or open a merge request, which is the only useful thing it does. Create a project access token with 'api' and 'write_repository' scopes."
         exit 1
       fi
+    - git fetch --quiet origin "+refs/heads/${CI_DEFAULT_BRANCH}:refs/remotes/origin/${CI_DEFAULT_BRANCH}"
+    - git checkout --quiet --detach "origin/${CI_DEFAULT_BRANCH}"
+    - !reference [.fleet-r, before_script]
+    - fleet-tools Rscript scripts/cpp-register-needs.R "$FLEET_RUN_LIB"
+  script:
     - |
       set -eu
       pinned="$(sed -nE 's/^default_commit <- "([0-9a-f]{40})".*/\1/p' data-raw/update_psl.R)"
