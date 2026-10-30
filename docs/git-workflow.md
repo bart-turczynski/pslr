@@ -238,14 +238,6 @@ inherit it.
   from T1, its four other tests with it; the T2 check legs run it, where
   the skip is acceptable. Narrowing this needs a `tests/` change, a
   follow-up.
-- **Until fleet-ci v1.2.3, `osv-audit` and `security-audit` fail** with
-  "The decor package(s) are required". Both install rosv, oysteR and
-  pslr, then run `testthat::test_local()`, whose
-  `pkgload::load_all()` compiles `src/` and runs `cpp11::cpp_register()`,
-  which needs decor; the audit jobs at the current pin do not install
-  cpp11's `Config/Needs/cpp11/cpp_register`, and a consumer cannot change
-  a template job. fleet-ci v1.2.3 installs it, so the re-pin to v1.2.3
-  removes this gap.
 - **`--as-cran` with incoming checks runs on release R only.** The former
   `full-check` ran `R CMD check --as-cran` (incoming on, its remote half off)
   under devel, 4.6, 4.5 and 4.1.3. Now only `t2-ascran` (release R) runs

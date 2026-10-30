@@ -86,15 +86,26 @@ if (step == "resolve") {
 # reads (_pkgdown.yml, _pkgdown.yaml, then each under pkgdown/ and inst/),
 # default docs. It stops on an absolute destination, one outside the package
 # (by .. or a symbolic link, a dangling one included), the package root
-# itself, or public or inside it (lexically or through a link). templates/
-# r-package.yml's pages job has the same function and publishes that
-# directory; bin/selftest checks the two are one function and runs it.
-fleet_pages_dst <- function() {
+# itself, or public or .fleet-agent-md or inside either (lexically or
+# through a link). templates/
+# r-package.yml's pages job has the same functions (fleet_pkgdown_config(),
+# fleet_pages_dst(), fleet_pages_devdst()) and publishes that directory;
+# bin/selftest checks each pair is one function and runs them.
+#
+# The first pkgdown config file pkgdown 2.x reads, as list(yml, cfg): its
+# name (default _pkgdown.yml) and its parsed contents (list() without one).
+fleet_pkgdown_config <- function() {
   cfgs <- c("_pkgdown.yml", "_pkgdown.yaml", "pkgdown/_pkgdown.yml", "pkgdown/_pkgdown.yaml",
             "inst/_pkgdown.yml", "inst/_pkgdown.yaml")
   cfgs <- cfgs[file.exists(cfgs)]
   yml <- if (length(cfgs)) cfgs[[1L]] else "_pkgdown.yml"
-  cfg <- if (length(cfgs)) yaml::read_yaml(yml) else list()
+  list(yml = yml, cfg = if (length(cfgs)) yaml::read_yaml(yml) else list())
+}
+
+fleet_pages_dst <- function() {
+  pc <- fleet_pkgdown_config()
+  yml <- pc$yml
+  cfg <- pc$cfg
   dst <- if (is.null(cfg$destination)) "docs" else cfg$destination
   if (!is.character(dst) || length(dst) != 1L || is.na(dst) || !nzchar(dst)) {
     stop("fleet-ci: ", yml, " destination must be one non-empty path", call. = FALSE)
@@ -121,6 +132,12 @@ fleet_pages_dst <- function() {
     stop("fleet-ci: ", yml, " destination ", dQuote(dst, FALSE),
          " is public or inside it, the directory the pages job publishes", call. = FALSE)
   }
+  moved <- file.path(root, ".fleet-agent-md")
+  in_moved <- function(p) p == moved || startsWith(p, paste0(moved, "/"))
+  if (in_moved(file.path(root, rel))) {
+    stop("fleet-ci: ", yml, " destination ", dQuote(dst, FALSE),
+         " is .fleet-agent-md or inside it, where the pages job moves unpublished .md files", call. = FALSE)
+  }
   # The deepest component that exists, a dangling symbolic link included,
   # resolved; the components below it do not exist yet, so they cannot be links.
   # Sys.readlink gives "" for a path that is not a link, NA for a missing one.
@@ -141,30 +158,79 @@ fleet_pages_dst <- function() {
     stop("fleet-ci: ", yml, " destination ", dQuote(dst, FALSE),
          " resolves through a symbolic link to public or inside it", call. = FALSE)
   }
+  if (in_moved(real)) {
+    stop("fleet-ci: ", yml, " destination ", dQuote(dst, FALSE),
+         " resolves through a symbolic link to .fleet-agent-md or inside it", call. = FALSE)
+  }
   rel
 }
 
-# The pages job's destination rule, as a docs gate that only warns: a
-# refused destination is recorded with exit 0 and a WARNING, so a package on
-# an earlier fleet-ci keeps passing its gate. The pages job itself refuses.
-check_pages_dst <- function() {
-  say("docs: pkgdown destination")
-  t0 <- Sys.time()
-  res <- tryCatch(fleet_pages_dst(), error = function(e) e)
-  msg <- if (inherits(res, "error")) {
-    paste0("WARNING: ", conditionMessage(res), "; the pages job will refuse it")
-  } else {
-    paste0("pkgdown destination ", res)
+# The development.destination of the same config file, where pkgdown puts
+# the site in its devel and unreleased modes, relative to the destination,
+# default dev; it must stay inside the destination. The mode is
+# PKGDOWN_DEV_MODE when set, as pkgdown reads it, else development.mode. In
+# any other mode (release, or none given) pkgdown never uses the value, so
+# it is not checked and dev is returned.
+fleet_pages_devdst <- function() {
+  pc <- fleet_pkgdown_config()
+  yml <- pc$yml
+  devcfg <- if (is.list(pc$cfg$development)) pc$cfg$development else list()
+  mode <- Sys.getenv("PKGDOWN_DEV_MODE")
+  if (!nzchar(mode) && is.character(devcfg$mode) && length(devcfg$mode) == 1L) mode <- devcfg$mode
+  if (!mode %in% c("devel", "unreleased")) return("dev")
+  dev <- devcfg$destination
+  if (is.null(dev)) dev <- "dev"
+  if (!is.character(dev) || length(dev) != 1L || is.na(dev) || !nzchar(dev)) {
+    stop("fleet-ci: ", yml, " development destination must be one non-empty path", call. = FALSE)
   }
-  say("docs: ", msg)
-  status$gates[[length(status$gates) + 1L]] <<- list(
-    kind = "docs", cmd = msg, exit = 0L,
-    seconds = round(as.numeric(difftime(Sys.time(), t0, units = "secs")), 1)
-  )
-  invisible(!inherits(res, "error"))
+  if (startsWith(path.expand(dev), "/")) {
+    stop("fleet-ci: ", yml, " development destination ", dQuote(dev, FALSE),
+         " is an absolute path; give it relative to the destination", call. = FALSE)
+  }
+  parts <- character()
+  escaped <- FALSE
+  for (p in strsplit(dev, "/", fixed = TRUE)[[1L]]) {
+    if (p == "..") {
+      if (!length(parts)) escaped <- TRUE
+      parts <- head(parts, -1L)
+    } else if (nzchar(p) && p != ".") {
+      parts <- c(parts, p)
+    }
+  }
+  if (escaped || !length(parts)) {
+    stop("fleet-ci: ", yml, " development destination ", dQuote(dev, FALSE),
+         " is not a directory inside the destination", call. = FALSE)
+  }
+  paste(parts, collapse = "/")
 }
 
-# The pkgdown config files pkgdown 2.x reads, as fleet_pages_dst() lists them.
+# The pages job's destination rules, as docs gates that only warn: a
+# refused destination or development destination is recorded with exit 0
+# and a WARNING, so a package on an earlier fleet-ci keeps passing its gate.
+# The pages job itself refuses.
+check_pages_dst <- function() {
+  ok <- TRUE
+  for (what in c("destination", "development destination")) {
+    say("docs: pkgdown ", what)
+    t0 <- Sys.time()
+    fn <- if (what == "destination") fleet_pages_dst else fleet_pages_devdst
+    res <- tryCatch(fn(), error = function(e) e)
+    msg <- if (inherits(res, "error")) {
+      paste0("WARNING: ", conditionMessage(res), "; the pages job will refuse it")
+    } else {
+      paste0("pkgdown ", what, " ", res)
+    }
+    say("docs: ", msg)
+    status$gates[[length(status$gates) + 1L]] <<- list(
+      kind = "docs", cmd = msg, exit = 0L,
+      seconds = round(as.numeric(difftime(Sys.time(), t0, units = "secs")), 1)
+    )
+    ok <- ok && !inherits(res, "error")
+  }
+  invisible(ok)
+}
+
+# The pkgdown config files pkgdown 2.x reads, as fleet_pkgdown_config() lists them.
 pkgdown_cfgs <- c("_pkgdown.yml", "_pkgdown.yaml", "pkgdown/_pkgdown.yml", "pkgdown/_pkgdown.yaml",
                   "inst/_pkgdown.yml", "inst/_pkgdown.yaml")
 
