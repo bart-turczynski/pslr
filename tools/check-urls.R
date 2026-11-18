@@ -15,9 +15,12 @@
 
 # Sort the rows `tools:::check_url_db()` returns into what they mean for the
 # gate: "red" (a real defect: fail), "warn" (no answer at all: report,
-# pass) or "limited" (gitlab.com refused to answer this machine for now:
-# report loudly, pass). Pure and offline, so
-# verify_url_self_test() can pin it with a constructed data frame.
+# pass), "limited" (gitlab.com refused to answer this machine for now:
+# report loudly, pass) or "challenged" (an r-universe page behind
+# Cloudflare's bot challenge, its package confirmed through the API: report
+# loudly, pass). Pure and offline, so verify_url_self_test() can pin it with
+# a constructed data frame; `confirmed` carries the API's answers, one per
+# row, which verify_urls() fetches.
 #
 # check_url_db() returns only the URLs it objects to, one row each. Its
 # `Status` column holds the HTTP status as a string when the server answered,
@@ -41,11 +44,22 @@
 # GitLab answers 403, not 404, for a project that does not exist, so here it
 # stays a failure.
 #
-# There is no exemption. Until PSLR-cvhksjst, DESCRIPTION's BugReports kept
-# GitLab's `/-/issues` form, which 404s for a non-browser client, and its 404
-# was waved through (SEOR-ocbtrrnl). BugReports now names `/-/work_items`, as
-# CRAN invited on 2026-10-23, so a `/-/issues` 404 is red like any other.
-verify_classify_urls <- function(bad) {
+# Except on r-universe (SEOR-uzqwlehl, ported here by SEOR-ssbjjipn). Since
+# 2026-11-16 every `*.r-universe.dev` page answers a non-browser client 403
+# with `cf-mitigated: challenge`, Cloudflare's Turnstile, whether or not the
+# page exists. Its JSON API sits outside the challenge and answers 200 for a
+# package and 404 for none, so a 403 from a universe page or root is checked
+# there instead: "challenged" when the page's 403 carries the challenge header
+# and the API confirms the package, red otherwise. Only the page forms
+# r_universe_api_url() recognizes get this; any other r-universe URL, a plain
+# 403, and a 403 from any other host stay red.
+#
+# There is no other exemption. Until PSLR-cvhksjst, DESCRIPTION's BugReports
+# kept GitLab's `/-/issues` form, which 404s for a non-browser client, and its
+# 404 was waved through (SEOR-ocbtrrnl). BugReports now names `/-/work_items`,
+# as CRAN invited on 2026-10-23, so a `/-/issues` 404 is red like any other.
+verify_classify_urls <- function(bad, confirmed = logical(nrow(bad))) {
+  stopifnot(is.logical(confirmed), length(confirmed) == nrow(bad))
   absent <- setdiff(c("URL", "Status", "Message"), names(bad))
   if (length(absent)) {
     stop(
@@ -71,12 +85,80 @@ verify_classify_urls <- function(bad) {
   kind[bad$Status == "Error" & !static] <- "warn"
   gitlab <- grepl("^https?://gitlab\\.com([/:?#]|$)", bad$URL)
   kind[bad$Status == "429" & gitlab & !static] <- "limited"
+  universe <- !is.na(r_universe_api_url(bad$URL))
+  kind[bad$Status == "403" & universe & confirmed & !static] <- "challenged"
   kind
 }
 
-# Pins verify_classify_urls() offline. verify_urls() runs it before it touches
-# the network, so a classifier edit that would wave a dead link through fails
-# the gate on the spot; `Rscript tools/check-urls.R --self-test` runs it alone.
+# The r-universe API URL that confirms a universe page, or NA for any URL
+# that is not one: `https://<owner>.r-universe.dev` (the universe) or
+# `https://<owner>.r-universe.dev/<package>`, with an optional trailing
+# slash and nothing else.
+r_universe_api_url <- function(url) {
+  re <- paste0(
+    "^https://([a-z0-9][a-z0-9-]*)\\.r-universe\\.dev",
+    "(/([A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]))?/?$"
+  )
+  m <- regmatches(url, regexec(re, url))
+  vapply(
+    m,
+    function(x) {
+      if (!length(x)) {
+        return(NA_character_)
+      }
+      base <- sprintf("https://%s.r-universe.dev/api/packages", x[[2L]])
+      if (nzchar(x[[4L]])) sprintf("%s/%s", base, x[[4L]]) else base
+    },
+    ""
+  )
+}
+
+# TRUE for each URL whose page is behind Cloudflare's challenge (403 with
+# `cf-mitigated: challenge`) and whose r-universe API answers 200 itself, with
+# no redirect followed; FALSE for anything else, a failed request or a URL
+# r_universe_api_url() does not recognize included. A plain 403 on a page
+# that exists is a real refusal, so it stays red. `headers` is
+# curlGetHeaders() in the gate, a fake in the self-test.
+r_universe_confirms <- function(url, headers = curlGetHeaders) {
+  status_of <- function(u) {
+    h <- tryCatch(headers(u, redirect = FALSE), error = function(e) NULL)
+    if (is.null(h)) {
+      return(list(status = NA_integer_, challenge = FALSE))
+    }
+    list(
+      status = as.integer(attr(h, "status")),
+      challenge = any(grepl(
+        "^cf-mitigated:[ \t]*challenge\\b",
+        h,
+        ignore.case = TRUE
+      ))
+    )
+  }
+  api <- r_universe_api_url(url)
+  verdict <- vapply(
+    unique(api[!is.na(api)]),
+    function(a) {
+      identical(status_of(a)$status, 200L)
+    },
+    NA
+  )
+  vapply(
+    seq_along(url),
+    function(i) {
+      if (is.na(api[[i]]) || !verdict[[api[[i]]]]) {
+        return(FALSE)
+      }
+      page <- status_of(url[[i]])
+      identical(page$status, 403L) && page$challenge
+    },
+    NA
+  )
+}
+
+# Pins verify_classify_urls() and the r-universe helpers offline.
+# verify_urls() runs it before it touches the network, so a classifier edit
+# that would wave a dead link through fails the gate on the spot;
+# `Rscript tools/check-urls.R --self-test` runs it alone.
 verify_url_self_test <- function() {
   br <- "https://gitlab.com/o/p/-/issues"
   wi <- "https://gitlab.com/o/p/-/work_items"
@@ -280,7 +362,11 @@ verify_urls <- function(dir = ".") {
   on.exit(options(old), add = TRUE)
   bad <- check_url_db(db)
 
-  kind <- verify_classify_urls(bad)
+  # Ask r-universe's API only about its 403s; every other row stays as is.
+  confirmed <- logical(nrow(bad))
+  ask <- bad$Status == "403" & !is.na(r_universe_api_url(bad$URL))
+  confirmed[ask] <- r_universe_confirms(bad$URL[ask])
+  kind <- verify_classify_urls(bad, confirmed)
 
   cat(sprintf(
     "  checked %d URL(s) from %s\n",
@@ -315,6 +401,13 @@ verify_urls <- function(dir = ".") {
     paste0(
       "  WARNING, NOT VERIFIED: gitlab.com rate-limited this machine ",
       "(429); push again once it clears to check these:"
+    )
+  )
+  show(
+    "challenged",
+    paste0(
+      "  WARNING, PAGE NOT FETCHED: r-universe answered with Cloudflare's ",
+      "bot challenge (403); its API confirms each of these:"
     )
   )
   show("red", "  BROKEN:")
