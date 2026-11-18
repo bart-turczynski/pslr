@@ -113,19 +113,17 @@ oss_index_allowlist_violations <- function(rows) {
     ) {
       out <- c(out, sprintf("%s: `id` is not a single CVE identifier", label))
     }
-    if (
-      !is.character(row$package) ||
-        length(row$package) != 1L ||
-        !nzchar(row$package)
-    ) {
+    if (!oss_index_is_package_name(row$package)) {
       out <- c(
         out,
         sprintf("%s: `package` is not a single package name", label)
       )
     }
+    # package_version(NA) parses, so NA is refused before it is tried.
     if (
       !is.character(row$version_seen) ||
         length(row$version_seen) != 1L ||
+        is.na(row$version_seen) ||
         !parses_as_version(row$version_seen)
     ) {
       out <- c(
@@ -133,7 +131,11 @@ oss_index_allowlist_violations <- function(rows) {
         sprintf("%s: `version_seen` is not a parseable version", label)
       )
     }
-    if (!inherits(row$review, "Date") || length(row$review) != 1L) {
+    if (
+      !inherits(row$review, "Date") ||
+        length(row$review) != 1L ||
+        anyNA(row$review)
+    ) {
       out <- c(out, sprintf("%s: `review` is not a single Date", label))
     }
     # A reason long enough to be an argument rather than a placeholder.
@@ -180,8 +182,8 @@ oss_index_is_package_name <- function(x) {
 # malformed; the validator reports such a row.
 oss_index_row_key <- function(row) {
   id_ok <- is.character(row$id) && length(row$id) == 1L && !is.na(row$id)
-  if (id_ok) {
-    row$id
+  if (id_ok && oss_index_is_package_name(row$package)) {
+    oss_index_key(row$package, row$id)
   } else {
     NA_character_
   }
@@ -202,8 +204,8 @@ oss_index_allowlist_duplicates <- function(rows) {
 # package or id is the string "NA"; a malformed row is stale as NA.
 oss_index_rule_findings <- function(found, rows) {
   allowed <- vapply(rows, oss_index_row_key, character(1))
-  reported <- found$id
-  known <- !is.na(found$id)
+  reported <- oss_index_key(found$package, found$id)
+  known <- !is.na(found$package) & !is.na(found$id)
   # Radix sorting is in C-locale order, so findings read the same everywhere.
   list(
     unexpected = sort(
@@ -233,9 +235,10 @@ oss_index_warn_drift <- function(found, rows, today = Sys.Date()) {
         call. = FALSE
       )
     }
-    hit <- found[found$id == row$id, ]
+    hit <- found[which(found$package == row$package & found$id == row$id), ]
     if (
       nrow(hit) > 0 &&
+        !is.na(hit$version[1]) &&
         package_version(hit$version[1]) > package_version(row$version_seen)
     ) {
       warning(
