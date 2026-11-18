@@ -116,8 +116,98 @@ verify_url_self_test <- function() {
     ),
     list(row("", "", "Empty URL"), "red")
   )
+  # r-universe pages: the third element is the API's answer per row.
+  ru <- "https://o.r-universe.dev/pkg"
+  cases <- c(
+    cases,
+    list(
+      list(row(ru, "403", "Forbidden"), "challenged", TRUE),
+      list(row(paste0(ru, "/"), "403", "Forbidden"), "challenged", TRUE),
+      list(row("https://o.r-universe.dev", "403"), "challenged", TRUE),
+      list(row(ru, "403", "Forbidden"), "red", FALSE), # a mistyped package
+      list(row(ru, "404", "Not Found"), "red", TRUE),
+      list(row(sprintf("%s/doc/x.html", ru), "403"), "red", TRUE),
+      list(row("https://o.r-universe.dev.x.example/pkg", "403"), "red", TRUE),
+      list(row(br, "403", "Forbidden"), "red", TRUE), # another host stays red
+      list(row("https://x.example/", "403", "Forbidden"), "red", TRUE),
+      list(row(ru, "403", new = "https://x.example/"), "red", TRUE),
+      list(
+        rbind(row(ru, "403"), row(ru, "403")),
+        c("challenged", "red"),
+        c(TRUE, FALSE)
+      )
+    )
+  )
+  api_cases <- list(
+    c(ru, "https://o.r-universe.dev/api/packages/pkg"),
+    c("https://o.r-universe.dev/", "https://o.r-universe.dev/api/packages"),
+    c(
+      "https://o.r-universe.dev/a.b2",
+      "https://o.r-universe.dev/api/packages/a.b2"
+    ),
+    c("http://o.r-universe.dev/pkg", NA),
+    c("https://o.r-universe.dev/pkg/x", NA),
+    c("https://evil.example/o.r-universe.dev/pkg", NA)
+  )
+  for (case in api_cases) {
+    if (!identical(r_universe_api_url(case[[1L]]), case[[2L]])) {
+      stop(
+        sprintf(
+          "URL classifier self-test: r_universe_api_url(%s) gave %s, ",
+          case[[1L]],
+          r_universe_api_url(case[[1L]])
+        ),
+        sprintf("expected %s.", case[[2L]]),
+        call. = FALSE
+      )
+    }
+  }
+  # r_universe_confirms() on a fake fetch, never the network: the page must
+  # carry the challenge and the API must answer 200 without a redirect.
+  fake <- function(u, redirect = TRUE) {
+    if (redirect) {
+      stop("redirect must be FALSE")
+    }
+    challenge <- "cf-mitigated: challenge\r\n"
+    answer <- switch(
+      u,
+      "https://o.r-universe.dev/pkg" = list(403L, challenge),
+      "https://o.r-universe.dev/plain" = list(403L, "server: x\r\n"),
+      "https://o.r-universe.dev/gone" = list(403L, challenge),
+      "https://o.r-universe.dev/moved" = list(403L, challenge),
+      "https://o.r-universe.dev/api/packages/pkg" = list(200L, ""),
+      "https://o.r-universe.dev/api/packages/plain" = list(200L, ""),
+      "https://o.r-universe.dev/api/packages/gone" = list(404L, ""),
+      "https://o.r-universe.dev/api/packages/moved" = list(301L, "")
+    )
+    if (is.null(answer)) {
+      stop("unexpected URL in the fake fetch: ", u, call. = FALSE)
+    }
+    structure(answer[[2L]], status = answer[[1L]])
+  }
+  got <- r_universe_confirms(
+    c(
+      ru,
+      "https://o.r-universe.dev/plain",
+      "https://o.r-universe.dev/gone",
+      "https://o.r-universe.dev/moved",
+      "https://o.r-universe.dev/down",
+      "https://gitlab.com/o/p"
+    ),
+    headers = fake
+  )
+  if (!identical(got, c(TRUE, FALSE, FALSE, FALSE, FALSE, FALSE))) {
+    stop(
+      "URL classifier self-test: r_universe_confirms() gave ",
+      toString(got),
+      ", expected TRUE then five FALSE.",
+      call. = FALSE
+    )
+  }
   for (case in cases) {
-    got <- verify_classify_urls(case[[1L]])
+    confirmed <- if (length(case) > 2L) case[[3L]] else FALSE
+    confirmed <- rep_len(confirmed, nrow(case[[1L]]))
+    got <- verify_classify_urls(case[[1L]], confirmed)
     if (!identical(got, case[[2L]])) {
       stop(
         sprintf(
